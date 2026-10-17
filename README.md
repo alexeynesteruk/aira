@@ -9,6 +9,7 @@ Status: requirements, architecture, and implementation decomposition documented.
 - [Technical requirements document](docs/requirements/technical-requirements.md)
 - [Implementation plan and milestones](docs/implementation-plan.md)
 - [Work breakdown and dependencies](docs/work-breakdown.md)
+- [Feature list and individual specifications](docs/features/README.md)
 - [Architecture and evidence semantics](docs/architecture.md)
 - [Evaluation and release checks](docs/evaluation.md)
 - [AWS service choices and verified constraints](docs/aws.md)
@@ -29,6 +30,9 @@ docs/
     technical-requirements.md System and interface requirements
   implementation-plan.md     Scope, milestones, repository structure, delivery
   work-breakdown.md          Packages, dependencies, and completion evidence
+  features/
+    README.md                Feature index and start order
+    01-*.md ... 18-*.md       Individual requirements, tasks, and acceptance
   architecture.md            Context, components, lifecycle, and evidence logic
   evaluation.md              Acceptance scenarios and release gates
   aws.md                     AWS decisions and current service constraints
@@ -40,4 +44,4 @@ examples/
   guidelines/                Versioned BCBS Florida policy snapshots
 ```
 
-The [planned application structure](docs/implementation-plan.md#planned-repository-structure) will be created with the first implementation changes. Start with WP-01–WP-03 in the [work breakdown](docs/work-breakdown.md), followed by the Bedrock/PDF experiments. Submission requires a working product, a one-line launch command verified on a clean checkout, and a short design note. Code must reach the reviewers one day before the call.
+The [planned application structure](docs/implementation-plan.md#planned-repository-structure) will be created with the first implementation changes. Start with WP-01–WP-03 in the [feature list](docs/features/README.md#start-order), followed by the Bedrock/PDF experiments. Submission requires a working product, a one-line launch command verified on a clean checkout, and a short design note. Code must reach the reviewers one day before the call.

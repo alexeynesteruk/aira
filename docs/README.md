@@ -38,6 +38,7 @@ The supplied chart is a UHC pacemaker request, while the example guideline conce
 | [Technical requirements](requirements/technical-requirements.md) | Testable system requirements, API/error contracts, and BR/TR/acceptance traceability. |
 | [Implementation plan](implementation-plan.md) | Product scope, decisions, M0–M6 milestones, planned folders, reviewer launch, risks, and delivery. |
 | [Work breakdown](work-breakdown.md) | Assignable packages, dependencies, deliverables, owner roles, and completion evidence. |
+| [Feature specifications](features/README.md) | One file per package, with business/technical requirements, implementation tasks, acceptance checks, and source references. |
 | [Architecture](architecture.md) | Context/deployment, component boundaries, runtime diagrams, data model, evidence logic, and storage. |
 | [Evaluation](evaluation.md) | Acceptance scenarios, independent expectations, test layers, metrics, and release blockers. |
 | [AWS research](aws.md) | Verified service constraints, Bedrock configuration, OCR choices, and later hosting path. |
@@ -49,4 +50,4 @@ The Obsidian review informs engineering practices such as versioned prompts, ind
 
 ## Next implementation gate
 
-Start WP-01–WP-03: the minimal project foundation, contract baseline, and annotated cases. Then run the Bedrock and PDF feasibility experiments. These establish the exact model/region, credential onboarding, parser settings, tested input limits, and whether OCR is included. No AWS deployment is needed to perform this work. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.
+Start with the [WP-01 foundation specification](features/01-repository-foundation.md), then WP-02 contracts and WP-03 annotated cases. The [feature index](features/README.md) links each implementation brief. Bedrock and PDF experiments then establish the exact model/region, credential onboarding, parser settings, tested input limits, and whether OCR is included. No AWS deployment is needed to perform this work. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.
