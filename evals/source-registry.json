@@ -1,0 +1,315 @@
+{
+  "schema_version": "0.1.0",
+  "sources": {
+    "venous_policy_v1": {
+      "source_id": "venous_policy_v1",
+      "path": "tests/fixtures/scenarios/venous/policy-v1.md",
+      "sha256": "758404729b52038a5708c90096bdd060e78679a9211b549e77d8dffcbeeade44",
+      "format": "markdown",
+      "role": "policy",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_policy_v2": {
+      "source_id": "venous_policy_v2",
+      "path": "tests/fixtures/scenarios/venous/policy-v2.md",
+      "sha256": "2a7b332ce2132b6a002d826647f33bdf53904b1c12d4cfcf26e2870d8cd67bc2",
+      "format": "markdown",
+      "role": "policy",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_matched": {
+      "source_id": "venous_chart_matched",
+      "path": "tests/fixtures/scenarios/venous/chart-matched.md",
+      "sha256": "52a7fe419f4a5293a732796cfe8367a810dbdb76b7a2eeea8ffb90c79e17acbe",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_missing_diameter": {
+      "source_id": "venous_chart_missing_diameter",
+      "path": "tests/fixtures/scenarios/venous/chart-missing-diameter.md",
+      "sha256": "695b86400e2eb025f854e5588dc3075afff77e8e9947ceb60e03feb1223ae4c2",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_negative_reflux": {
+      "source_id": "venous_chart_negative_reflux",
+      "path": "tests/fixtures/scenarios/venous/chart-negative-reflux.md",
+      "sha256": "0b4b30c28d439b9f171f628efd8c689230868760b4154e8d969779c3b317d199",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_conflicting_diameter": {
+      "source_id": "venous_chart_conflicting_diameter",
+      "path": "tests/fixtures/scenarios/venous/chart-conflicting-diameter.md",
+      "sha256": "1e14f3dce4710670e34863b9359e0d13ef272049ac18be53970b36bf43f5152a",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_ulcer_alternative": {
+      "source_id": "venous_chart_ulcer_alternative",
+      "path": "tests/fixtures/scenarios/venous/chart-ulcer-alternative.md",
+      "sha256": "9a7ec563927f11371fff7a56571f9899428198ebcc936fbd7c4c68e11fee99b1",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_false_and_unknown": {
+      "source_id": "venous_chart_false_and_unknown",
+      "path": "tests/fixtures/scenarios/venous/chart-false-and-unknown.md",
+      "sha256": "cc88c5ca77ac5334d1d5719497e5ef64edbd266eb9f398373183e211f22e6b0e",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_threshold_below": {
+      "source_id": "venous_chart_threshold_below",
+      "path": "tests/fixtures/scenarios/venous/chart-threshold-below.md",
+      "sha256": "856ebc7939b979876028418ed37ecc757fd872c33125c7cd47c7474ac9a62d75",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_threshold_at": {
+      "source_id": "venous_chart_threshold_at",
+      "path": "tests/fixtures/scenarios/venous/chart-threshold-at.md",
+      "sha256": "8a22b152dff9facc02232f8b49531c6b1bceafa1abddfecb09a7fb53d0e58fd4",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_threshold_above": {
+      "source_id": "venous_chart_threshold_above",
+      "path": "tests/fixtures/scenarios/venous/chart-threshold-above.md",
+      "sha256": "d281e89b5cf65c08d5000cf9494fda0ed47e4835b551e74616e989ae5163fe7c",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_unit_missing": {
+      "source_id": "venous_chart_unit_missing",
+      "path": "tests/fixtures/scenarios/venous/chart-unit-missing.md",
+      "sha256": "99f6c9e2099f99a03de59a5f92159ac2c42c71d78296d8b98a1086ee5bbafc7c",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_wrong_side": {
+      "source_id": "venous_chart_wrong_side",
+      "path": "tests/fixtures/scenarios/venous/chart-wrong-side.md",
+      "sha256": "77652a13bf5ec68d07aa1be383a5e196ce8aa32d26d0e18fcc6c4ec817e491ef",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_date_conflict": {
+      "source_id": "venous_chart_date_conflict",
+      "path": "tests/fixtures/scenarios/venous/chart-date-conflict.md",
+      "sha256": "b6ca0a47ae4bb3a8a7324bbbc9c1d06cc3371ac81f3d11ea4c06b8265f12aad4",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_unknown_plan": {
+      "source_id": "venous_chart_unknown_plan",
+      "path": "tests/fixtures/scenarios/venous/chart-unknown-plan.md",
+      "sha256": "2b55548d54b55a53975b00a4182dca68405e48466abc5d695b503b5b1c922031",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "venous_chart_embedded_instruction": {
+      "source_id": "venous_chart_embedded_instruction",
+      "path": "tests/fixtures/scenarios/venous/chart-embedded-instruction.md",
+      "sha256": "c5faf459a94882b4ff1eb9abf9c230fbe96172b5be30b011f360cd8943e510e3",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1,
+        2
+      ],
+      "pdf_rendering_verified": false
+    },
+    "monitor_policy": {
+      "source_id": "monitor_policy",
+      "path": "tests/fixtures/scenarios/monitoring/policy.md",
+      "sha256": "93c0c8ddd402359af8d54fa68c57bdaf74fd1ea6560a3cb4d535c12e6c93d13d",
+      "format": "markdown",
+      "role": "policy",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1
+      ],
+      "pdf_rendering_verified": false
+    },
+    "monitor_chart": {
+      "source_id": "monitor_chart",
+      "path": "tests/fixtures/scenarios/monitoring/chart.md",
+      "sha256": "f5b347786e48d391f40d10b47ebfb34660f78257cd1f592a4aec7d47131fe7c8",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "development",
+      "logical_pages": [
+        1
+      ],
+      "pdf_rendering_verified": false
+    },
+    "held_policy": {
+      "source_id": "held_policy",
+      "path": "tests/fixtures/scenarios/held-out/policy.md",
+      "sha256": "5200206aafe5df6ac5319affac1ba4fcae5c4df165ae5616263ea83a146ef3ed",
+      "format": "markdown",
+      "role": "policy",
+      "origin": "authored_fictional",
+      "split": "reserved",
+      "logical_pages": [
+        1
+      ],
+      "pdf_rendering_verified": false
+    },
+    "held_chart": {
+      "source_id": "held_chart",
+      "path": "tests/fixtures/scenarios/held-out/chart.md",
+      "sha256": "10773603294735659737ef71524e970207c80b271993b2ac828ddf72758efa1e",
+      "format": "markdown",
+      "role": "chart",
+      "origin": "authored_fictional",
+      "split": "reserved",
+      "logical_pages": [
+        1
+      ],
+      "pdf_rendering_verified": false
+    },
+    "supplied_chart": {
+      "source_id": "supplied_chart",
+      "path": "examples/charts/robert_mitchell_chart_final.pdf",
+      "sha256": "9bcc9078f7b09ba49f04448bed8a0511b5c33dc07b4ae868beade0f345c5d845",
+      "format": "pdf",
+      "role": "chart",
+      "origin": "supplied_fictional_chart",
+      "split": "development",
+      "page_count": 7,
+      "review_reference": "docs/exploration.md",
+      "pdf_rendering_verified": false
+    },
+    "bcbs_2025": {
+      "source_id": "bcbs_2025",
+      "path": "examples/guidelines/bcbs_fl_02-33000-31_2025-08-15.pdf",
+      "sha256": "f8235916bb52540dfe3a8d330ddb6426a76cb825997dc4c3d92ba131b0b4ffe4",
+      "format": "pdf",
+      "role": "policy",
+      "origin": "public_policy_snapshot",
+      "split": "development",
+      "page_count": 14,
+      "review_reference": "docs/exploration.md",
+      "pdf_rendering_verified": false
+    },
+    "bcbs_2026": {
+      "source_id": "bcbs_2026",
+      "path": "examples/guidelines/bcbs_fl_02-33000-31_2026-01-01.pdf",
+      "sha256": "9c5e1989cf9cfdf45ae9826e896a342a520506ca6a59f7daaa89c04c8fd1ca0f",
+      "format": "pdf",
+      "role": "policy",
+      "origin": "public_policy_snapshot",
+      "split": "development",
+      "page_count": 14,
+      "review_reference": "docs/exploration.md",
+      "pdf_rendering_verified": false
+    }
+  }
+}

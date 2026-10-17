@@ -1,0 +1,30 @@
+{
+  "schema_version": "0.1.0",
+  "split": "reserved",
+  "execution_status": "not_run",
+  "reservation_note": "Excluded from tuning and default live runs. Authored alongside the corpus and not claimed blind. Source consistency was independently reviewed; clinical validation and live evaluation were not performed. Replace if used during tuning; PDF rendering and independent release review remain open.",
+  "cases": [
+    {
+      "case_id": "reserved_monitor_boundary",
+      "scenario_ids": [
+        "A11",
+        "A19"
+      ],
+      "policy_source_id": "held_policy",
+      "chart_source_id": "held_chart",
+      "policy_expectation_id": "held_policy",
+      "expected_id": "reserved_monitor_boundary",
+      "request": {
+        "procedure": "outpatient ambulatory ECG recording",
+        "anatomical_target": null,
+        "laterality": null,
+        "payer": "Fixture Health Plan",
+        "plan": "Reserved Monitoring",
+        "service_date": "2026-10-29",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "reserved_text_assessment",
+      "annotations": []
+    }
+  ]
+}

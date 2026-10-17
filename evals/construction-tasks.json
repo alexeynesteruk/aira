@@ -1,0 +1,213 @@
+{
+  "schema_version": "0.1.0",
+  "tasks": [
+    {
+      "task_id": "FT-01",
+      "scenario_ids": [
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A08",
+        "A09",
+        "A11",
+        "A12",
+        "A19"
+      ],
+      "owner_packages": [
+        "WP-03",
+        "WP-04"
+      ],
+      "status": "open",
+      "artifact_required": "Render the authored Markdown policy/chart pairs to native-text PDFs with the approved pdf-tools workflow; retain logical-to-PDF-page mapping and reviewed extraction snapshots.",
+      "acceptance": "Reinspect PDFs and compare every annotated excerpt, label, date, unit, and page association. Markdown logical pages are not accepted as proof of PDF layout."
+    },
+    {
+      "task_id": "FT-02",
+      "scenario_ids": [
+        "A05",
+        "A10"
+      ],
+      "owner_packages": [
+        "WP-04"
+      ],
+      "status": "open",
+      "artifact_required": "Parser snapshots for the supplied chart and both hash-pinned BCBS policy versions.",
+      "acceptance": "Inspect chart pages 5-7 for the impossible timeline; inspect changed coding content and unchanged clinical pages across policy versions. Do not infer effective date from revision date or assess the mismatched pair clinically."
+    },
+    {
+      "task_id": "FT-03",
+      "scenario_ids": [
+        "A07",
+        "A20"
+      ],
+      "owner_packages": [
+        "WP-10"
+      ],
+      "status": "open",
+      "artifact_required": "Canonical rule-graph counterexamples: every three-valued binary combination, cycles, duplicate IDs, disconnected nodes, and a structurally valid tree missing a governing condition.",
+      "acceptance": "Known incomplete coverage blocks satisfaction independently of tree value. Compare complete expected criteria/edges against omissions without modifying expected annotations."
+    },
+    {
+      "task_id": "FT-04",
+      "scenario_ids": [
+        "A08"
+      ],
+      "owner_packages": [
+        "WP-03",
+        "WP-10"
+      ],
+      "status": "open",
+      "artifact_required": "Duration/recency fixtures below, at, and above the boundary; incompatible units; awake versus sleeping evidence; explicitly ambiguous calendar-month arithmetic.",
+      "acceptance": "Only defined units/time semantics execute. Undefined calendar conversions or observation context produce review rather than guessed values."
+    },
+    {
+      "task_id": "FT-05",
+      "scenario_ids": [
+        "A13"
+      ],
+      "owner_packages": [
+        "WP-04",
+        "WP-15"
+      ],
+      "status": "open",
+      "artifact_required": "Reviewed two-column/table PDFs with row-label traps and a section spanning pages.",
+      "acceptance": "Rendered-page review confirms that the actual parser preserves labels/values and cross-page provenance. Plain Markdown formatting cannot satisfy this check."
+    },
+    {
+      "task_id": "FT-06",
+      "scenario_ids": [
+        "A14"
+      ],
+      "owner_packages": [
+        "WP-04",
+        "WP-15"
+      ],
+      "status": "open",
+      "artifact_required": "Full-scan, mixed text/image, malformed, encrypted, blank-page, byte-limit and page-limit PDF variants created with approved tooling where applicable.",
+      "acceptance": "Every page is accounted for. Verify OCR or explicit scan rejection; failed and over-limit pages cannot be silently omitted. Record tool configuration and immutable hashes."
+    },
+    {
+      "task_id": "FT-07",
+      "scenario_ids": [
+        "A15"
+      ],
+      "owner_packages": [
+        "WP-10"
+      ],
+      "status": "open",
+      "artifact_required": "Runtime SourceSpan/provider-output counterexamples with wrong page, wrong document, invented quote, and a real irrelevant quotation.",
+      "acceptance": "Mechanical errors fail provenance validation; semantic irrelevance is caught by source-reviewed expectations. Keep intentional invalid outputs separate from ground-truth files."
+    },
+    {
+      "task_id": "FT-08",
+      "scenario_ids": [
+        "A16"
+      ],
+      "owner_packages": [
+        "WP-05",
+        "WP-11"
+      ],
+      "status": "open",
+      "artifact_required": "Recorded/synthetic failures for the selected provider transport: denied or expired access, throttling, timeout, refusal, truncated response, invalid schema, and repair exhaustion.",
+      "acceptance": "Attempts and deadlines stay bounded. Failure is operational, never a missing clinical fact. Fixtures prove adapter behavior, not live access or model quality."
+    },
+    {
+      "task_id": "FT-09",
+      "scenario_ids": [
+        "A09",
+        "A16",
+        "A17"
+      ],
+      "owner_packages": [
+        "WP-06",
+        "WP-11"
+      ],
+      "status": "open",
+      "artifact_required": "Persistence fault tests for restart, incomplete artifact publication, duplicate uploads, changed parser/prompt/model/request and conflicting metadata annotation.",
+      "acceptance": "Old runs/diagnostics remain unchanged; only compatible completed artifacts are reused. Clinical status cannot be overwritten manually; metadata conflict resolution retains its origin and reason."
+    },
+    {
+      "task_id": "FT-10",
+      "scenario_ids": [
+        "A01",
+        "A12",
+        "A19"
+      ],
+      "owner_packages": [
+        "WP-12",
+        "WP-13",
+        "WP-14",
+        "WP-16"
+      ],
+      "status": "open",
+      "artifact_required": "Saved browser journeys for mismatch, ambiguous request/plan, linked clarification, source navigation, and JSON/Markdown export parity.",
+      "acceptance": "Run against the actual API. Stop mismatch before necessity work, keep scope annotations separate, and compare downloads with stored results."
+    },
+    {
+      "task_id": "FT-11",
+      "scenario_ids": [
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A08",
+        "A09",
+        "A11",
+        "A12",
+        "A15",
+        "A18",
+        "A20"
+      ],
+      "owner_packages": [
+        "WP-16"
+      ],
+      "status": "open",
+      "artifact_required": "Independent annotation review plus tagged live semantic runs against the selected provider configuration.",
+      "acceptance": "Record reviewer decisions, prompt/model/input versions, every repeated-trial outcome, failures, latency and usage. The corpus has no live quality score before these runs."
+    },
+    {
+      "task_id": "FT-12",
+      "scenario_ids": [
+        "A11",
+        "A19"
+      ],
+      "owner_packages": [
+        "WP-18"
+      ],
+      "status": "open",
+      "artifact_required": "Release-curated held-out PDF pair and fresh-checkout live run with sources and export inspection.",
+      "acceptance": "Exclude from tuning; replace the reserved pair if its answers inform implementation. Record the actual launch, credentials path and results. The reserved Markdown pair alone is not release evidence."
+    },
+    {
+      "task_id": "FT-13",
+      "scenario_ids": [
+        "A18"
+      ],
+      "owner_packages": [
+        "WP-03",
+        "WP-16"
+      ],
+      "status": "open",
+      "artifact_required": "Controlled long-chart variants putting decisive evidence at beginning/middle/end among distractors, plus explicit input/token-limit cases.",
+      "acceptance": "Compare evidence recall at each position and verify that embedded instructions and budget exhaustion cannot alter policy rules or cause silent truncation."
+    },
+    {
+      "task_id": "FT-14",
+      "scenario_ids": [
+        "A12",
+        "A17"
+      ],
+      "owner_packages": [
+        "WP-03",
+        "WP-07",
+        "WP-11"
+      ],
+      "status": "open",
+      "artifact_required": "Multiple-procedure and conflicting-metadata annotation cases with selected value, reason, and parent-run linkage.",
+      "acceptance": "No automatic top-one choice, policy substitution, silent conflict erasure, or annotation-created chart evidence. The existing unknown-plan and wrong-side text cases cover only part of this scenario."
+    }
+  ]
+}

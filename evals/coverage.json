@@ -1,0 +1,288 @@
+{
+  "schema_version": "0.1.0",
+  "scenarios": [
+    {
+      "scenario_id": "A01",
+      "development_case_ids": [
+        "supplied_pair_mismatch"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-10"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A02",
+      "development_case_ids": [
+        "venous_matched"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A03",
+      "development_case_ids": [
+        "venous_missing_diameter"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A04",
+      "development_case_ids": [
+        "venous_negative_reflux"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A05",
+      "development_case_ids": [
+        "venous_conflicting_diameter",
+        "venous_date_conflict"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-02",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A06",
+      "development_case_ids": [
+        "venous_matched",
+        "venous_ulcer_alternative"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A07",
+      "development_case_ids": [
+        "venous_ulcer_alternative",
+        "venous_false_and_unknown"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-03"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A08",
+      "development_case_ids": [
+        "venous_threshold_below",
+        "venous_threshold_at",
+        "venous_threshold_above",
+        "venous_unit_missing"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-04",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A09",
+      "development_case_ids": [
+        "venous_rule_changed"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-09",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A10",
+      "development_case_ids": [],
+      "reserved_case_ids": [],
+      "additional_source_ids": [
+        "bcbs_2025",
+        "bcbs_2026"
+      ],
+      "construction_task_ids": [
+        "FT-02"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A11",
+      "development_case_ids": [
+        "monitor_matched"
+      ],
+      "reserved_case_ids": [
+        "reserved_monitor_boundary"
+      ],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-11",
+        "FT-12"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A12",
+      "development_case_ids": [
+        "venous_wrong_side",
+        "venous_date_conflict",
+        "venous_unknown_plan"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-10",
+        "FT-11",
+        "FT-14"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A13",
+      "development_case_ids": [],
+      "reserved_case_ids": [],
+      "additional_source_ids": [
+        "supplied_chart"
+      ],
+      "construction_task_ids": [
+        "FT-05"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A14",
+      "development_case_ids": [],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-06"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "construction_task_only"
+    },
+    {
+      "scenario_id": "A15",
+      "development_case_ids": [],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-07",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "construction_task_only"
+    },
+    {
+      "scenario_id": "A16",
+      "development_case_ids": [],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-08",
+        "FT-09"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "construction_task_only"
+    },
+    {
+      "scenario_id": "A17",
+      "development_case_ids": [],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-09",
+        "FT-14"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "construction_task_only"
+    },
+    {
+      "scenario_id": "A18",
+      "development_case_ids": [
+        "venous_embedded_instruction"
+      ],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-11",
+        "FT-13"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A19",
+      "development_case_ids": [],
+      "reserved_case_ids": [
+        "reserved_monitor_boundary"
+      ],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-01",
+        "FT-10",
+        "FT-12"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "annotated_inputs_and_open_work"
+    },
+    {
+      "scenario_id": "A20",
+      "development_case_ids": [],
+      "reserved_case_ids": [],
+      "additional_source_ids": [],
+      "construction_task_ids": [
+        "FT-03",
+        "FT-11"
+      ],
+      "execution_status": "not_run",
+      "coverage_kind": "construction_task_only"
+    }
+  ]
+}

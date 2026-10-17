@@ -1,0 +1,190 @@
+{
+  "schema_version": "0.1.0",
+  "annotation_provenance": {
+    "method": "explicit_source_annotation_not_application_or_model_run_output",
+    "author": "Codex fixture author",
+    "authored_on": "2026-10-18",
+    "independent_review": "source_consistency_complete",
+    "clinical_validation": "not_performed",
+    "live_model_evaluation": "not_performed",
+    "reviewer": "Codex assessment reviewer",
+    "reviewed_on": "2026-10-18",
+    "review_reference": "docs/reviews/wp03-fixtures.md"
+  },
+  "policies": {
+    "held_policy": {
+      "source_id": "held_policy",
+      "policy_id": "held_policy",
+      "root_id": "root",
+      "criteria": [
+        {
+          "criterion_id": "palpitations",
+          "wording": "Intermittent palpitations must be explicitly documented.",
+          "sources": [
+            {
+              "source_id": "held_policy",
+              "page": 1,
+              "excerpt": "Intermittent palpitations must be explicitly documented."
+            }
+          ]
+        },
+        {
+          "criterion_id": "duration",
+          "wording": "The requested recording duration must be from 12 through 96 hours inclusive.",
+          "sources": [
+            {
+              "source_id": "held_policy",
+              "page": 1,
+              "excerpt": "The requested recording duration must be from 12 through 96 hours inclusive."
+            }
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "root",
+          "kind": "all",
+          "children": [
+            "palpitations_node",
+            "duration_node"
+          ]
+        },
+        {
+          "node_id": "palpitations_node",
+          "kind": "criterion",
+          "criterion_id": "palpitations"
+        },
+        {
+          "node_id": "duration_node",
+          "kind": "criterion",
+          "criterion_id": "duration"
+        }
+      ],
+      "connective_sources": [
+        {
+          "source_id": "held_policy",
+          "page": 1,
+          "excerpt": "Both conditions are required: documented intermittent palpitations and a requested recording duration from 12 through 96 hours inclusive."
+        }
+      ],
+      "governing_context": [],
+      "issues": [],
+      "title": "Reserved fictional monitoring policy H1",
+      "identifier": "FIX-MONITOR-HELD-001",
+      "revision_date": "2026-10-03",
+      "effective_from": "2026-10-03",
+      "effective_to": null,
+      "scope_summary": "Fixture Health Plan, Reserved Monitoring; requested outpatient ambulatory ECG recording, effective from 2026-10-03.",
+      "sections": [
+        {
+          "section_id": "scope",
+          "heading": "Identity, effective date, payer, plan, and procedure scope",
+          "disposition": "context",
+          "criterion_ids": [],
+          "explanation": "This is a distinct reserved policy with an explicit plan and effective start.",
+          "sources": [
+            {
+              "source_id": "held_policy",
+              "page": 1,
+              "excerpt": "Policy identifier: FIX-MONITOR-HELD-001.\nRevision date: 2026-10-03. Effective from: 2026-10-03.\nPayer: Fixture Health Plan. Plan: Reserved Monitoring.\nThis policy applies to a requested outpatient ambulatory ECG recording."
+            }
+          ]
+        },
+        {
+          "section_id": "requirements",
+          "heading": "Both required monitoring conditions",
+          "disposition": "requirements",
+          "criterion_ids": [
+            "palpitations",
+            "duration"
+          ],
+          "explanation": "Both requirements apply, including the inclusive upper duration boundary.",
+          "sources": [
+            {
+              "source_id": "held_policy",
+              "page": 1,
+              "excerpt": "Both conditions are required: documented intermittent palpitations and a requested recording duration from 12 through 96 hours inclusive.\nIntermittent palpitations must be explicitly documented.\nThe requested recording duration must be from 12 through 96 hours inclusive."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cases": {
+    "reserved_monitor_boundary": {
+      "applicability": {
+        "status": "applicable",
+        "rationale": "The reserved fictional plan and requested procedure match.",
+        "sources": [
+          {
+            "source_id": "held_policy",
+            "page": 1,
+            "excerpt": "Payer: Fixture Health Plan. Plan: Reserved Monitoring."
+          },
+          {
+            "source_id": "held_chart",
+            "page": 1,
+            "excerpt": "Payer: Fixture Health Plan. Plan: Reserved Monitoring."
+          },
+          {
+            "source_id": "held_policy",
+            "page": 1,
+            "excerpt": "This policy applies to a requested outpatient ambulatory ECG recording."
+          },
+          {
+            "source_id": "held_policy",
+            "page": 1,
+            "excerpt": "Revision date: 2026-10-03. Effective from: 2026-10-03."
+          },
+          {
+            "source_id": "held_chart",
+            "page": 1,
+            "excerpt": "Requested procedure: outpatient ambulatory ECG recording."
+          },
+          {
+            "source_id": "held_chart",
+            "page": 1,
+            "excerpt": "Proposed service date: 2026-10-29. Assessment cutoff: 2026-10-18."
+          }
+        ]
+      },
+      "findings": [
+        {
+          "criterion_id": "palpitations",
+          "status": "met",
+          "rationale": "Intermittent palpitations are explicitly documented.",
+          "evidence": [
+            {
+              "source": {
+                "source_id": "held_chart",
+                "page": 1,
+                "excerpt": "A note dated 2026-10-15 explicitly documents intermittent palpitations."
+              },
+              "relation": "supporting"
+            }
+          ],
+          "unresolved_reasons": []
+        },
+        {
+          "criterion_id": "duration",
+          "status": "met",
+          "rationale": "96 hours is exactly the inclusive upper boundary in this fictional policy.",
+          "evidence": [
+            {
+              "source": {
+                "source_id": "held_chart",
+                "page": 1,
+                "excerpt": "The requested recording duration is 96 hours."
+              },
+              "relation": "supporting"
+            }
+          ],
+          "unresolved_reasons": []
+        }
+      ],
+      "logical_value": "true",
+      "outcome": "documented_requirements_satisfied",
+      "issues": []
+    }
+  }
+}

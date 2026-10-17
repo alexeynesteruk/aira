@@ -1,0 +1,605 @@
+{
+  "schema_version": "0.1.0",
+  "annotation_provenance": {
+    "method": "explicit_source_annotation_not_application_or_model_run_output",
+    "author": "Codex fixture author",
+    "authored_on": "2026-10-18",
+    "independent_review": "source_consistency_complete",
+    "clinical_validation": "not_performed",
+    "live_model_evaluation": "not_performed",
+    "reviewer": "Codex assessment reviewer",
+    "reviewed_on": "2026-10-18",
+    "review_reference": "docs/reviews/wp03-fixtures.md"
+  },
+  "policies": {
+    "venous_policy_v1": {
+      "source_id": "venous_policy_v1",
+      "policy_id": "venous_policy_v1",
+      "root_id": "root",
+      "criteria": [
+        {
+          "criterion_id": "reflux",
+          "wording": "Demonstrated reflux: imaging documents reflux in the selected great saphenous vein.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Demonstrated reflux: imaging documents reflux in the selected great saphenous vein."
+            }
+          ]
+        },
+        {
+          "criterion_id": "diameter",
+          "wording": "Qualifying vein diameter: the selected vein diameter is at least 3.0 mm.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Qualifying vein diameter: the selected vein diameter is at least 3.0 mm."
+            }
+          ]
+        },
+        {
+          "criterion_id": "ulcer",
+          "wording": "Active ulcer: an active ulcer is documented on the selected leg.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Active ulcer: an active ulcer is documented on the selected leg."
+            }
+          ]
+        },
+        {
+          "criterion_id": "pain",
+          "wording": "Persistent pain: pain in the selected leg persists at the time of the request.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Persistent pain: pain in the selected leg persists at the time of the request."
+            }
+          ]
+        },
+        {
+          "criterion_id": "daily_tasks",
+          "wording": "Daily-task interference: the selected-leg symptoms interfere with routine daily tasks.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Daily-task interference: the selected-leg symptoms interfere with routine daily tasks."
+            }
+          ]
+        },
+        {
+          "criterion_id": "compression",
+          "wording": "Failed compression: at least 90 consecutive days of compression have been completed and selected-leg pain persists.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Failed compression: at least 90 consecutive days of compression have been completed and selected-leg pain persists."
+            }
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "root",
+          "kind": "all",
+          "children": [
+            "reflux_node",
+            "diameter_node",
+            "indication"
+          ]
+        },
+        {
+          "node_id": "indication",
+          "kind": "any",
+          "children": [
+            "ulcer_node",
+            "symptom_branch"
+          ]
+        },
+        {
+          "node_id": "symptom_branch",
+          "kind": "all",
+          "children": [
+            "pain_node",
+            "daily_tasks_node",
+            "compression_node"
+          ]
+        },
+        {
+          "node_id": "reflux_node",
+          "kind": "criterion",
+          "criterion_id": "reflux"
+        },
+        {
+          "node_id": "diameter_node",
+          "kind": "criterion",
+          "criterion_id": "diameter"
+        },
+        {
+          "node_id": "ulcer_node",
+          "kind": "criterion",
+          "criterion_id": "ulcer"
+        },
+        {
+          "node_id": "pain_node",
+          "kind": "criterion",
+          "criterion_id": "pain"
+        },
+        {
+          "node_id": "daily_tasks_node",
+          "kind": "criterion",
+          "criterion_id": "daily_tasks"
+        },
+        {
+          "node_id": "compression_node",
+          "kind": "criterion",
+          "criterion_id": "compression"
+        }
+      ],
+      "connective_sources": [
+        {
+          "source_id": "venous_policy_v1",
+          "page": 1,
+          "excerpt": "The following requirements all apply: demonstrated reflux, qualifying vein diameter, and one qualifying indication."
+        },
+        {
+          "source_id": "venous_policy_v1",
+          "page": 1,
+          "excerpt": "One qualifying indication means either an active ulcer at the selected target OR the persistent-symptom branch below."
+        },
+        {
+          "source_id": "venous_policy_v1",
+          "page": 1,
+          "excerpt": "The persistent-symptom branch requires all three: persistent pain, interference with routine daily tasks, and failed compression."
+        }
+      ],
+      "governing_context": [
+        {
+          "source_id": "venous_policy_v1",
+          "page": 1,
+          "excerpt": "Evidence must concern the selected anatomical target and be available on or before the assessment cutoff."
+        }
+      ],
+      "numeric_boundaries": {
+        "diameter": {
+          "operator": "gte",
+          "value": "3.0",
+          "unit": "mm"
+        },
+        "compression": {
+          "operator": "gte",
+          "value": "90",
+          "unit": "consecutive_days"
+        }
+      },
+      "issues": [],
+      "title": "Fictional venous procedure policy V1",
+      "identifier": "FIX-VENOUS-001",
+      "revision_date": "2026-10-01",
+      "effective_from": "2026-10-01",
+      "effective_to": null,
+      "scope_summary": "Fixture Health Plan, Test Vascular; endovenous ablation of a selected great saphenous vein, effective from 2026-10-01. Evidence must concern that target and be available by the assessment cutoff.",
+      "sections": [
+        {
+          "section_id": "scope",
+          "heading": "Identity, effective date, payer, plan, and procedure scope",
+          "disposition": "context",
+          "criterion_ids": [],
+          "explanation": "These statements gate applicability and identify this exact fictional policy revision.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Policy identifier: FIX-VENOUS-001.\nRevision date: 2026-10-01. Effective from: 2026-10-01.\nPayer: Fixture Health Plan. Plan: Test Vascular.\nThis policy applies to endovenous ablation of a selected great saphenous vein."
+            }
+          ]
+        },
+        {
+          "section_id": "all_requirements_and_alternatives",
+          "heading": "Mandatory requirements and alternative indications",
+          "disposition": "requirements",
+          "criterion_ids": [
+            "reflux",
+            "diameter",
+            "ulcer",
+            "pain",
+            "daily_tasks",
+            "compression"
+          ],
+          "explanation": "Reflux and diameter are mandatory. The ulcer alternative does not require the three-condition symptom branch or compression.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "The following requirements all apply: demonstrated reflux, qualifying vein diameter, and one qualifying indication.\nDemonstrated reflux: imaging documents reflux in the selected great saphenous vein.\nQualifying vein diameter: the selected vein diameter is at least 3.0 mm.\nOne qualifying indication means either an active ulcer at the selected target OR the persistent-symptom branch below.\nActive ulcer: an active ulcer is documented on the selected leg.\nThe persistent-symptom branch requires all three: persistent pain, interference with routine daily tasks, and failed compression.\nPersistent pain: pain in the selected leg persists at the time of the request.\nDaily-task interference: the selected-leg symptoms interfere with routine daily tasks.\nFailed compression: at least 90 consecutive days of compression have been completed and selected-leg pain persists.\nCompression is not required by the active-ulcer alternative."
+            }
+          ]
+        },
+        {
+          "section_id": "evidence_context",
+          "heading": "Evidence target, cutoff, and provenance constraints",
+          "disposition": "context",
+          "criterion_ids": [
+            "reflux",
+            "diameter",
+            "ulcer",
+            "pain",
+            "daily_tasks",
+            "compression"
+          ],
+          "explanation": "Wrong-target or unavailable evidence cannot establish a requirement; a summary must retain its provenance instead of becoming invented underlying data.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "Evidence must concern the selected anatomical target and be available on or before the assessment cutoff."
+            },
+            {
+              "source_id": "venous_policy_v1",
+              "page": 1,
+              "excerpt": "A summary assertion is evidence of what its author documented, not invented underlying measurements."
+            }
+          ]
+        }
+      ]
+    },
+    "venous_policy_v2": {
+      "source_id": "venous_policy_v2",
+      "policy_id": "venous_policy_v2",
+      "root_id": "root",
+      "criteria": [
+        {
+          "criterion_id": "reflux",
+          "wording": "Demonstrated reflux: imaging documents reflux in the selected great saphenous vein.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Demonstrated reflux: imaging documents reflux in the selected great saphenous vein."
+            }
+          ]
+        },
+        {
+          "criterion_id": "diameter",
+          "wording": "Qualifying vein diameter: the selected vein diameter is at least 4.0 mm.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Qualifying vein diameter: the selected vein diameter is at least 4.0 mm."
+            }
+          ]
+        },
+        {
+          "criterion_id": "ulcer",
+          "wording": "Active ulcer: an active ulcer is documented on the selected leg.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Active ulcer: an active ulcer is documented on the selected leg."
+            }
+          ]
+        },
+        {
+          "criterion_id": "pain",
+          "wording": "Persistent pain: pain in the selected leg persists at the time of the request.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Persistent pain: pain in the selected leg persists at the time of the request."
+            }
+          ]
+        },
+        {
+          "criterion_id": "daily_tasks",
+          "wording": "Daily-task interference: the selected-leg symptoms interfere with routine daily tasks.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Daily-task interference: the selected-leg symptoms interfere with routine daily tasks."
+            }
+          ]
+        },
+        {
+          "criterion_id": "compression",
+          "wording": "Failed compression: at least 90 consecutive days of compression have been completed and selected-leg pain persists.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Failed compression: at least 90 consecutive days of compression have been completed and selected-leg pain persists."
+            }
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "root",
+          "kind": "all",
+          "children": [
+            "reflux_node",
+            "diameter_node",
+            "indication"
+          ]
+        },
+        {
+          "node_id": "indication",
+          "kind": "any",
+          "children": [
+            "ulcer_node",
+            "symptom_branch"
+          ]
+        },
+        {
+          "node_id": "symptom_branch",
+          "kind": "all",
+          "children": [
+            "pain_node",
+            "daily_tasks_node",
+            "compression_node"
+          ]
+        },
+        {
+          "node_id": "reflux_node",
+          "kind": "criterion",
+          "criterion_id": "reflux"
+        },
+        {
+          "node_id": "diameter_node",
+          "kind": "criterion",
+          "criterion_id": "diameter"
+        },
+        {
+          "node_id": "ulcer_node",
+          "kind": "criterion",
+          "criterion_id": "ulcer"
+        },
+        {
+          "node_id": "pain_node",
+          "kind": "criterion",
+          "criterion_id": "pain"
+        },
+        {
+          "node_id": "daily_tasks_node",
+          "kind": "criterion",
+          "criterion_id": "daily_tasks"
+        },
+        {
+          "node_id": "compression_node",
+          "kind": "criterion",
+          "criterion_id": "compression"
+        }
+      ],
+      "connective_sources": [
+        {
+          "source_id": "venous_policy_v2",
+          "page": 1,
+          "excerpt": "The following requirements all apply: demonstrated reflux, qualifying vein diameter, and one qualifying indication."
+        },
+        {
+          "source_id": "venous_policy_v2",
+          "page": 1,
+          "excerpt": "One qualifying indication means either an active ulcer at the selected target OR the persistent-symptom branch below."
+        },
+        {
+          "source_id": "venous_policy_v2",
+          "page": 1,
+          "excerpt": "The persistent-symptom branch requires all three: persistent pain, interference with routine daily tasks, and failed compression."
+        }
+      ],
+      "governing_context": [
+        {
+          "source_id": "venous_policy_v2",
+          "page": 1,
+          "excerpt": "Evidence must concern the selected anatomical target and be available on or before the assessment cutoff."
+        }
+      ],
+      "numeric_boundaries": {
+        "diameter": {
+          "operator": "gte",
+          "value": "4.0",
+          "unit": "mm"
+        },
+        "compression": {
+          "operator": "gte",
+          "value": "90",
+          "unit": "consecutive_days"
+        }
+      },
+      "issues": [],
+      "title": "Fictional venous procedure policy V2",
+      "identifier": "FIX-VENOUS-001",
+      "revision_date": "2026-10-02",
+      "effective_from": "2026-10-01",
+      "effective_to": null,
+      "scope_summary": "Fixture Health Plan, Test Vascular; endovenous ablation of a selected great saphenous vein, effective from 2026-10-01. Evidence must concern that target and be available by the assessment cutoff.",
+      "sections": [
+        {
+          "section_id": "scope",
+          "heading": "Identity, effective date, payer, plan, and procedure scope",
+          "disposition": "context",
+          "criterion_ids": [],
+          "explanation": "These statements gate applicability and identify this exact fictional policy revision.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Policy identifier: FIX-VENOUS-001.\nRevision date: 2026-10-02. Effective from: 2026-10-01.\nPayer: Fixture Health Plan. Plan: Test Vascular.\nThis policy applies to endovenous ablation of a selected great saphenous vein."
+            }
+          ]
+        },
+        {
+          "section_id": "all_requirements_and_alternatives",
+          "heading": "Mandatory requirements and alternative indications",
+          "disposition": "requirements",
+          "criterion_ids": [
+            "reflux",
+            "diameter",
+            "ulcer",
+            "pain",
+            "daily_tasks",
+            "compression"
+          ],
+          "explanation": "Reflux and diameter are mandatory. The ulcer alternative does not require the three-condition symptom branch or compression.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "The following requirements all apply: demonstrated reflux, qualifying vein diameter, and one qualifying indication.\nDemonstrated reflux: imaging documents reflux in the selected great saphenous vein.\nQualifying vein diameter: the selected vein diameter is at least 4.0 mm.\nOne qualifying indication means either an active ulcer at the selected target OR the persistent-symptom branch below.\nActive ulcer: an active ulcer is documented on the selected leg.\nThe persistent-symptom branch requires all three: persistent pain, interference with routine daily tasks, and failed compression.\nPersistent pain: pain in the selected leg persists at the time of the request.\nDaily-task interference: the selected-leg symptoms interfere with routine daily tasks.\nFailed compression: at least 90 consecutive days of compression have been completed and selected-leg pain persists.\nCompression is not required by the active-ulcer alternative."
+            }
+          ]
+        },
+        {
+          "section_id": "evidence_context",
+          "heading": "Evidence target, cutoff, and provenance constraints",
+          "disposition": "context",
+          "criterion_ids": [
+            "reflux",
+            "diameter",
+            "ulcer",
+            "pain",
+            "daily_tasks",
+            "compression"
+          ],
+          "explanation": "Wrong-target or unavailable evidence cannot establish a requirement; a summary must retain its provenance instead of becoming invented underlying data.",
+          "sources": [
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "Evidence must concern the selected anatomical target and be available on or before the assessment cutoff."
+            },
+            {
+              "source_id": "venous_policy_v2",
+              "page": 1,
+              "excerpt": "A summary assertion is evidence of what its author documented, not invented underlying measurements."
+            }
+          ]
+        }
+      ]
+    },
+    "monitor_policy": {
+      "source_id": "monitor_policy",
+      "policy_id": "monitor_policy",
+      "root_id": "root",
+      "criteria": [
+        {
+          "criterion_id": "palpitations",
+          "wording": "Episodic palpitations must be explicitly documented.",
+          "sources": [
+            {
+              "source_id": "monitor_policy",
+              "page": 1,
+              "excerpt": "Episodic palpitations must be explicitly documented."
+            }
+          ]
+        },
+        {
+          "criterion_id": "duration",
+          "wording": "The requested recording duration must be from 24 through 72 hours inclusive.",
+          "sources": [
+            {
+              "source_id": "monitor_policy",
+              "page": 1,
+              "excerpt": "The requested recording duration must be from 24 through 72 hours inclusive."
+            }
+          ]
+        },
+        {
+          "criterion_id": "no_previous_capture",
+          "wording": "No previous diagnostic tracing may have captured the documented episodes.",
+          "sources": [
+            {
+              "source_id": "monitor_policy",
+              "page": 1,
+              "excerpt": "No previous diagnostic tracing may have captured the documented episodes."
+            }
+          ]
+        }
+      ],
+      "nodes": [
+        {
+          "node_id": "root",
+          "kind": "all",
+          "children": [
+            "palpitations_node",
+            "duration_node",
+            "no_previous_capture_node"
+          ]
+        },
+        {
+          "node_id": "palpitations_node",
+          "kind": "criterion",
+          "criterion_id": "palpitations"
+        },
+        {
+          "node_id": "duration_node",
+          "kind": "criterion",
+          "criterion_id": "duration"
+        },
+        {
+          "node_id": "no_previous_capture_node",
+          "kind": "criterion",
+          "criterion_id": "no_previous_capture"
+        }
+      ],
+      "connective_sources": [
+        {
+          "source_id": "monitor_policy",
+          "page": 1,
+          "excerpt": "All three conditions are required: episodic palpitations, an allowed requested recording duration, and no previous diagnostic tracing of the episodes."
+        }
+      ],
+      "governing_context": [],
+      "issues": [],
+      "title": "Fictional ambulatory-monitoring policy M1",
+      "identifier": "FIX-MONITOR-001",
+      "revision_date": "2026-10-01",
+      "effective_from": "2026-10-01",
+      "effective_to": null,
+      "scope_summary": "Fixture Health Plan, Test Monitoring; requested outpatient ambulatory ECG recording, effective from 2026-10-01.",
+      "sections": [
+        {
+          "section_id": "scope",
+          "heading": "Identity, effective date, payer, plan, and procedure scope",
+          "disposition": "context",
+          "criterion_ids": [],
+          "explanation": "The named plan and requested procedure must match before the requirements are assessed.",
+          "sources": [
+            {
+              "source_id": "monitor_policy",
+              "page": 1,
+              "excerpt": "Policy identifier: FIX-MONITOR-001.\nRevision date: 2026-10-01. Effective from: 2026-10-01.\nPayer: Fixture Health Plan. Plan: Test Monitoring.\nThis policy applies to a requested outpatient ambulatory ECG recording."
+            }
+          ]
+        },
+        {
+          "section_id": "requirements",
+          "heading": "All required monitoring conditions",
+          "disposition": "requirements",
+          "criterion_ids": [
+            "palpitations",
+            "duration",
+            "no_previous_capture"
+          ],
+          "explanation": "All three conditions apply, including an absence requirement rather than a positive prior-tracing requirement.",
+          "sources": [
+            {
+              "source_id": "monitor_policy",
+              "page": 1,
+              "excerpt": "All three conditions are required: episodic palpitations, an allowed requested recording duration, and no previous diagnostic tracing of the episodes.\nEpisodic palpitations must be explicitly documented.\nThe requested recording duration must be from 24 through 72 hours inclusive.\nNo previous diagnostic tracing may have captured the documented episodes."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

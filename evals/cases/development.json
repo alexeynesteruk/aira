@@ -1,0 +1,365 @@
+{
+  "schema_version": "0.1.0",
+  "split": "development",
+  "execution_status": "not_run",
+  "cases": [
+    {
+      "case_id": "venous_matched",
+      "scenario_ids": [
+        "A02",
+        "A06"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_matched",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_matched",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_missing_diameter",
+      "scenario_ids": [
+        "A03"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_missing_diameter",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_missing_diameter",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_negative_reflux",
+      "scenario_ids": [
+        "A04"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_negative_reflux",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_negative_reflux",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_conflicting_diameter",
+      "scenario_ids": [
+        "A05"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_conflicting_diameter",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_conflicting_diameter",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_ulcer_alternative",
+      "scenario_ids": [
+        "A06",
+        "A07"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_ulcer_alternative",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_ulcer_alternative",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_false_and_unknown",
+      "scenario_ids": [
+        "A07"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_false_and_unknown",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_false_and_unknown",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_threshold_below",
+      "scenario_ids": [
+        "A08"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_threshold_below",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_threshold_below",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_threshold_at",
+      "scenario_ids": [
+        "A08"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_threshold_at",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_threshold_at",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_threshold_above",
+      "scenario_ids": [
+        "A08"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_threshold_above",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_threshold_above",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_unit_missing",
+      "scenario_ids": [
+        "A08"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_unit_missing",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_unit_missing",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_rule_changed",
+      "scenario_ids": [
+        "A09"
+      ],
+      "policy_source_id": "venous_policy_v2",
+      "chart_source_id": "venous_chart_matched",
+      "policy_expectation_id": "venous_policy_v2",
+      "expected_id": "venous_rule_changed",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_wrong_side",
+      "scenario_ids": [
+        "A12"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_wrong_side",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_wrong_side",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_date_conflict",
+      "scenario_ids": [
+        "A05",
+        "A12"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_date_conflict",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_date_conflict",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_embedded_instruction",
+      "scenario_ids": [
+        "A18"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_embedded_instruction",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_embedded_instruction",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": "Test Vascular",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "venous_unknown_plan",
+      "scenario_ids": [
+        "A12"
+      ],
+      "policy_source_id": "venous_policy_v1",
+      "chart_source_id": "venous_chart_unknown_plan",
+      "policy_expectation_id": "venous_policy_v1",
+      "expected_id": "venous_unknown_plan",
+      "request": {
+        "procedure": "endovenous ablation",
+        "anatomical_target": "great saphenous vein",
+        "laterality": "right",
+        "payer": "Fixture Health Plan",
+        "plan": null,
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "applicability_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "monitor_matched",
+      "scenario_ids": [
+        "A11"
+      ],
+      "policy_source_id": "monitor_policy",
+      "chart_source_id": "monitor_chart",
+      "policy_expectation_id": "monitor_policy",
+      "expected_id": "monitor_matched",
+      "request": {
+        "procedure": "outpatient ambulatory ECG recording",
+        "anatomical_target": null,
+        "laterality": null,
+        "payer": "Fixture Health Plan",
+        "plan": "Test Monitoring",
+        "service_date": "2026-10-28",
+        "assessment_cutoff": "2026-10-18"
+      },
+      "exercise": "assessment_from_text",
+      "annotations": []
+    },
+    {
+      "case_id": "supplied_pair_mismatch",
+      "scenario_ids": [
+        "A01"
+      ],
+      "policy_source_id": "bcbs_2025",
+      "chart_source_id": "supplied_chart",
+      "policy_expectation_id": null,
+      "expected_id": "supplied_pair_mismatch",
+      "request": {
+        "procedure": "permanent cardiac pacemaker implantation",
+        "code": "33207",
+        "payer": "UnitedHealthcare",
+        "plan": "Medicare Advantage",
+        "service_date": null
+      },
+      "exercise": "applicability_from_pdf",
+      "annotations": []
+    }
+  ]
+}
