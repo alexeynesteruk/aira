@@ -1,6 +1,6 @@
 # Aira repository instructions
 
-Read [requirements](docs/README.md), [implementation plan](docs/implementation-plan.md), [architecture](docs/architecture.md), and [evaluation](docs/evaluation.md) before changing application behavior. Keep the plan and actual implementation status consistent.
+Read the [BRD and TRD](docs/requirements/README.md), [implementation plan](docs/implementation-plan.md), [architecture](docs/architecture.md), and [evaluation](docs/evaluation.md) before changing application behavior. Use the [work breakdown](docs/work-breakdown.md) for package dependencies and completion evidence. Keep requirements, design, and actual implementation status consistent.
 
 - Build the thin provider-facing evidence checklist. New uploaded policies and charts must drive results; never hard-code the supplied patient's facts or a procedure's coverage rules.
 - AWS Bedrock is the selected inference platform. Preserve the one-command local reviewer workflow. Exact model/region and OCR support require the planned feasibility checks.

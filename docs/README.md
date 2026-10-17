@@ -2,7 +2,7 @@
 
 Build a small, working assistant that helps clinic staff assess prior authorization readiness using a patient chart PDF and an insurer guideline PDF. It must work on new documents supplied by reviewers. The implementation direction is a cited evidence checklist using FastAPI, React/TypeScript, and AWS Bedrock, with a local one-command launch.
 
-Requirements and research are documented; application implementation and live service validation are next. Start with the [implementation plan](implementation-plan.md).
+Requirements, architecture, and task decomposition are documented; application implementation and live service validation are next. Start with the [business and technical requirements](requirements/README.md), then use the [work breakdown](work-breakdown.md) to execute the plan.
 
 ## Confirmed requirements
 
@@ -34,8 +34,11 @@ The supplied chart is a UHC pacemaker request, while the example guideline conce
 
 | Document | Purpose |
 | --- | --- |
+| [Business requirements](requirements/business-requirements.md) | Staff outcomes, stakeholders, scope, business rules, and BR-001–BR-012. |
+| [Technical requirements](requirements/technical-requirements.md) | Testable system requirements, API/error contracts, and BR/TR/acceptance traceability. |
 | [Implementation plan](implementation-plan.md) | Product scope, decisions, M0–M6 milestones, planned folders, reviewer launch, risks, and delivery. |
-| [Architecture](architecture.md) | Domain records, policy representation, evidence and logical states, validation, execution, and storage. |
+| [Work breakdown](work-breakdown.md) | Assignable packages, dependencies, deliverables, owner roles, and completion evidence. |
+| [Architecture](architecture.md) | Context/deployment, component boundaries, runtime diagrams, data model, evidence logic, and storage. |
 | [Evaluation](evaluation.md) | Acceptance scenarios, independent expectations, test layers, metrics, and release blockers. |
 | [AWS research](aws.md) | Verified service constraints, Bedrock configuration, OCR choices, and later hosting path. |
 | [Online implementation research](research.md) | Reddit workflow observations, public implementations, PDF tooling, and design tradeoffs. |
@@ -46,4 +49,4 @@ The Obsidian review informs engineering practices such as versioned prompts, ind
 
 ## Next implementation gate
 
-Finalize the domain contracts and annotated cases, then run the small Bedrock and PDF feasibility experiments in M1–M2. These establish the exact model/region, credential onboarding, parser settings, tested input limits, and whether OCR is included. No AWS deployment is needed to perform this work. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.
+Start WP-01–WP-03: the minimal project foundation, contract baseline, and annotated cases. Then run the Bedrock and PDF feasibility experiments. These establish the exact model/region, credential onboarding, parser settings, tested input limits, and whether OCR is included. No AWS deployment is needed to perform this work. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.

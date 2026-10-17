@@ -2,7 +2,51 @@
 
 Use an explicit pipeline with durable, inspectable artifacts. Model calls interpret language; ordinary code validates structure, verifies source references, evaluates supported logic, and manages execution. AWS Bedrock provides inference through a thin adapter. The initial application runs locally for reviewers.
 
-This is the design to implement, not a description of deployed software. [The implementation plan](implementation-plan.md) defines milestones and remaining experiments.
+This is the design to implement, not a description of deployed software. The [business requirements](requirements/business-requirements.md) define the staff outcome; the [technical requirements](requirements/technical-requirements.md) define normative system contracts. The [implementation plan](implementation-plan.md) groups milestones, and the [work breakdown](work-breakdown.md) owns package dependencies and completion evidence.
+
+## System context and deployment boundary
+
+The primary actor is a clinic staff member preparing one request. Assessment reviewers use the same workflow on their own machine. Inputs are user-selected PDFs and explicitly recorded request annotations. Outputs are a persisted evidence checklist, source navigation, and exports. There are no automatic connections to an insurer portal, EHR, or policy website in the MVP.
+
+```mermaid
+flowchart LR
+    Staff[Clinic staff or assessment reviewer] --> Browser[Web browser]
+    subgraph Local[Reviewer machine]
+        Browser --> App[One application container]
+        App --> Volume[Mounted data directory]
+        Volume --> DB[SQLite run metadata]
+        Volume --> Files[Original PDFs and immutable artifacts]
+    end
+    subgraph AWS[AWS managed services]
+        Bedrock[Bedrock inference]
+        Textract[Optional synchronous Textract]
+    end
+    App -->|Configured model calls| Bedrock
+    App -.->|Selected pages if OCR is enabled| Textract
+```
+
+FastAPI serves the built React application and the HTTP API from one origin. The container includes the tested parser dependencies; the mounted volume preserves runs across restarts. Only the backend resolves AWS credentials and calls the model/OCR adapters. The browser receives business results and source content, not AWS credentials. Model access is a documented prerequisite, and the UI can explain missing configuration without returning fixture answers.
+
+This topology deliberately has one local executor and one metadata store. Its restart behavior is explicit below. A hosted target is described under [AWS responsibilities](#aws-responsibilities); it is not an implemented deployment or a replacement for the local reviewer contract.
+
+## Components and dependency direction
+
+| Component | Owns | Boundary |
+| --- | --- | --- |
+| React interface | Upload, request clarification, progress, checklist, source navigation, export actions. | Calls the HTTP contract; does not evaluate policy rules. |
+| `api/` | Input validation, resource IDs, status/source/export routes, liveness and readiness. | Starts work and returns a run ID; does not perform model work inline in an upload request. |
+| `documents/` | Native extraction, layout, page accounting, quality checks, optional OCR. | Returns versioned document records; does not decide policy applicability. |
+| `policies/` | Scope/criteria interpretation, section inventory, logical node validation. | Uses typed model results and source references; no patient-specific coverage rules in code. |
+| `evidence/` | Facts, context, candidate evidence, citation resolution and conflicts. | Consumes an explicit request and criteria; does not select a payer decision. |
+| `assessment/` | Stage order, state transitions, blockers, pure rule evaluation, final result assembly. | Owns orchestration; storage and provider adapters do not advance the workflow themselves. |
+| `llm/` | Bedrock transport, schema adaptation, prompt versions, bounded calls, usage and provider errors. | Implements a narrow model interface; contains no decision aggregation. |
+| `storage/` | Metadata repositories, source/artifact files, fingerprints and lineage. | Persists versioned artifacts; does not call parsers or models. |
+| `schemas/` | Shared typed data contracts, enums, API/provider shapes. | Has no HTTP, database, or cloud side effects. |
+| `observability/` | Run/stage events, timings, usage and error categories. | Records execution facts without making assessment decisions. |
+
+Keep the logical evaluator and provenance checks callable without FastAPI, SQLite, or AWS. Workflow functions receive storage/model/parser dependencies through narrow typed interfaces. Adapters translate service responses into those contracts. The modules live in one application; each table row does not imply another deployable service.
+
+Prompt templates are versioned with code, while uploaded rules and clinical facts are input data. Store provider-compatible flat output schemas separately from additional local invariants when the provider cannot enforce them. A change to either contract updates its version and the affected consumers/evaluations.
 
 ## Processing flow
 
@@ -23,6 +67,69 @@ flowchart TD
 ```
 
 Bedrock serves the scope, policy interpretation, and evidence stages. Start with page-tagged full text inside explicit input limits. Layout extraction preserves tables and block positions. A future retrieval adapter must demonstrate evidence recall before replacing the full-context baseline.
+
+Validate each stage's structure and source references before its output is consumed or reused. The final validation node in the flow represents cross-stage checks as well as result assembly; it does not postpone scope or policy validation until after evidence mapping.
+
+## Request and run lifecycle
+
+The [TRD](requirements/technical-requirements.md) owns exact endpoint contracts and error envelopes. The interaction is asynchronous at the HTTP boundary even though execution remains in one local process.
+
+```mermaid
+sequenceDiagram
+    actor Reviewer
+    participant UI as Browser UI
+    participant API as FastAPI
+    participant Store as Metadata and artifacts
+    participant Worker as Local executor
+    participant Model as Bedrock adapter
+    Reviewer->>UI: Upload policy and chart
+    UI->>API: Upload documents
+    API->>Store: Preserve inputs and identifiers
+    API-->>UI: Document identifiers
+    UI->>API: Start assessment with selected request context
+    API->>Store: Create queued run
+    API-->>UI: Accepted with run identifier
+    API->>Worker: Schedule bounded local work
+    Worker->>Store: Record running and current phase
+    Worker->>Worker: Extract pages and validate input coverage
+    Worker->>Model: Interpret scope with source references
+    Worker->>Worker: Validate scope and applicability
+    alt Scope is uncertain
+        Worker->>Store: Record needs_input and specific questions
+    else Payer or procedure mismatch
+        Worker->>Store: Complete with cited applicability mismatch
+    else Scope is supported
+        Worker->>Model: Interpret policy and map chart evidence
+        Worker->>Worker: Validate sources and evaluate supported logic
+        Worker->>Store: Complete with findings and unresolved issues
+    end
+    UI->>API: Poll run status and outcome
+    API->>Store: Read persisted state
+    API-->>UI: Progress or terminal outcome
+    Reviewer->>UI: Inspect source or supply clarification
+```
+
+`status` describes execution; `phase` identifies work within `running`; the assessment outcome describes what the documents establish. Keep these fields separate. Phases are `extracting`, `checking_applicability`, `interpreting_policy`, `mapping_evidence`, `validating`, and `evaluating`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued
+    queued --> running
+    queued --> failed: local execution cannot start
+    queued --> interrupted: process restart
+    running --> needs_input: request or scope unresolved
+    running --> completed: valid result or applicability mismatch
+    running --> failed: processing or provider error
+    running --> interrupted: process restart
+    needs_input --> [*]
+    completed --> [*]
+    failed --> [*]
+    interrupted --> [*]
+```
+
+`needs_input` stops the current attempt. Clarification, retry, or changed inputs create a new run with `parent_run_id` and preserved annotations; they do not rewrite the old result. The MVP accepts request-metadata corrections. An explicit selected value and reason can resolve metadata disagreement while the source conflict stays visible. It provides no manual clinical `met` override: changed clinical evidence comes from a newly uploaded source. A completed mismatch contains supporting scope evidence and no medical-necessity aggregate. A completed applicable assessment may still be `review_required`, contain contrary evidence, or expose gaps. `completed` means processing reached a valid outcome, not that the request is approved or its requirements are satisfied.
+
+Operational failures can occur in every running phase and produce a `failed` run with an actionable error. On startup, identify unfinished local executions and mark them `interrupted`; do not silently claim they resumed. Commit artifact files before marking a stage complete, and publish metadata only for successfully persisted artifacts so a process crash cannot leave a reusable completed-stage record pointing to missing output.
 
 ## Domain records
 
@@ -85,11 +192,13 @@ Use the selected model's verified structured-output mechanism, then validate loc
 
 Expose a small API: upload documents; start an assessment for document IDs and request metadata; read status/results; open source pages; and download an export. Keep document role and run ownership explicit in every lookup. Proposed endpoint shapes are `POST /api/documents`, `POST /api/assessments`, `GET /api/assessments/{id}`, and document/source and export routes. Finalize response contracts before the UI integration.
 
-Use a single-process executor with bounded concurrency for the local MVP, plus SQLite records and immutable stage artifacts on disk. Return a run ID promptly and let the browser poll progress. Persist transitions such as queued, extracting, checking applicability, assessing, completed, failed, and interrupted. A process restart marks unfinished local executions interrupted; offer a new run using valid saved artifacts. Do not imply a durable distributed queue exists.
+Use a single-process executor with bounded concurrency for the local MVP, plus SQLite records and immutable stage artifacts on disk. Return a run ID promptly and let the browser poll progress. Persist the status/phase transitions defined in [the run lifecycle](#request-and-run-lifecycle). A process restart marks unfinished local executions interrupted; offer a new run using valid saved artifacts. Do not imply a durable distributed queue exists.
 
 Fingerprint reusable artifacts with input bytes plus parser, prompt, schema, model, and relevant configuration versions. Include selected request and user annotations in assessment identity. Cache only completed, validated artifacts. A retry cannot overwrite a prior final result or silently reuse output from a changed policy. Store actual outputs: a fixed temperature does not guarantee reproducible model responses.
 
 Bound provider retries for transient errors with exponential backoff and jitter, and an overall stage deadline. Avoid retry multiplication between SDK and application layers. Authentication errors, invalid schemas, and unsupported input require corrective action rather than repeated calls. Record attempts and distinguish OCR/parser failure, access failure, throttling, timeout, refusal, invalid output, and citation failure. All-page accounting and complete model responses are prerequisites for an ordinary completed assessment.
+
+Liveness reports that the HTTP process is serving. Readiness reports local dependencies and configuration needed to accept work; it does not promise current Bedrock authorization or trigger repeated paid inference. Record the outcome/time of a separately invoked live access check when available. Both stale access and mid-run provider failure remain possible and use the ordinary error path.
 
 ## AWS responsibilities
 
