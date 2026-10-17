@@ -1,6 +1,8 @@
 # Aira project documentation
 
-Build a small, working assistant that helps clinic staff assess prior authorization readiness using a patient chart PDF and an insurer guideline PDF. It must work on new documents supplied by reviewers. This page separates the assessment requirements from proposed implementation choices.
+Build a small, working assistant that helps clinic staff assess prior authorization readiness using a patient chart PDF and an insurer guideline PDF. It must work on new documents supplied by reviewers. The implementation direction is a cited evidence checklist using FastAPI, React/TypeScript, and AWS Bedrock, with a local one-command launch.
+
+Requirements and research are documented; application implementation and live service validation are next. Start with the [implementation plan](implementation-plan.md).
 
 ## Confirmed requirements
 
@@ -20,57 +22,28 @@ Source: [build case, page 1](sources/Aira_FDE_Build_Case.pdf). The delivery logi
 | Discussion | A 45-minute call about the reviewers' findings, assumptions, tradeoffs, failures, and how to extend the MVP. |
 | Explicit exclusions | Do not spend time on compliance, security, infrastructure, HIPAA, or PHI handling. |
 
-## Proposed MVP
+## Chosen MVP
 
-These choices are provisional until research and a small extraction experiment establish feasibility.
+Assess one selected procedure request against one uploaded policy version. Extract scope, retain the policy's logical relationships, match chart evidence, and show a checklist with source-page navigation and unresolved documentation needs. Stop on a known policy mismatch and request clarification when scope is uncertain.
 
-1. Upload a guideline PDF and a patient chart PDF.
-2. Extract the payer, plan, requested procedure, relevant dates, and guideline scope, retaining page references.
-3. Show whether the selected guideline appears applicable. Stop or request clarification for a mismatched payer, procedure, or unresolved scope.
-4. Extract medical necessity criteria and their logical relationships from the guideline.
-5. Match chart evidence to each criterion, preserving explicit negative findings, missing information, and contradictions as different states.
-6. Present a reviewable checklist with guideline and chart citations, unresolved gaps, and supported next steps for staff.
+Missing documentation, contrary evidence, conflicting facts, unsupported interpretation, and processing failures remain distinct. A satisfied subset of extracted rules cannot override a known omitted governing condition. Staff resolve uncertainty; the product does not issue an insurer approval or denial.
 
-The output describes evidence against a supplied policy. It does not claim the insurer has approved or denied a request. No insurer portal submission, EHR integration, billing workflow, or broad policy discovery service is planned for the initial MVP.
+The supplied chart is a UHC pacemaker request, while the example guideline concerns BCBS Florida vein treatment. That pair is an applicability test. Matched fictional cases and a second policy family are necessary to test the full workflow.
 
-## Initial architecture hypothesis
+## Documentation guide
 
-Keep PDF extraction, policy interpretation, chart evidence extraction, and evaluation as separate stages. Retain original text and page identity so staff can inspect every material claim. A structured intermediate representation should preserve AND/OR logic, exclusions, thresholds, units, dates, and uncertainty rather than flattening the policy into a summary.
+| Document | Purpose |
+| --- | --- |
+| [Implementation plan](implementation-plan.md) | Product scope, decisions, M0–M6 milestones, planned folders, reviewer launch, risks, and delivery. |
+| [Architecture](architecture.md) | Domain records, policy representation, evidence and logical states, validation, execution, and storage. |
+| [Evaluation](evaluation.md) | Acceptance scenarios, independent expectations, test layers, metrics, and release blockers. |
+| [AWS research](aws.md) | Verified service constraints, Bedrock configuration, OCR choices, and later hosting path. |
+| [Online implementation research](research.md) | Reddit workflow observations, public implementations, PDF tooling, and design tradeoffs. |
+| [Document exploration](exploration.md) | Sample mismatch, source evidence, chronology conflicts, and extraction risks. |
+| [Guideline provenance](../examples/guidelines/README.md) | Two exact policy snapshots, hashes, and observed differences. |
 
-An LLM may interpret prose and locate evidence; code can validate output structure, check citations, and evaluate supported rule types. Whether the rule representation can cover enough unseen guidelines is an open design question. Unsupported policy logic should remain visible for review.
+The Obsidian review informs engineering practices such as versioned prompts, independent test expectations, source verification, and honest failure reporting. Its detailed private source register stays in the vault. AWS-specific capabilities are checked against current public documentation.
 
-Proposed record types are a document with page text, a scoped policy with criteria, a procedure request, chart evidence with provenance, and an assessment linking criteria to evidence. No framework, model, persistence layer, or UI library has been selected.
+## Next implementation gate
 
-## Candidate acceptance scenarios
-
-These are proposed checks for implementation, not completed tests.
-
-- A previously unseen guideline and chart produce a cited, reviewable assessment.
-- The supplied BCBS vein guideline and UHC pacemaker chart trigger an applicability mismatch.
-- Explicit denial of symptoms does not become a missing symptom history or a positive symptom finding.
-- Missing documentation, contrary evidence, and conflicting documentation remain distinguishable.
-- An OR branch can satisfy a criterion without requiring every alternative; an AND branch requires all mandatory elements.
-- A threshold retains its unit and context, such as sleeping versus awake measurements.
-- Unreadable input or unsupported policy logic produces an actionable error or review state.
-- A changed guideline produces a new assessment tied to that exact document.
-- A clean checkout starts with the documented one-line command and clearly stated prerequisites.
-
-## Open decisions
-
-- What minimum set of policy logic can we represent and evaluate reliably?
-- How should staff resolve an ambiguous procedure, payer, plan, policy version, or service date?
-- Which PDF extraction approach handles tables and page-spanning sections adequately?
-- Does the first release include OCR, or explicitly surface scanned PDFs as unsupported?
-- Which model and structured output approach perform adequately on unseen inputs?
-- What launch command and dependency packaging make local evaluation easiest?
-- Which small set of synthetic cases demonstrates failures as well as successful matches?
-
-## Next exploration steps
-
-1. Completed an initial [online research review](research.md), including Reddit and public reference implementations.
-2. Obtained and inspected the [linked guideline and a newer revision](../examples/guidelines/README.md), including a text comparison.
-3. Next: select a thin workflow and prototype extraction on both matched and mismatched document pairs.
-4. Decide the application structure, stack, and evaluation cases based on those results. The research note contains a provisional recommendation.
-5. Build the end-to-end product and write the short design note from actual tradeoffs.
-
-See [initial document exploration](exploration.md) for source-specific findings.
+Finalize the domain contracts and annotated cases, then run the small Bedrock and PDF feasibility experiments in M1–M2. These establish the exact model/region, credential onboarding, parser settings, tested input limits, and whether OCR is included. No AWS deployment is needed to perform this work. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.

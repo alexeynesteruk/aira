@@ -6,13 +6,13 @@ Research date: October 17, 2026. This review compares public reference implement
 
 Build a provider-facing evidence and documentation gap assistant. Start with a staged Python pipeline, a small upload and review UI, and explicit structured results. Use the uploaded policy as the source of requirements, retain page-level evidence, and keep staff in control of unresolved findings.
 
-For the first experiment, process the complete guideline and chart when they fit the chosen model's measured limits. Compare that baseline with section-based retrieval before introducing a vector database. No model, parser, framework, or storage choice is final until it has been exercised on representative inputs.
+For the first experiment, process the complete guideline and chart when they fit the chosen model's measured limits. Compare that baseline with section-based retrieval before introducing a vector database. The subsequent assessment, Obsidian, and AWS reviews selected FastAPI, React/TypeScript, Pydantic, Bedrock, and local SQLite/artifact storage as the implementation direction. The exact model, parser configuration, and OCR scope still require representative-input experiments. See the [implementation plan](implementation-plan.md) and [AWS research](aws.md) for current decisions.
 
 ## Patterns in public implementations
 
 | Source | Pattern observed | Relevance to Aira |
 | --- | --- | --- |
-| [AWS prior authorization assistant](https://github.com/aws-samples/sample-prior-authorization-assistant) | Document extraction, payer and policy matching, criteria extraction, record review, then gap analysis. Uses Textract, Bedrock, a knowledge base, and Step Functions. | Reuse the separation of stages conceptually; the cloud deployment is unnecessary for this assignment. |
+| [AWS prior authorization assistant](https://github.com/aws-samples/sample-prior-authorization-assistant) | Document extraction, payer and policy matching, criteria extraction, record review, then gap analysis. Uses Textract, Bedrock, a knowledge base, and Step Functions. | Reuse the separation of stages and Bedrock integration conceptually. The full hosted stack is beyond the assessment's scope; our chosen boundary is AWS inference with a local application runtime. |
 | [Azure AutoAuth](https://github.com/Azure-Samples/autoauth-solution-accelerator) | OCR and clinical extraction followed by hybrid vector/BM25 policy retrieval and an assessment stage. | Retrieval helps when selecting from a policy collection; the take-home already lets the user supply the policy. |
 | [Microsoft multi-agent accelerator](https://github.com/microsoft/Prior-Authorization-Multi-Agent-Solution-Accelerator) | Separate compliance, clinical, coverage, and synthesis agents with per-criterion findings and human review. | The staged responsibilities are useful. Four deployed agent services add complexity beyond the initial workflow. |
 | [Anthropic prior authorization assessment reference](https://github.com/anthropics/healthcare/blob/main/plugins/healthcare/skills/prior-auth/references/01-intake-assessment.md) | Payer-side review with policy lookup, criterion-level MET / NOT_MET / INSUFFICIENT findings, supporting evidence, and gaps. | Borrow the distinction between finding states. Payer decision rules and mandatory external lookups do not define our provider-facing product. |
@@ -82,7 +82,7 @@ Use schema validation such as [Pydantic strict mode](https://github.com/pydantic
 
 **Staff judgment** resolves ambiguous scope, conflicting chart facts, and unsupported policy language. Unknown must not silently become satisfied or unsatisfied.
 
-An initial finding vocabulary can be `met`, `not_met`, `missing`, `conflicting`, and `needs_review`, with `not_applicable` available only when the policy supports skipping a branch. Final naming and aggregation semantics need examples before implementation.
+The [architecture](architecture.md#finding-and-aggregation-semantics) defines `met`, `not_met`, `missing`, `conflicting`, and `needs_review`, mapping to true/false/unknown while preserving the original reasons. Scope exclusions are evaluated separately and require source support. The [evaluation cases](evaluation.md) cover their aggregation semantics.
 
 ## Full context and retrieval
 
@@ -100,31 +100,11 @@ Include at least these scenarios: matching policy and supported evidence; missin
 
 Measure applicability errors, criterion extraction completeness, citation validity, evidence recall, unsupported satisfied findings, and correct handling of uncertainty. Also record latency and model cost per case. A polished explanation should not compensate for an incorrect criterion result.
 
-## Candidate application structure
+## Application structure
 
-Prefer FastAPI, React with TypeScript, Pydantic schemas, and a thin model adapter. This aligns with Aira's stated stack while keeping policy logic outside the UI. Start with local files and, if needed, SQLite for saved runs. Postgres, a vector store, queues, and agent orchestration can follow demonstrated needs.
+Use FastAPI, React with TypeScript, Pydantic schemas, and a thin Bedrock adapter. This aligns with Aira's stated stack while keeping policy logic outside the UI. Local files and SQLite preserve saved runs without additional services. Postgres, retrieval, queues, and agent orchestration require demonstrated needs.
 
-```text
-backend/app/
-  api/             Uploads, processing requests, and results
-  documents/       Extraction, page references, and parser adapters
-  policies/        Policy scope, criteria, and logical groups
-  evidence/        Chart interpretation and criterion evidence
-  assessment/      Validation, aggregation, and review states
-  llm/             Provider adapter and versioned prompts
-  schemas/         Explicit intermediate and API contracts
-frontend/src/
-  features/upload/
-  features/assessment/
-  components/
-tests/
-  fixtures/
-  evaluation/
-docs/
-examples/
-```
-
-This is a proposed structure; application folders have not been created. A one-command Docker launch is a candidate delivery mechanism. Verify it on a clean checkout and document any required model key and first-run downloads explicitly.
+The [implementation plan](implementation-plan.md#planned-repository-structure) owns the proposed folder structure and Docker launch contract. Application folders have not been created. Verify the eventual one-line launch on a clean checkout with the documented AWS credentials, model access, and any first-run dependencies.
 
 ## Extension path
 
@@ -134,4 +114,4 @@ For a later integrated product, study the [HL7 Da Vinci electronic prior authori
 
 This is a targeted review of relevant Reddit threads, public code, library documentation, an experimental research repository, a standards repository, and the actual example policy. It is not an exhaustive search of the internet. No external accuracy, latency, or approval-rate claim has been adopted as an expected outcome for Aira.
 
-The next technical step is a small parser and structured-assessment experiment. Use the supplied chart as the mismatch case and create a policy-matched fictional vascular chart with hand-reviewed expected findings. Compare a full-document baseline against section-based processing. Inspect the criterion tree, evidence citations, failure states, latency, and cost before committing to retrieval infrastructure or an agent framework.
+The next technical step is contract/fixture setup followed by a small parser and Bedrock structured-assessment experiment. Use the supplied chart as the mismatch case and create a policy-matched fictional vascular chart with reviewed expected findings. Add a second policy family and a held-out pair. Inspect the criterion structure, evidence citations, failure states, latency, and usage before adding retrieval or an agent framework. The [milestones](implementation-plan.md#implementation-sequence) turn these research findings into executable exit checks.
