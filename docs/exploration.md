@@ -4,7 +4,7 @@ Reviewed the one-page assessment brief and seven-page supplied patient chart. Bo
 
 ## Assessment materials
 
-The [brief](sources/Aira_FDE_Build_Case.pdf) names BCBS Florida guideline **Treatments for Varicose Veins / Venous Insufficiency**, identifier **02-33000-31**. Its embedded link is [the BCBS Florida policy page](https://mcgs.bcbsfl.com/MCG?activity=openSearchedDocMcg&imgId=76F3FX62Y9H67N4ZU69). The guideline itself is not one of the two supplied PDFs; its criteria and effective date still need review.
+The [brief](sources/Aira_FDE_Build_Case.pdf) names BCBS Florida guideline **Treatments for Varicose Veins / Venous Insufficiency**, identifier **02-33000-31**. Its embedded link is [the BCBS Florida policy PDF](https://mcgs.bcbsfl.com/MCG?activity=openSearchedDocMcg&imgId=76F3FX62Y9H67N4ZU69). Online exploration retrieved this August 15, 2025 revision and the January 1, 2026 revision served by the policy-ID endpoint. Both are 14-page text PDFs; [local snapshots and provenance](../examples/guidelines/README.md) preserve the exact inputs. Their nested rules and versioning implications are discussed in the [research note](research.md#findings-from-the-example-guideline).
 
 The [sample chart](../examples/charts/robert_mitchell_chart_final.pdf), page 7, explicitly says its patient identifiers are fictional and created for demonstration purposes.
 

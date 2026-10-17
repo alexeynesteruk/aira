@@ -67,10 +67,10 @@ These are proposed checks for implementation, not completed tests.
 
 ## Next exploration steps
 
-1. Review common approaches, community reports, and primary technical sources.
-2. Obtain and inspect the linked example guideline, recording its scope and version.
-3. Select a thin workflow and prototype extraction on both matched and mismatched document pairs.
-4. Decide the application structure, stack, and evaluation cases based on those results.
+1. Completed an initial [online research review](research.md), including Reddit and public reference implementations.
+2. Obtained and inspected the [linked guideline and a newer revision](../examples/guidelines/README.md), including a text comparison.
+3. Next: select a thin workflow and prototype extraction on both matched and mismatched document pairs.
+4. Decide the application structure, stack, and evaluation cases based on those results. The research note contains a provisional recommendation.
 5. Build the end-to-end product and write the short design note from actual tradeoffs.
 
 See [initial document exploration](exploration.md) for source-specific findings.
