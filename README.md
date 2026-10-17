@@ -2,7 +2,35 @@
 
 Take-home project for Aira's Forward Deployed Engineer assessment. The intended product helps clinic staff compare patient chart evidence with an uploaded insurer guideline and identify gaps before submitting a prior authorization request.
 
-Status: requirements, architecture, and implementation decomposition documented. The chosen direction is FastAPI, React/TypeScript, and AWS Bedrock, with a one-command local runtime for reviewers. Application implementation has not started; there is no working run command yet.
+Implementation has started with a FastAPI/React application shell, locked dependencies, automated checks, and GitHub Actions container delivery. Assessment processing is not implemented yet. OpenAI is the selected initial inference provider; the supplied API key and a verified model configuration are required for the upcoming live integration.
+
+## Development
+
+Prerequisites: Python 3.13 (uv can install it), uv 0.12.19, Node 24, and npm. From the repository root:
+
+```sh
+make install
+make check
+```
+
+Start `make dev-api` and `make dev-ui` in separate terminals, then open http://localhost:5173. Alternatively, `npm --prefix frontend run build` followed by `make dev-api` serves the built UI at http://localhost:8000. Neither path requires credentials for the shell. `/health/live` returns 200; `/health/ready` returns 503 because assessment processing is not yet available.
+
+Run the saved Chromium tests after installing the browser:
+
+```sh
+cd frontend && npx playwright install chromium && cd ..
+make browser-test
+```
+
+`make check` runs Python lint/format/type checks, pytest, wheel/sdist builds, frontend lint/type checks, Vitest, and a production UI build. Tests must pass before each implementation package is marked complete. Store the future `OPENAI_API_KEY` and `AIRA_MODEL` in an ignored `.env` file using `.env.example`; never commit credentials.
+
+## CI and delivery
+
+[GitHub Actions](https://github.com/alexeynesteruk/aira/actions/workflows/ci.yml) runs on pull requests and pushes to `main`. Python and TypeScript checks gate a Docker build and browser tests against that exact image. Successful `main` runs deliver a checksummed Linux/amd64 image archive as an Actions artifact. Its included README explains how to load and run it. Workflow jobs have no model credentials and make no live inference calls.
+
+The local container command is `docker compose up --build`. Docker is required. The container currently serves the shell; this is not yet the live A19 upload-to-export workflow. Container build verification is performed in GitHub Actions because Docker is not installed on the current development machine.
+
+## Project documentation
 
 - [Project documentation](docs/README.md)
 - [Business requirements document](docs/requirements/business-requirements.md)
@@ -22,6 +50,11 @@ Status: requirements, architecture, and implementation decomposition documented.
 ## Current structure
 
 ```text
+backend/                     FastAPI application and locked Python dependencies
+frontend/                    React/TypeScript UI, unit tests, and saved browser tests
+tests/                       Backend unit/integration tests and fixture contracts
+.github/workflows/ci.yml      Required checks and tested container delivery
+Dockerfile, compose.yaml     Single-origin API/UI container
 docs/
   README.md                  Requirements and documentation guide
   requirements/
@@ -44,4 +77,4 @@ examples/
   guidelines/                Versioned BCBS Florida policy snapshots
 ```
 
-The [planned application structure](docs/implementation-plan.md#planned-repository-structure) will be created with the first implementation changes. Start with WP-01–WP-03 in the [feature list](docs/features/README.md#start-order), followed by the Bedrock/PDF experiments. Submission requires a working product, a one-line launch command verified on a clean checkout, and a short design note. Code must reach the reviewers one day before the call.
+The [work breakdown](docs/work-breakdown.md) tracks completion evidence. WP-01–WP-03 establish the foundation, contracts, and expectations, followed by model/PDF experiments. Submission requires the working live product, a one-line launch command verified on a clean checkout, and a short design note. Code must reach the reviewers one day before the call.

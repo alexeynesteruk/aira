@@ -1,0 +1,10 @@
+services:
+  aira:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - aira-data:/app/data
+
+volumes:
+  aira-data:

@@ -13,3 +13,10 @@ coverage/
 data/
 tmp/
 *.log
+.mypy_cache/
+.coverage
+htmlcov/
+*.tsbuildinfo
+test-results/
+playwright-report/
+delivery/
