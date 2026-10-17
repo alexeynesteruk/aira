@@ -1,0 +1,178 @@
+{
+  "run_id": "run-1",
+  "policy_document_id": "policy-1",
+  "policy_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "chart_document_id": "chart-1",
+  "chart_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "input_fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "configuration": {
+    "parser": {
+      "name": "fixture-parser",
+      "version": "1"
+    },
+    "parser_configuration_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "prompts": [
+      {
+        "name": "contract-example",
+        "version": "1"
+      }
+    ],
+    "provider": "openai",
+    "model_id": "fixture-model",
+    "sdk_version": "fixture-sdk-1",
+    "inference": {
+      "max_output_tokens": 1000
+    }
+  },
+  "request_context": {
+    "procedure": "Fictional sample request",
+    "payer": "Fictional payer"
+  },
+  "created_at": "2026-10-18T10:00:00Z",
+  "updated_at": "2026-10-18T10:00:00Z",
+  "status": "completed",
+  "phase": "evaluating",
+  "result": {
+    "outcome": "documented_requirements_satisfied",
+    "applicability": {
+      "status": "applicable",
+      "rationale": "Illustrative applicable scope.",
+      "sources": [
+        {
+          "document_id": "policy-1",
+          "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "extraction_id": "policy-1-extraction-1",
+          "page": 1,
+          "block_id": "block-1",
+          "start": 0,
+          "end": 60,
+          "excerpt": "The documented sample measurement is at least 3 millimeters."
+        },
+        {
+          "document_id": "chart-1",
+          "document_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "extraction_id": "chart-1-extraction-1",
+          "page": 1,
+          "block_id": "block-1",
+          "start": 0,
+          "end": 42,
+          "excerpt": "The sample measurement is 3.1 millimeters."
+        }
+      ]
+    },
+    "policy": {
+      "policy_id": "interpreted-policy-1",
+      "document_id": "policy-1",
+      "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "title": "Synthetic contract policy",
+      "scope_summary": "A fictional request used only to demonstrate data contracts.",
+      "criteria": [
+        {
+          "criterion_id": "criterion-1",
+          "wording": "The documented sample measurement is at least 3 millimeters.",
+          "interpretation": "Check the documented sample measurement.",
+          "sources": [
+            {
+              "document_id": "policy-1",
+              "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "extraction_id": "policy-1-extraction-1",
+              "page": 1,
+              "block_id": "block-1",
+              "start": 0,
+              "end": 60,
+              "excerpt": "The documented sample measurement is at least 3 millimeters."
+            }
+          ],
+          "context": [
+            "Synthetic contract example only."
+          ],
+          "predicate": {
+            "kind": "numeric",
+            "operator": "gte",
+            "threshold": 3.0,
+            "unit": "mm",
+            "context": "sample measurement"
+          }
+        }
+      ],
+      "nodes": [
+        {
+          "kind": "criterion",
+          "node_id": "root",
+          "criterion_id": "criterion-1",
+          "sources": [
+            {
+              "document_id": "policy-1",
+              "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "extraction_id": "policy-1-extraction-1",
+              "page": 1,
+              "block_id": "block-1",
+              "start": 0,
+              "end": 60,
+              "excerpt": "The documented sample measurement is at least 3 millimeters."
+            }
+          ]
+        }
+      ],
+      "root_id": "root",
+      "sections": [
+        {
+          "section_id": "section-1",
+          "heading": "Requirements",
+          "sources": [
+            {
+              "document_id": "policy-1",
+              "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "extraction_id": "policy-1-extraction-1",
+              "page": 1,
+              "block_id": "block-1",
+              "start": 0,
+              "end": 60,
+              "excerpt": "The documented sample measurement is at least 3 millimeters."
+            }
+          ],
+          "disposition": "requirements",
+          "criterion_ids": [
+            "criterion-1"
+          ],
+          "explanation": "The one synthetic requirement."
+        }
+      ]
+    },
+    "facts": [
+      {
+        "fact_id": "fact-1",
+        "proposition": "The sample measurement is 3.1 millimeters.",
+        "sources": [
+          {
+            "document_id": "chart-1",
+            "document_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "extraction_id": "chart-1-extraction-1",
+            "page": 1,
+            "block_id": "block-1",
+            "start": 0,
+            "end": 42,
+            "excerpt": "The sample measurement is 3.1 millimeters."
+          }
+        ],
+        "polarity": "affirmed",
+        "value": 3.1,
+        "unit": "mm"
+      }
+    ],
+    "findings": [
+      {
+        "criterion_id": "criterion-1",
+        "status": "met",
+        "rationale": "The synthetic measurement supports the condition.",
+        "evidence": [
+          {
+            "fact_id": "fact-1",
+            "relation": "supporting"
+          }
+        ]
+      }
+    ],
+    "logical_value": "true"
+  }
+}

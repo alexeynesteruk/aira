@@ -1,0 +1,42 @@
+{
+  "document": {
+    "document_id": "policy-1",
+    "role": "policy",
+    "filename": "synthetic-contract-policy.pdf",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "byte_count": 100,
+    "page_count": 1,
+    "pages": [
+      {
+        "page": 1,
+        "quality": "uninspected"
+      }
+    ],
+    "created_at": "2026-10-18T10:00:00Z"
+  },
+  "extractions": [
+    {
+      "extraction_id": "policy-1-extraction-1",
+      "document_id": "policy-1",
+      "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "parser_name": "fixture-parser",
+      "parser_version": "1",
+      "configuration_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "created_at": "2026-10-18T10:00:00Z",
+      "pages": [
+        {
+          "page": 1,
+          "quality": "usable",
+          "method": "native_text",
+          "blocks": [
+            {
+              "block_id": "block-1",
+              "text": "The documented sample measurement is at least 3 millimeters.",
+              "reading_order": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
