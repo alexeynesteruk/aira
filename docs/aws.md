@@ -1,12 +1,12 @@
-# AWS architecture decision and service constraints
+# AWS service research and future options
 
-Use AWS Bedrock for language interpretation while running the application locally for assessment reviewers. Start with native PDF text extraction; evaluate pagewise Textract as the scan fallback. This satisfies the user's AWS preference without making cloud deployment a prerequisite for the take-home.
+> Superseded for the initial MVP on October 18, 2026. The user selected OpenAI instead of Bedrock. Follow the [current model provider decision](model-provider.md) for implementation and reviewer setup. AWS credentials and Textract are not MVP prerequisites.
 
-Official sources below were read on October 17, 2026. This is a design decision supported by service documentation. No AWS resources were provisioned, account access checked, inference run, or model performance measured during this research. The [implementation milestones](implementation-plan.md#implementation-sequence) define those checks.
+The sections below preserve the October 17 AWS proposal and the service documentation verified that day. Their provider-specific instructions describe the superseded proposal and possible future options, not the current implementation requirements. The proposal used Bedrock inference with a local application runtime and considered pagewise Textract for scans. No AWS resources were provisioned, account access checked, inference run, or model performance measured during that research.
 
 ## Service boundary
 
-| Capability | MVP direction | Reason and later trigger |
+| Capability | Earlier proposed direction | Reason and later trigger |
 | --- | --- | --- |
 | Language interpretation | Bedrock Runtime through a thin Boto3 adapter. | Structured policy and chart interpretation with configurable model/profile and region. |
 | PDF processing | Native text/layout parser; trial synchronous Textract for suspect pages. | Avoid OCR work on usable text; add verified scan support within the tested input envelope. |
@@ -26,7 +26,7 @@ The schema subset excludes recursion, numerical bounds, and string-length bounds
 
 For Anthropic models, native citations cannot be combined with structured outputs. Use ordinary fields for document identity, page/span references, and excerpts, then resolve them against the preserved extraction. This validates provenance; semantic support and completeness still require the [evaluation cases](evaluation.md). [AWS structured outputs](https://docs.aws.amazon.com/bedrock/latest/userguide/structured-output.html).
 
-One documented candidate for M1 is Claude Sonnet 4.6 using `us.anthropic.claude-sonnet-4-6`, a US geographic inference profile, from a supported source region such as `us-east-1`. Its current model card lists Converse and structured-output support. This is a candidate to evaluate, not a selected model or a claim that it is best. A geographic profile can route beyond the source region; it is not a promise of single-region execution. Verify model lifecycle, regional availability, profile behavior, access, and output support together. [AWS model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-4-6.html).
+The October 17 proposal identified Claude Sonnet 4.6 as a candidate using `us.anthropic.claude-sonnet-4-6`, a US geographic inference profile, from a supported source region such as `us-east-1`. The model card read then listed Converse and structured-output support. This was a candidate to evaluate, not a selected model or a claim that it is best. A geographic profile can route beyond the source region; it is not a promise of single-region execution. Reverify model lifecycle, regional availability, profile behavior, access, and output support before any future adoption. [AWS model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-4-6.html).
 
 The feasibility experiment must select and pin a tested default, a compatible Boto3/Botocore version, inference settings, and schema/prompt versions. Never assume every Bedrock model supports the same contract, or that every bare model ID supports on-demand inference in the chosen region.
 
@@ -44,7 +44,7 @@ Do not require the author's local gateway, MCP services, browser sessions, or pr
 
 For short documents, try synchronous `AnalyzeDocument` with `TABLES` and `LAYOUT` on rendered suspect pages. The SDK accepts document bytes, allowing this path without S3. Preserve raw blocks, relationships, geometry, and extraction-model version. Remap each call's page identity to the original PDF page. Pagewise processing is our design choice; cross-page sections and table continuity still require reconstruction and evaluation. [AnalyzeDocument API](https://docs.aws.amazon.com/textract/latest/APIReference/API_AnalyzeDocument.html).
 
-Current synchronous limits are 10 MB per input and one page for PDF/TIFF. Asynchronous PDF/TIFF limits are 500 MB and 3,000 pages. Password-protected and XFA PDFs are unsupported. These are service ceilings, not application targets: choose much smaller measured document limits for the MVP. Do not send the original multi-page chart to a synchronous operation. [Textract document limits](https://docs.aws.amazon.com/textract/latest/dg/limits-document.html).
+Synchronous limits verified on October 17 were 10 MB per input and one page for PDF/TIFF. Asynchronous PDF/TIFF limits were 500 MB and 3,000 pages. Password-protected and XFA PDFs were unsupported. These are service ceilings, not application targets: reverify them and choose smaller measured limits if Textract is later adopted. Do not send an original multi-page chart to a synchronous operation. [Textract document limits](https://docs.aws.amazon.com/textract/latest/dg/limits-document.html).
 
 M2 must validate native, full-scan, and mixed-page inputs, including tables, two columns, and page-spanning passages. Every original page must be represented. A low-quality or failed page cannot silently disappear from an otherwise completed assessment. OCR confidence concerns extraction quality; it is not a medical necessity score. If this path does not fit the delivery scope, explicitly mark scanned inputs unsupported rather than pretending the text-only path handles them.
 

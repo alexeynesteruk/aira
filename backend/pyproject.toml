@@ -9,7 +9,10 @@ description = "Source-grounded prior authorization evidence workspace"
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "fastapi>=0.115,<1",
+  "openai>=2,<3",
+  "pdfplumber>=0.11,<0.12",
   "pydantic>=2.10,<3",
+  "python-dotenv>=1.2.4",
   "uvicorn>=0.34,<1",
 ]
 
@@ -29,7 +32,7 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["../tests"]
 addopts = "-ra --strict-markers"
-markers = ["live: explicitly invoked tests that require AWS access"]
+markers = ["live: explicitly invoked tests that require live OpenAI access"]
 
 [tool.ruff]
 target-version = "py313"

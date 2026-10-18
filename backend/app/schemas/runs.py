@@ -118,10 +118,12 @@ class StageUsage(StrictModel):
     phase: RunPhase
     attempts: NonNegativeInt
     duration_ms: FiniteNumber = Field(ge=0)
-    input_tokens: NonNegativeInt = 0
-    output_tokens: NonNegativeInt = 0
+    input_tokens: NonNegativeInt | None = None
+    output_tokens: NonNegativeInt | None = None
     ocr_pages: NonNegativeInt = 0
     provider_request_ids: tuple[NonEmptyText, ...] = ()
+    provider_response_ids: tuple[NonEmptyText, ...] = ()
+    model_id: NonEmptyText | None = None
 
 
 class RunProgress(StrictModel):

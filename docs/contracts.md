@@ -35,3 +35,9 @@ These checks do not execute the policy tree, resolve excerpts against source tex
 [Contract tests](../tests/unit/test_schemas.py) exercise JSON roundtrips, strict types, evidence states, lifecycle contradictions, input isolation, graph structure, metadata clarification, provider configuration, and export eligibility. Run them with the repository's actual Python test command. Schema changes require a reviewed version change and coordinated consumer/fixture updates; parser and provider feasibility work may refine this initial baseline.
 
 Baseline validation on October 18, 2026: all 45 contract tests passed with Python 3.13.15 and Pydantic 2.14.1. Ruff checks/format checks and strict mypy passed for the schema package and its test module. The exact test command was `uv run --project backend pytest -c backend/pyproject.toml tests/unit/test_schemas.py`. This verifies the local contract baseline, not parser, provider, or end-to-end workflow behavior.
+
+## Reviewed integration amendments
+
+On October 18, integration added `ScopeCandidate.field_sources`, grouping exact chart citations by request field. Its empty default preserves existing Python/JSON baseline examples; the strict provider schema requires the field, and conversion rejects unsupported non-null extracted metadata. The provider scope prompt is versioned `scope-v2`, with its exact output-schema hash retained by the experiment. This does not change the domain record version or rewrite reviewed patient expectations.
+
+`StageUsage` now preserves unreported input/output tokens as null rather than implying a measured zero, and can retain the served model ID and response IDs. Existing records remain readable. A regression distinguishes unknown usage from an explicit zero. These additive integration amendments retain domain version `0.1.0`; incompatible contract changes require a new domain version and coordinated fixture migration.

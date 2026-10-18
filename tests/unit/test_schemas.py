@@ -20,13 +20,28 @@ from app.schemas import (
     Policy,
     PolicyCandidate,
     ReadinessResponse,
+    RunPhase,
     RunRecord,
     RunStatus,
     SourceSpan,
+    StageUsage,
     TextAnnotation,
 )
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "contracts"
+
+
+def test_unreported_provider_usage_is_distinct_from_reported_zero() -> None:
+    unknown = StageUsage(phase=RunPhase.CHECKING_APPLICABILITY, attempts=1, duration_ms=1.0)
+    zero = StageUsage(
+        phase=RunPhase.CHECKING_APPLICABILITY,
+        attempts=1,
+        duration_ms=1.0,
+        input_tokens=0,
+        output_tokens=0,
+    )
+    assert unknown.input_tokens is None and unknown.output_tokens is None
+    assert zero.input_tokens == 0 and zero.output_tokens == 0
 
 
 def fixture(name: str) -> dict[str, Any]:

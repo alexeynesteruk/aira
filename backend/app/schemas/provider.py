@@ -26,12 +26,27 @@ class CandidateRequest(StrictModel):
     assessment_cutoff: str | None
 
 
+class CandidateFieldSources(StrictModel):
+    field: Literal[
+        "procedure",
+        "procedure_code",
+        "anatomical_target",
+        "laterality",
+        "payer",
+        "plan",
+        "service_date",
+        "assessment_cutoff",
+    ]
+    citations: tuple[CandidateCitation, ...]
+
+
 class ScopeCandidate(VersionedModel):
     request: CandidateRequest
     status: Literal["applicable", "mismatch", "unresolved"]
     rationale: str
     citations: tuple[CandidateCitation, ...]
     unresolved_fields: tuple[str, ...]
+    field_sources: tuple[CandidateFieldSources, ...] = ()
 
 
 class CandidateCriterion(StrictModel):
