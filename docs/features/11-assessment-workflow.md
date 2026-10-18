@@ -16,10 +16,10 @@ Staff receive a traceable outcome or a useful stopped state from the complete as
 
 ## Implementation tasks
 
-- [ ] Connect extraction, scope, policy interpretation, evidence mapping, validation, and evaluation in `backend/app/assessment/`.
-- [ ] Persist phases separately from `queued`, `running`, `needs_input`, `completed`, `failed`, and `interrupted` status.
-- [ ] Implement bounded scheduling and provider failure handling without multiplying retry layers.
-- [ ] Mark unfinished work interrupted on restart; create a new `parent_run_id` attempt for retry/clarification using only compatible artifacts.
+- [x] Connect extraction, scope, policy interpretation, evidence mapping, validation, and evaluation in `backend/app/assessment/`.
+- [x] Persist phases separately from `queued`, `running`, `needs_input`, `completed`, `failed`, and `interrupted` status.
+- [x] Implement bounded scheduling and provider failure handling without multiplying retry layers.
+- [x] Mark unfinished work interrupted on restart; create a new `parent_run_id` attempt for retry/clarification using only compatible artifacts.
 
 ## Acceptance criteria
 
@@ -28,10 +28,10 @@ Staff receive a traceable outcome or a useful stopped state from the complete as
 - [ ] A16/A17 retain failure/restart history and enforce finite attempts. Metadata clarification preserves source conflicts; clinical changes require a new source.
 - [ ] A20 blocks favorable readiness when governing conditions remain unresolved, even if extracted logic is true.
 
-Checks use the [evaluation matrix](../evaluation.md#required-scenarios), including a live CLI vertical slice before UI completion.
+Checks use the [evaluation matrix](../evaluation.md#required-scenarios), including a live CLI vertical slice before UI completion. Controlled-interpreter evidence is in [results/workflow.md](../results/workflow.md); acceptance requires the live CLI vertical slice, which the deferred API quota blocks.
 
 ## Dependencies and references
 
 Completion dependencies: [WP-06](../work-breakdown.md#wp-06-storage-and-identity), [WP-07](../work-breakdown.md#wp-07-request-context-and-applicability), [WP-08](../work-breakdown.md#wp-08-policy-interpretation-and-completeness), [WP-09](../work-breakdown.md#wp-09-evidence-mapping), [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core), [WP-15](../work-breakdown.md#wp-15-ocr-and-input-envelope).
 
-Design references: [run lifecycle](../architecture.md#request-and-run-lifecycle), [status/error contract](../requirements/technical-requirements.md#status-and-error-contracts), and [AWS reliability](../aws.md#reliability-and-measurement).
+Design references: [run lifecycle](../architecture.md#request-and-run-lifecycle), [status/error contract](../requirements/technical-requirements.md#status-and-error-contracts), and [provider reliability](../model-provider.md#reliability-and-measurement).
