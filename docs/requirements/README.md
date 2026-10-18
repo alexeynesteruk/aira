@@ -1,6 +1,6 @@
 # Aira requirements and design documents
 
-Use the business requirements to understand the staff outcome, then the technical requirements to implement the corresponding behavior. Both are the implementation baseline for the take-home MVP. Application delivery is still pending.
+Use the business requirements to understand the staff outcome, then the technical requirements to implement the corresponding behavior. Both are the implementation baseline for the take-home MVP. The non-live application is implemented; live-model verification and release remain pending.
 
 | Document | Owns |
 | --- | --- |

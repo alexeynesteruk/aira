@@ -15,9 +15,9 @@ The fictional policies deliberately define small test rules. They are not payer 
 | [Reserved manifest](cases/held-out.json) | A separate release candidate pair excluded from tuning and default live runs. |
 | [Reserved expectations](expected/reserved.json) | The reserved pair's independently authored target behavior. |
 | [Scenario coverage](coverage.json) | A01–A20 mapped to actual inputs and concrete remaining work. |
-| [Construction tasks](construction-tasks.json) | Explicit outstanding PDF, parser, provider, workflow, UI, and release checks. |
+| [Construction tasks](construction-tasks.json) | A work ledger: `open`/`done` status plus evidence paths for PDF, parser, provider, workflow, UI, and release checks. |
 
-Implementation status remains in the project work breakdown. Fixture task status concerns only the named missing artifact; an input's existence never marks an application feature complete.
+Implementation status remains in the project work breakdown. `construction-tasks.json` is a work ledger, not an expected outcome: `done` marks the named artifact built, with repo-relative `evidence` paths; `open` may carry `progress_evidence`. An input's existence never marks an application feature complete. `coverage.json` `execution_status: not_run` means no live semantic evaluation has run against the application.
 
 ## Annotation contract
 

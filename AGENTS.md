@@ -12,3 +12,5 @@ Read the [BRD and TRD](docs/requirements/README.md), [implementation plan](docs/
 - Inspect the diff and run the relevant actual checks before reporting completion: `make check` and `make browser-test`. GitHub Actions also builds and browser-tests the container before delivering it. Track implemented scope in the work breakdown; green shell tests do not establish live assessment accuracy.
 - Keep credentials, runtime data, and private Obsidian/client material out of commits. Store only generic engineering lessons and public/source-provided assessment materials here.
 - For parallel work, assign file ownership and one integration owner. Coordinate shared contracts and evaluate the merged result before calling a milestone complete.
+
+- `make browser-test` runs two Playwright projects: `shell` (port 8000, the unconfigured app) and `journeys` (port 8001, `tests/e2e/fixture_server.py`). The fixture interpreter is test-only support and must never be wired into `backend/app`.

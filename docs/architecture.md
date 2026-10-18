@@ -2,7 +2,7 @@
 
 Use an explicit pipeline with durable, inspectable artifacts. Model calls interpret language; ordinary code validates structure, verifies source references, evaluates supported logic, and manages execution. The OpenAI Responses API provides inference through a thin adapter, subject to the [model feasibility decision](model-provider.md). The initial application runs locally for reviewers.
 
-This is the canonical technical design document (TDD), updated October 18, 2026. The [business requirements](requirements/business-requirements.md) define the staff outcome; the [technical requirements](requirements/technical-requirements.md) define normative system contracts. The [implementation plan](implementation-plan.md) groups milestones, and the [work breakdown](work-breakdown.md) owns package dependencies and completion evidence. The design below remains the target; the implementation snapshot distinguishes available components from unfinished integration.
+This is the canonical technical design document (TDD), updated October 18, 2026. The [business requirements](requirements/business-requirements.md) define the staff outcome; the [technical requirements](requirements/technical-requirements.md) define normative system contracts. The [implementation plan](implementation-plan.md) groups milestones, and the [work breakdown](work-breakdown.md) owns package dependencies and completion evidence. The [decision record](decisions.md) consolidates the architectural and technical decisions. The design below remains the target; the implementation snapshot distinguishes available components from unfinished integration.
 
 ## Implementation snapshot
 

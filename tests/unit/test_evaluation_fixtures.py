@@ -531,7 +531,18 @@ def test_every_scenario_links_actual_inputs_or_actionable_remaining_work(corpus:
         expected_kind = "annotated_inputs_and_open_work" if has_input else "construction_task_only"
         assert coverage["coverage_kind"] == expected_kind
     for task in corpus.tasks.values():
-        assert task["status"] == "open"
+        assert task["status"] in {"open", "done"}
         assert set(strings(task["scenario_ids"])) <= SCENARIOS
         assert strings(task["owner_packages"])
         assert string(task["artifact_required"]) != string(task["acceptance"])
+        if task["status"] == "done":
+            evidence = strings(task.get("evidence", []))
+            assert evidence, f"{task['task_id']} is done without evidence paths"
+            assert "progress_evidence" not in task
+        else:
+            assert "evidence" not in task
+            evidence = strings(task.get("progress_evidence", []))
+        for item in evidence:
+            path = Path(item)
+            assert not path.is_absolute() and ".." not in path.parts
+            assert (ROOT / item).exists(), f"{task['task_id']} evidence missing: {item}"

@@ -1,0 +1,300 @@
+{
+  "schema_version": "0.1.0",
+  "generated_by": "scripts/render_scenarios.py",
+  "rendering": {
+    "command": "pdf-create html <page>.html --out <source_id>.pdf",
+    "tool": "pdf-tools pdf-create",
+    "version": "0.4.0",
+    "producer": "WeasyPrint 70.0"
+  },
+  "sources": {
+    "monitor_chart": {
+      "source_id": "monitor_chart",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/monitoring/chart.md",
+        "sha256": "f5b347786e48d391f40d10b47ebfb34660f78257cd1f592a4aec7d47131fe7c8"
+      },
+      "pdf_sha256": "c59949f919e727681401a7e5dc5395790d7af4bd121f2add31f9279cc14dd54a",
+      "logical_pages": 1,
+      "pdf_pages": 1,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "monitor_policy": {
+      "source_id": "monitor_policy",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/monitoring/policy.md",
+        "sha256": "93c0c8ddd402359af8d54fa68c57bdaf74fd1ea6560a3cb4d535c12e6c93d13d"
+      },
+      "pdf_sha256": "05ffc35be124b4cfb0ecc35aff8a0f02a0cb6bf462e6f2cd756b2ec6f60b3917",
+      "logical_pages": 1,
+      "pdf_pages": 1,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_conflicting_diameter": {
+      "source_id": "venous_chart_conflicting_diameter",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-conflicting-diameter.md",
+        "sha256": "1e14f3dce4710670e34863b9359e0d13ef272049ac18be53970b36bf43f5152a"
+      },
+      "pdf_sha256": "558337f4c4fac43d8d1e1078523c60d6c866e6b0d7b8c4cdf19da187bd85848b",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_date_conflict": {
+      "source_id": "venous_chart_date_conflict",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-date-conflict.md",
+        "sha256": "b6ca0a47ae4bb3a8a7324bbbc9c1d06cc3371ac81f3d11ea4c06b8265f12aad4"
+      },
+      "pdf_sha256": "89610a92e93d5381d2b4443dc055a5c2cc20bd0da8bc92eec0ef74d62b576488",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_embedded_instruction": {
+      "source_id": "venous_chart_embedded_instruction",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-embedded-instruction.md",
+        "sha256": "c5faf459a94882b4ff1eb9abf9c230fbe96172b5be30b011f360cd8943e510e3"
+      },
+      "pdf_sha256": "786de30288e6408be1676fbca5f14ef723055678afa9ccac5679b128b5db766f",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_false_and_unknown": {
+      "source_id": "venous_chart_false_and_unknown",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-false-and-unknown.md",
+        "sha256": "cc88c5ca77ac5334d1d5719497e5ef64edbd266eb9f398373183e211f22e6b0e"
+      },
+      "pdf_sha256": "e1c420b10cdd70030161581c26ef01bcc531db524175d4cbc921a8002017be2c",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_matched": {
+      "source_id": "venous_chart_matched",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-matched.md",
+        "sha256": "52a7fe419f4a5293a732796cfe8367a810dbdb76b7a2eeea8ffb90c79e17acbe"
+      },
+      "pdf_sha256": "ee2deea4367fea7e2c3fdad5e62be6481e856059453e9614e7bd6d4d4f09cdb8",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_missing_diameter": {
+      "source_id": "venous_chart_missing_diameter",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-missing-diameter.md",
+        "sha256": "695b86400e2eb025f854e5588dc3075afff77e8e9947ceb60e03feb1223ae4c2"
+      },
+      "pdf_sha256": "71e70613b2559a822efa40f79647919da9b0ef462c539a69aa852bc13903caf4",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_negative_reflux": {
+      "source_id": "venous_chart_negative_reflux",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-negative-reflux.md",
+        "sha256": "0b4b30c28d439b9f171f628efd8c689230868760b4154e8d969779c3b317d199"
+      },
+      "pdf_sha256": "7f7172f6b64573be5bb4d5bbc6fab8e2f8584e555f1d9b16bdcf844ce02c7f10",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_threshold_above": {
+      "source_id": "venous_chart_threshold_above",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-threshold-above.md",
+        "sha256": "d281e89b5cf65c08d5000cf9494fda0ed47e4835b551e74616e989ae5163fe7c"
+      },
+      "pdf_sha256": "e4b018631432252ef4f988a0e2c7a579f2a3e34e62997bf34145b23a0f81f297",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_threshold_at": {
+      "source_id": "venous_chart_threshold_at",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-threshold-at.md",
+        "sha256": "8a22b152dff9facc02232f8b49531c6b1bceafa1abddfecb09a7fb53d0e58fd4"
+      },
+      "pdf_sha256": "53be09739cc30347afc2221d2d58b30ac6c19deb866d1c910a529f5fe112c2cd",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_threshold_below": {
+      "source_id": "venous_chart_threshold_below",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-threshold-below.md",
+        "sha256": "856ebc7939b979876028418ed37ecc757fd872c33125c7cd47c7474ac9a62d75"
+      },
+      "pdf_sha256": "ef87cb1aa9ae336c3b0e0971d905dc6c5bd4f87599741ba524622878685a48fc",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_ulcer_alternative": {
+      "source_id": "venous_chart_ulcer_alternative",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-ulcer-alternative.md",
+        "sha256": "9a7ec563927f11371fff7a56571f9899428198ebcc936fbd7c4c68e11fee99b1"
+      },
+      "pdf_sha256": "695832498a008b0f15c99d60ffa6f82d86a2a6525be210c7f013769cf9145824",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_unit_missing": {
+      "source_id": "venous_chart_unit_missing",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-unit-missing.md",
+        "sha256": "99f6c9e2099f99a03de59a5f92159ac2c42c71d78296d8b98a1086ee5bbafc7c"
+      },
+      "pdf_sha256": "46132e12170409a283c1dd98638603b6fe8ae5f384a4468cd7947d662db2977b",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_unknown_plan": {
+      "source_id": "venous_chart_unknown_plan",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-unknown-plan.md",
+        "sha256": "2b55548d54b55a53975b00a4182dca68405e48466abc5d695b503b5b1c922031"
+      },
+      "pdf_sha256": "d1c3d22c3aceb120457431957afddbcbe70db63fcbd9d0ee79c9ee6c3050be1a",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_chart_wrong_side": {
+      "source_id": "venous_chart_wrong_side",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/chart-wrong-side.md",
+        "sha256": "77652a13bf5ec68d07aa1be383a5e196ce8aa32d26d0e18fcc6c4ec817e491ef"
+      },
+      "pdf_sha256": "fcdc296add2843dbda2bb9210053f84be36b4c0366100340c5db29facaa124e5",
+      "logical_pages": 2,
+      "pdf_pages": 2,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_policy_v1": {
+      "source_id": "venous_policy_v1",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/policy-v1.md",
+        "sha256": "758404729b52038a5708c90096bdd060e78679a9211b549e77d8dffcbeeade44"
+      },
+      "pdf_sha256": "9455fc36e2b4ba46a1f3fea755f7c643117378575a173b247b660044bd07658c",
+      "logical_pages": 1,
+      "pdf_pages": 1,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    },
+    "venous_policy_v2": {
+      "source_id": "venous_policy_v2",
+      "derived_from": {
+        "path": "tests/fixtures/scenarios/venous/policy-v2.md",
+        "sha256": "2a7b332ce2132b6a002d826647f33bdf53904b1c12d4cfcf26e2870d8cd67bc2"
+      },
+      "pdf_sha256": "cdf1533a0609ae4eb3eca79dfd17bac040f2357a51b25d97d8bb2742805a707d",
+      "logical_pages": 1,
+      "pdf_pages": 1,
+      "rendering": {
+        "command": "pdf-create html <page>.html --out <source_id>.pdf",
+        "tool": "pdf-tools pdf-create",
+        "version": "0.4.0",
+        "producer": "WeasyPrint 70.0"
+      }
+    }
+  }
+}

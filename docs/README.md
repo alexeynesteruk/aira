@@ -30,6 +30,25 @@ Missing documentation, contrary evidence, conflicting facts, unsupported interpr
 
 The supplied chart is a UHC pacemaker request, while the example guideline concerns BCBS Florida vein treatment. That pair is an applicability test. Matched fictional cases and a second policy family are necessary to test the full workflow.
 
+## Business requirements at a glance
+
+Statuses derive from the [work breakdown](work-breakdown.md): **implemented and deterministically verified** (unit/integration/fixture checks), **implemented, live-unverified** (awaiting restored OpenAI quota), or **open**.
+
+| BR | Requirement | Status |
+| --- | --- | --- |
+| BR-001 | New guideline and chart uploads drive results | implemented and deterministically verified |
+| BR-002 | One selected request with relevant side and dates | implemented and deterministically verified |
+| BR-003 | Policy applicability gate stops/clarifies mismatches | implemented and deterministically verified |
+| BR-004 | Faithful, complete policy requirements (AND/OR, blockers) | implemented and deterministically verified |
+| BR-005 | Distinct evidence states, never conflated with failure | implemented and deterministically verified |
+| BR-006 | Inspectable exact policy and chart citations | implemented and deterministically verified |
+| BR-007 | Actionable gaps and provenance-preserving clarification | implemented and deterministically verified |
+| BR-008 | Saved assessments and versioned exports | implemented and deterministically verified |
+| BR-009 | Progress and useful failure recovery | implemented and deterministically verified |
+| BR-010 | One-command live reviewer workflow | implemented, live-unverified (quota deferred) |
+| BR-011 | Generality and independent evaluation | open — corpus built; live semantic evaluation not run |
+| BR-012 | Submission and design discussion | open — [design-note draft](design-note.md) exists |
+
 ## Documentation guide
 
 | Document | Purpose |
@@ -42,6 +61,8 @@ The supplied chart is a UHC pacemaker request, while the example guideline conce
 | [Technical design document (TDD)](architecture.md) | Current implementation snapshot, system architecture, component boundaries, runtime diagrams, data model, evidence logic, and storage. |
 | [Evaluation](evaluation.md) | Acceptance scenarios, independent expectations, test layers, metrics, and release blockers. |
 | [Contract record](contracts.md) | Schema version baseline, contract examples, and verified amendment history. |
+| [Decision record](decisions.md) | Architectural and technical decisions (AD/TD), rationale, and status. |
+| [Design note](design-note.md) | Submission note: where judgment lives, data vs code, and what breaks first. |
 | [Extraction record](results/pdf-extraction.md) | Verified native-PDF intake/extraction behavior, limits, and failures. |
 | [Storage record](results/storage.md) | Verified SQLite/immutable-object storage boundary and cache identity. |
 | [Rules record](results/rules.md) | Verified pure provenance validation, bounded predicates, and aggregation. |

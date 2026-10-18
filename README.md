@@ -30,11 +30,14 @@ Prerequisite: Docker. No OpenAI key is needed to boot the application, but real 
 
 1. `cp .env.example .env` and set `OPENAI_API_KEY` and `AIRA_MODEL` (server-side only — the key never reaches the browser).
 2. `docker compose up --build` and open http://localhost:8000.
-3. Upload a policy PDF and a chart PDF, fill optional request metadata, and start the assessment. Runs poll, show the saved outcome with source-level citations, and export JSON or Markdown.
+3. Optionally verify model access once: `docker compose run --rm aira python -m app.llm.preflight` — it writes the verification record into the shared `aira-data` volume, so readiness reports it.
+4. Upload a policy PDF and a chart PDF, fill optional request metadata, and start the assessment. Runs poll, show the saved outcome with source-level citations, and export JSON or Markdown.
 
-Application data persists in the `aira-data` volume (`/app/data`, overridable with `AIRA_DATA_DIR`). Inputs must be native-text PDFs (10 MiB / 100 pages maximum); raster, password-protected, annotated, rotated, or fillable-form pages are rejected with an explicit message rather than silently degraded — OCR remains an open decision. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
+Synthetic fictional PDFs for development cases live in [examples/synthetic](examples/synthetic/README.md).
 
-To exercise the review journeys without credentials, `npm --prefix frontend run build` then `make browser-test` starts the local app plus a labeled fixture server and replays the six saved staff journeys.
+Application data persists in the `aira-data` volume (`/app/data`, overridable with `AIRA_DATA_DIR`). Inputs must be native-text PDFs (10 MiB / 100 pages maximum); raster, password-protected, annotated, rotated, or fillable-form pages are rejected with an explicit message rather than silently degraded — OCR is a possible future adapter, not part of the MVP. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
+
+To exercise the review journeys without credentials, `npm --prefix frontend run build` then `make browser-test` starts the local app plus a labeled fixture server and replays the nine saved staff journeys.
 
 ## Model experiment
 
@@ -73,6 +76,8 @@ The local container command is `docker compose up --build`. Docker is required. 
 - [Feature list and individual specifications](docs/features/README.md)
 - [Technical design document (TDD) and architecture](docs/architecture.md)
 - [Evaluation and release checks](docs/evaluation.md)
+- [Decision record](docs/decisions.md)
+- [Design note](docs/design-note.md)
 - [HTTP API, stage interpreter, workflow, and input-limit records](docs/README.md#documentation-guide)
 - [Review UI journeys record](docs/results/review-ui.md)
 - [OpenAI integration and feasibility record](docs/results/model-feasibility.md)
@@ -127,4 +132,4 @@ examples/
   guidelines/                Versioned BCBS Florida policy snapshots
 ```
 
-The [work breakdown](docs/work-breakdown.md) tracks completion evidence. WP-01–WP-04, WP-06, and WP-10 are complete; conversion, workflow, export, and packaging work follows the stable plan. Submission requires the working live product, a one-line launch command verified on a clean checkout, and a short design note. Code must reach the reviewers one day before the call.
+The [work breakdown](docs/work-breakdown.md) tracks completion evidence. WP-01–WP-04, WP-06, WP-10, and WP-12–WP-14 are complete; WP-07–WP-09/WP-11/WP-15–WP-17 are in progress behind the live-quota boundary; WP-18 is in progress with its design-note draft. Submission requires the working live product, a one-line launch command verified on a clean checkout, and the design note. Code must reach the reviewers one day before the call.

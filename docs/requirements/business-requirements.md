@@ -2,7 +2,7 @@
 
 Build a provider-facing evidence checklist that helps clinic staff prepare a prior authorization request using an uploaded patient chart and insurer guideline. Staff should be able to identify the applicable requirements, inspect the supporting evidence, and resolve documentation gaps before submission.
 
-This is the business requirements document (BRD), updated October 18, 2026. BR-001–BR-012 remain the stable take-home scope. Foundation, contracts, and reviewed test inputs are implemented; the complete staff workflow and live release verification remain pending. The [implementation plan](../implementation-plan.md), [technical design document](../architecture.md), and [evaluation cases](../evaluation.md) define delivery and technical detail. The [work breakdown](../work-breakdown.md) owns current package status.
+This is the business requirements document (BRD), updated October 18, 2026. BR-001–BR-012 remain the stable take-home scope. Foundation, contracts, reviewed test inputs, and the complete non-live staff workflow are implemented; live semantic evaluation and live release verification remain open. The [implementation plan](../implementation-plan.md), [technical design document](../architecture.md), and [evaluation cases](../evaluation.md) define delivery and technical detail. The [work breakdown](../work-breakdown.md) owns current package status.
 
 ## Problem and requirement sources
 

@@ -29,6 +29,8 @@ Include source inspection, meaningful processing states, and useful failure mess
 
 ## Decisions and remaining experiments
 
+The [decision record](decisions.md) consolidates these decisions, including implementation-time ones, with rationale and status; the table below remains the planned direction.
+
 | Decision | Direction | Evidence or condition |
 | --- | --- | --- |
 | Core workflow | Applicability, policy requirements, evidence, deterministic aggregation, staff review. | Matches the assessment and recurring public implementation pattern. |

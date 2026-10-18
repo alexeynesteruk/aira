@@ -19,9 +19,16 @@
         "WP-03",
         "WP-04"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Render the authored Markdown policy/chart pairs to native-text PDFs with the approved pdf-tools workflow; retain logical-to-PDF-page mapping and reviewed extraction snapshots.",
-      "acceptance": "Reinspect PDFs and compare every annotated excerpt, label, date, unit, and page association. Markdown logical pages are not accepted as proof of PDF layout."
+      "acceptance": "Reinspect PDFs and compare every annotated excerpt, label, date, unit, and page association. Markdown logical pages are not accepted as proof of PDF layout.",
+      "evidence": [
+        "examples/synthetic/",
+        "examples/synthetic/manifest.json",
+        "examples/synthetic/README.md",
+        "scripts/render_scenarios.py",
+        "tests/integration/test_scenario_pdfs.py"
+      ]
     },
     {
       "task_id": "FT-02",
@@ -32,9 +39,13 @@
       "owner_packages": [
         "WP-04"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Parser snapshots for the supplied chart and both hash-pinned BCBS policy versions.",
-      "acceptance": "Inspect chart pages 5-7 for the impossible timeline; inspect changed coding content and unchanged clinical pages across policy versions. Do not infer effective date from revision date or assess the mismatched pair clinically."
+      "acceptance": "Inspect chart pages 5-7 for the impossible timeline; inspect changed coding content and unchanged clinical pages across policy versions. Do not infer effective date from revision date or assess the mismatched pair clinically.",
+      "evidence": [
+        "tests/integration/test_documents.py",
+        "docs/results/pdf-extraction.md"
+      ]
     },
     {
       "task_id": "FT-03",
@@ -45,9 +56,13 @@
       "owner_packages": [
         "WP-10"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Canonical rule-graph counterexamples: every three-valued binary combination, cycles, duplicate IDs, disconnected nodes, and a structurally valid tree missing a governing condition.",
-      "acceptance": "Known incomplete coverage blocks satisfaction independently of tree value. Compare complete expected criteria/edges against omissions without modifying expected annotations."
+      "acceptance": "Known incomplete coverage blocks satisfaction independently of tree value. Compare complete expected criteria/edges against omissions without modifying expected annotations.",
+      "evidence": [
+        "tests/unit/test_rules.py",
+        "tests/unit/test_schemas.py"
+      ]
     },
     {
       "task_id": "FT-04",
@@ -58,9 +73,13 @@
         "WP-03",
         "WP-10"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Duration/recency fixtures below, at, and above the boundary; incompatible units; awake versus sleeping evidence; explicitly ambiguous calendar-month arithmetic.",
-      "acceptance": "Only defined units/time semantics execute. Undefined calendar conversions or observation context produce review rather than guessed values."
+      "acceptance": "Only defined units/time semantics execute. Undefined calendar conversions or observation context produce review rather than guessed values.",
+      "evidence": [
+        "tests/unit/test_provenance.py"
+      ],
+      "note": "Boundary (numeric inclusive + exact date), incompatible/unsupported units (cm vs mm, missing, 'months' -> unsupported_policy_unit), awake-vs-sleeping context, and calendar-month ambiguity (undefined conversion produces review) are all covered."
     },
     {
       "task_id": "FT-05",
@@ -71,9 +90,13 @@
         "WP-04",
         "WP-15"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Reviewed two-column/table PDFs with row-label traps and a section spanning pages.",
-      "acceptance": "Rendered-page review confirms that the actual parser preserves labels/values and cross-page provenance. Plain Markdown formatting cannot satisfy this check."
+      "acceptance": "Rendered-page review confirms that the actual parser preserves labels/values and cross-page provenance. Plain Markdown formatting cannot satisfy this check.",
+      "evidence": [
+        "tests/fixtures/pdf/native-layout.pdf",
+        "tests/integration/test_documents.py"
+      ]
     },
     {
       "task_id": "FT-06",
@@ -84,9 +107,14 @@
         "WP-04",
         "WP-15"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Full-scan, mixed text/image, malformed, encrypted, blank-page, byte-limit and page-limit PDF variants created with approved tooling where applicable.",
-      "acceptance": "Every page is accounted for. Verify OCR or explicit scan rejection; failed and over-limit pages cannot be silently omitted. Record tool configuration and immutable hashes."
+      "acceptance": "Every page is accounted for. Verify OCR or explicit scan rejection; failed and over-limit pages cannot be silently omitted. Record tool configuration and immutable hashes.",
+      "evidence": [
+        "tests/fixtures/pdf/",
+        "tests/integration/test_documents.py",
+        "tests/integration/test_api.py"
+      ]
     },
     {
       "task_id": "FT-07",
@@ -98,7 +126,13 @@
       ],
       "status": "open",
       "artifact_required": "Runtime SourceSpan/provider-output counterexamples with wrong page, wrong document, invented quote, and a real irrelevant quotation.",
-      "acceptance": "Mechanical errors fail provenance validation; semantic irrelevance is caught by source-reviewed expectations. Keep intentional invalid outputs separate from ground-truth files."
+      "acceptance": "Mechanical errors fail provenance validation; semantic irrelevance is caught by source-reviewed expectations. Keep intentional invalid outputs separate from ground-truth files.",
+      "progress_evidence": [
+        "tests/unit/test_provenance.py",
+        "tests/integration/test_openai_interpreter.py",
+        "tests/integration/test_workflow.py"
+      ],
+      "note": "Mechanical provenance counterexamples are tested; semantic irrelevance needs live annotated evaluation."
     },
     {
       "task_id": "FT-08",
@@ -109,9 +143,14 @@
         "WP-05",
         "WP-11"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Recorded/synthetic failures for the selected provider transport: denied or expired access, throttling, timeout, refusal, truncated response, invalid schema, and repair exhaustion.",
-      "acceptance": "Attempts and deadlines stay bounded. Failure is operational, never a missing clinical fact. Fixtures prove adapter behavior, not live access or model quality."
+      "acceptance": "Attempts and deadlines stay bounded. Failure is operational, never a missing clinical fact. Fixtures prove adapter behavior, not live access or model quality.",
+      "evidence": [
+        "tests/integration/test_openai_adapter.py",
+        "tests/integration/test_openai_interpreter.py"
+      ],
+      "note": "No automatic repair is implemented, so 'repair exhaustion' does not apply."
     },
     {
       "task_id": "FT-09",
@@ -124,9 +163,14 @@
         "WP-06",
         "WP-11"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Persistence fault tests for restart, incomplete artifact publication, duplicate uploads, changed parser/prompt/model/request and conflicting metadata annotation.",
-      "acceptance": "Old runs/diagnostics remain unchanged; only compatible completed artifacts are reused. Clinical status cannot be overwritten manually; metadata conflict resolution retains its origin and reason."
+      "acceptance": "Old runs/diagnostics remain unchanged; only compatible completed artifacts are reused. Clinical status cannot be overwritten manually; metadata conflict resolution retains its origin and reason.",
+      "evidence": [
+        "tests/integration/test_storage.py",
+        "tests/integration/test_workflow.py",
+        "tests/integration/test_api.py"
+      ]
     },
     {
       "task_id": "FT-10",
@@ -141,9 +185,14 @@
         "WP-14",
         "WP-16"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Saved browser journeys for mismatch, ambiguous request/plan, linked clarification, source navigation, and JSON/Markdown export parity.",
-      "acceptance": "Run against the actual API. Stop mismatch before necessity work, keep scope annotations separate, and compare downloads with stored results."
+      "acceptance": "Run against the actual API. Stop mismatch before necessity work, keep scope annotations separate, and compare downloads with stored results.",
+      "evidence": [
+        "frontend/e2e/journeys.spec.ts",
+        "tests/e2e/fixture_server.py"
+      ],
+      "note": "Labelled fixture interpreter, not live model evidence."
     },
     {
       "task_id": "FT-11",
@@ -207,7 +256,11 @@
       ],
       "status": "open",
       "artifact_required": "Multiple-procedure and conflicting-metadata annotation cases with selected value, reason, and parent-run linkage.",
-      "acceptance": "No automatic top-one choice, policy substitution, silent conflict erasure, or annotation-created chart evidence. The existing unknown-plan and wrong-side text cases cover only part of this scenario."
+      "acceptance": "No automatic top-one choice, policy substitution, silent conflict erasure, or annotation-created chart evidence. The existing unknown-plan and wrong-side text cases cover only part of this scenario.",
+      "progress_evidence": [
+        "tests/unit/test_candidate_conversion.py"
+      ],
+      "note": "No multiple-procedure fixture yet."
     }
   ]
 }

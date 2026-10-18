@@ -20,7 +20,7 @@ Work package: [WP-18](../work-breakdown.md#wp-18-release-evidence-and-handoff). 
 - [ ] Check out the release candidate into a fresh directory and follow only the documented setup/launch instructions.
 - [ ] Process the held-out pair with live inference; inspect source citations and exports.
 - [ ] Record actual build/type/lint/test results, environment, command, input/configuration identity, and remaining limits.
-- [ ] Write the design note from the shipped behavior and observed tradeoffs.
+- [ ] Write the design note from the shipped behavior and observed tradeoffs. (A draft exists at [docs/design-note.md](../design-note.md) with live observations pending.)
 - [ ] Prepare the repository or zip and a short demonstration of one successful case and one useful failure.
 - [ ] Confirm the call date and submission deadline; prepare handoff materials without sending messages to assessors.
 
