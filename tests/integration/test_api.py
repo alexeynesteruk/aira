@@ -43,6 +43,7 @@ def _app(
     limits: WorkflowLimits | None = None,
     parser_config: NativePdfConfig | None = None,
     data_dir: Path | None = None,
+    provider_detail: str | None = None,
 ) -> FastAPI:
     """Build the app with a tmp store/UI and an unreachable env file."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -58,6 +59,7 @@ def _app(
         configuration=configuration(limits, parser_config) if interpreter is not None else None,
         limits=limits,
         parser_config=parser_config,
+        provider_detail=provider_detail,
     )
 
 
@@ -377,6 +379,21 @@ def test_queue_saturation_returns_429(tmp_path, monkeypatch):
         body = third.json()
         assert body["error"]["code"] == ErrorCode.QUEUE_FULL.value
         assert body["error"]["retryable"] is True
+
+
+def test_readiness_carries_the_fixture_provider_detail(tmp_path, monkeypatch):
+    app = _app(
+        tmp_path,
+        monkeypatch,
+        interpreter=ControlledInterpreter(),
+        provider_detail="Fixture interpreter for browser tests; no live model calls.",
+    )
+    with TestClient(app) as client:
+        ready = client.get("/health/ready")
+        assert ready.status_code == 200
+        provider = ready.json()["provider"]
+        assert provider["status"] == "unverified"
+        assert provider["detail"] == ("Fixture interpreter for browser tests; no live model calls.")
 
 
 def test_missing_configuration_reports_prerequisites(tmp_path, monkeypatch):

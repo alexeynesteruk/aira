@@ -42,8 +42,28 @@ def test_needs_input_export_explains_scope_without_fabricated_findings():
     item = export("needs_input_run.json")
     markdown = render_markdown(item)
     assert "needs_input" in markdown and "Clarification needed" in markdown
+    assert (
+        "Assessment stopped for staff input; "
+        "no medical-necessity evaluation was performed." in markdown
+    )
     assert "Requirements and evidence" not in markdown
     assert "Saved outcome" not in markdown
+
+
+def test_mismatch_export_states_that_no_necessity_evaluation_happened():
+    item = export("completed_run.json")
+    data = item.model_dump(mode="json")
+    data["run"]["result"]["outcome"] = "applicability_mismatch"
+    data["run"]["result"]["applicability"]["status"] = "mismatch"
+    data["run"]["result"]["policy"] = None
+    data["run"]["result"]["findings"] = []
+    data["run"]["result"]["logical_value"] = None
+    item = AssessmentExport.model_validate_json(json.dumps(data))
+    markdown = render_markdown(item)
+    assert (
+        "The uploaded policy does not apply to this request; "
+        "no medical-necessity evaluation was performed." in markdown
+    )
 
 
 def test_source_prose_cannot_become_export_markup():

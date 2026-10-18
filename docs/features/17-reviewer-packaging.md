@@ -17,16 +17,16 @@ Work package: [WP-17](../work-breakdown.md#wp-17-packaging-and-reviewer-setup). 
 
 ## Implementation tasks
 
-- [ ] Add `Dockerfile`, `compose.yaml`, and `.env.example` without secrets.
-- [ ] Implement the target `docker compose up --build` launch and persistent data directory.
-- [ ] Document Docker, OpenAI model access, server-side key/model configuration, scan limitations, input limits, and first-run behavior.
+- [x] Add `Dockerfile`, `compose.yaml`, and `.env.example` without secrets.
+- [x] Implement the target `docker compose up --build` launch and persistent data directory.
+- [x] Document Docker, OpenAI model access, server-side key/model configuration, scan limitations, input limits, and first-run behavior.
 - [ ] Verify credentials inside the container and ensure setup failures remain understandable in the UI.
 - [ ] Exercise a new upload, source inspection, and export through live inference.
 
 ## Acceptance criteria
 
-- [ ] The packaged application boots with only documented prerequisites and dependencies.
-- [ ] Missing configuration leaves the UI available to explain the problem; periodic health checks incur no model inference.
+- [x] The packaged application boots with only documented prerequisites and dependencies.
+- [x] Missing configuration leaves the UI available to explain the problem; periodic health checks incur no model inference.
 - [ ] [A19](../evaluation.md#required-scenarios) completes the live upload-to-export path; fixture mode remains explicitly labeled.
 - [ ] The command is called working only after this verification. WP-18 repeats it independently from a fresh checkout before release.
 

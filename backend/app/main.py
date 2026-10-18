@@ -46,6 +46,7 @@ def create_app(
     configuration: ConfigurationProvenance | None = None,
     parser_config: NativePdfConfig | None = None,
     limits: WorkflowLimits | None = None,
+    provider_detail: str | None = None,
 ) -> FastAPI:
     """Wire the store, interpreter, and engine at lifespan start; no model calls."""
     if data_dir is None:
@@ -141,7 +142,7 @@ def create_app(
         body = ReadinessResponse(
             ready=not missing,
             missing_prerequisites=tuple(missing),
-            provider=ProviderVerification(),
+            provider=ProviderVerification(detail=provider_detail),
         )
         return Response(
             status_code=200 if body.ready else 503,

@@ -22,14 +22,14 @@ Include run/parent IDs, export time, workflow/outcome, document names/hashes, po
 
 - [x] Implement deterministic JSON serialization and Markdown checklist rendering.
 - [x] Add state-aware export routing and useful unavailable-artifact responses.
-- [ ] Provide the staff interface with the implemented endpoint, format, filename, and error contracts.
+- [x] Provide the staff interface with the implemented endpoint, format, filename, and error contracts.
 - [x] Compare exported content with saved records across changed-policy and linked-run cases.
 
 ## Acceptance criteria
 
-- [ ] Exported findings, source identities, citations, and unresolved issues match the saved run; WP-16 checks parity with the integrated UI. [A19](../evaluation.md#required-scenarios)
+- [x] Exported findings, source identities, citations, and unresolved issues match the saved run; WP-16 checks parity with the integrated UI. [A19](../evaluation.md#required-scenarios)
 - [x] An older assessment's substantive content remains unchanged after a new policy or annotation creates another run. [A09, A17](../evaluation.md#required-scenarios)
-- [ ] A `needs_input` export clearly records the stop and no invented necessity outcome; failed, interrupted, or running executions cannot masquerade as completed checklists. [A16, A19](../evaluation.md#required-scenarios)
+- [x] A `needs_input` export clearly records the stop and no invented necessity outcome; failed, interrupted, or running executions cannot masquerade as completed checklists. [A16, A19](../evaluation.md#required-scenarios)
 - [x] Export generation makes no inference call and exposes no credentials. [A19](../evaluation.md#required-scenarios)
 
 ## Dependencies and references

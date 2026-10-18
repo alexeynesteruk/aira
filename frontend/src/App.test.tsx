@@ -16,17 +16,27 @@ describe('workspace availability', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Checking')
     expect(await screen.findByText('Assessment processing is not available.')).toBeVisible()
     expect(screen.getByText('Server configuration needs OPENAI_API_KEY and AIRA_MODEL.')).toBeVisible()
-    expect(screen.getByText('No documents have been processed.')).toBeVisible()
-    expect(screen.queryByRole('button', { name: /assess|approve/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start assessment' })).toBeDisabled()
   })
 
-  it('reports a ready application', async () => {
+  it('reports a ready application and labels the fixture provider', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ ready: true, missing_prerequisites: [], provider: { status: 'unverified' } }),
+      JSON.stringify({
+        ready: true,
+        missing_prerequisites: [],
+        provider: {
+          status: 'unverified',
+          detail: 'Fixture interpreter for browser tests; no live model calls.',
+        },
+      }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     )))
     render(<App />)
     expect(await screen.findByText('Ready to assess documents.')).toBeVisible()
+    expect(
+      screen.getByText('Fixture interpreter for browser tests; no live model calls.'),
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Start assessment' })).toBeDisabled()
   })
 
   it.each(['network', 'invalid-json', 'unexpected-status'])(

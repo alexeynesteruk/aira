@@ -1,30 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-type Availability = 'checking' | 'unavailable' | 'ready' | 'disconnected'
+import { getReadiness, type ReadinessResponse } from './api'
+import { Readiness, type Availability } from './components/Readiness'
+import { RunView } from './components/RunView'
+import { Upload } from './components/Upload'
 
-function stringList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+function runFromLocation(): string | null {
+  return new URLSearchParams(window.location.search).get('run')
 }
 
 export function App() {
   const [availability, setAvailability] = useState<Availability>('checking')
-  const [missing, setMissing] = useState<string[]>([])
+  const [readiness, setReadiness] = useState<ReadinessResponse | null>(null)
+  const [runId, setRunId] = useState<string | null>(runFromLocation)
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/health/ready', { signal: controller.signal })
-      .then(async (response) => {
-        const body: unknown = await response.json()
-        if (body !== null && typeof body === 'object' && 'ready' in body) {
-          if (body.ready === false && response.status === 503) {
-            const record = body as { missing_prerequisites?: unknown }
-            setMissing(stringList(record.missing_prerequisites))
-            setAvailability('unavailable')
-          } else if (body.ready === true && response.status === 200) {
-            setAvailability('ready')
-          } else {
-            setAvailability('disconnected')
-          }
+    getReadiness()
+      .then((body) => {
+        if (controller.signal.aborted) return
+        if (body && typeof body.ready === 'boolean') {
+          setReadiness(body)
+          setAvailability(body.ready ? 'ready' : 'unavailable')
         } else {
           setAvailability('disconnected')
         }
@@ -35,6 +32,22 @@ export function App() {
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const onPop = () => setRunId(runFromLocation())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const openRun = useCallback((id: string) => {
+    window.history.pushState({}, '', `/?run=${id}`)
+    setRunId(id)
+  }, [])
+
+  const goHome = useCallback(() => {
+    window.history.pushState({}, '', '/')
+    setRunId(null)
+  }, [])
+
   return (
     <div className="workspace">
       <header className="topbar">
@@ -42,28 +55,18 @@ export function App() {
         <span className="workspace-label">Evidence workspace</span>
       </header>
       <main>
-        <p className="eyebrow">Prior authorization</p>
-        <h1>Every requirement.<br />Connected to its evidence.</h1>
-        <p className="introduction">Review policy requirements alongside the patient chart,
-          with clear sources and documentation gaps.</p>
-        <section className="setup-card" aria-labelledby="availability-heading">
-          <div className="document-icon" aria-hidden="true">↗</div>
-          <div>
-            <h2 id="availability-heading">Your assessment workspace</h2>
-            <p role="status" aria-live="polite">
-              {availability === 'checking' && 'Checking assessment availability…'}
-              {availability === 'unavailable' && 'Assessment processing is not available.'}
-              {availability === 'ready' && 'Ready to assess documents.'}
-              {availability === 'disconnected' && 'Unable to check availability. Check the server connection and refresh.'}
-            </p>
-            {availability === 'unavailable' && missing.length > 0 && (
-              <ul className="missing-prerequisites">
-                {missing.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            )}
-            <p className="note">No documents have been processed.</p>
-          </div>
-        </section>
+        {runId ? (
+          <RunView key={runId} runId={runId} onOpenRun={openRun} onNewRun={goHome} />
+        ) : (
+          <>
+            <p className="eyebrow">Prior authorization</p>
+            <h1>Every requirement.<br />Connected to its evidence.</h1>
+            <p className="introduction">Review policy requirements alongside the patient chart,
+              with clear sources and documentation gaps.</p>
+            <Readiness availability={availability} readiness={readiness} />
+            <Upload availability={availability} onStarted={openRun} />
+          </>
+        )}
       </main>
       <footer>Source-based review · Human judgment at every decision</footer>
     </div>

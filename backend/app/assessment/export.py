@@ -2,7 +2,12 @@
 
 import json
 
-from app.schemas import AssessmentExport, SourceSpan
+from app.schemas import (
+    AssessmentExport,
+    AssessmentOutcome,
+    RunStatus,
+    SourceSpan,
+)
 
 
 def _text(value: object) -> str:
@@ -43,6 +48,19 @@ def render_markdown(export: AssessmentExport) -> str:
     ]
     if run.parent_run_id:
         lines.append(f"Previous attempt: `{run.parent_run_id}`.")
+    if run.status == RunStatus.NEEDS_INPUT:
+        lines.append(
+            "Assessment stopped for staff input; no medical-necessity evaluation was performed."
+        )
+    elif (
+        run.status == RunStatus.COMPLETED
+        and run.result is not None
+        and run.result.outcome == AssessmentOutcome.APPLICABILITY_MISMATCH
+    ):
+        lines.append(
+            "The uploaded policy does not apply to this request; "
+            "no medical-necessity evaluation was performed."
+        )
     lines.extend(["", "## Original documents", ""])
     for document in export.documents:
         lines.append(

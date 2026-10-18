@@ -14,10 +14,12 @@ test('built UI reports readiness exactly as the API does', async ({ page, reques
     expect(body.missing_prerequisites.length).toBeGreaterThan(0)
     await expect(page.getByRole('status')).toHaveText('Assessment processing is not available.')
     await expect(page.getByText(body.missing_prerequisites[0])).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Start assessment' })).toBeDisabled()
   } else {
     expect(readiness.status()).toBe(200)
     expect(body.ready).toBe(true)
     await expect(page.getByRole('status')).toHaveText('Ready to assess documents.')
+    await expect(page.getByRole('button', { name: 'Start assessment' })).toBeDisabled()
   }
 })
 

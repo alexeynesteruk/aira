@@ -2,7 +2,7 @@
 
 Take-home project for Aira's Forward Deployed Engineer assessment. The intended product helps clinic staff compare patient chart evidence with an uploaded insurer guideline and identify gaps before submitting a prior authorization request.
 
-The FastAPI/React shell, strict domain contracts, independently reviewed fixtures, and GitHub Actions container delivery are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, and a Markdown export renderer are implemented and tested; the OpenAI stage interpreter, HTTP API, and staff UI remain under construction, tracked in the [work breakdown](docs/work-breakdown.md). Live inference is currently blocked by API project quota; the user deferred quota resolution.
+The FastAPI/React workspace, strict domain contracts, independently reviewed fixtures, and GitHub Actions container delivery are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, the OpenAI stage interpreter, the HTTP source API, exports, and the staff review UI are implemented and tested, tracked in the [work breakdown](docs/work-breakdown.md). Live inference is currently blocked by API project quota; the user deferred quota resolution.
 
 ## Development
 
@@ -23,6 +23,18 @@ make browser-test
 ```
 
 `make check` runs Python lint/format/type checks, pytest, wheel/sdist builds, frontend lint/type checks, Vitest, and a production UI build. Tests must pass before each implementation package is marked complete. Store `OPENAI_API_KEY` and an explicit `AIRA_MODEL` in an ignored `.env` file using `.env.example`; never commit credentials.
+
+## Reviewer quick start
+
+Prerequisite: Docker. No OpenAI key is needed to boot the application, but real assessment work requires it.
+
+1. `cp .env.example .env` and set `OPENAI_API_KEY` and `AIRA_MODEL` (server-side only — the key never reaches the browser).
+2. `docker compose up --build` and open http://localhost:8000.
+3. Upload a policy PDF and a chart PDF, fill optional request metadata, and start the assessment. Runs poll, show the saved outcome with source-level citations, and export JSON or Markdown.
+
+Application data persists in the `aira-data` volume (`/app/data`, overridable with `AIRA_DATA_DIR`). Inputs must be native-text PDFs (10 MiB / 100 pages maximum); raster, password-protected, annotated, rotated, or fillable-form pages are rejected with an explicit message rather than silently degraded — OCR remains an open decision. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
+
+To exercise the review journeys without credentials, `npm --prefix frontend run build` then `make browser-test` starts the local app plus a labeled fixture server and replays the six saved staff journeys.
 
 ## Model experiment
 
