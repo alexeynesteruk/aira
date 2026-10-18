@@ -12,21 +12,21 @@ Staff can reopen an assessment with the exact sources and processing configurati
 
 ## Technical requirements
 
-[TR-012](../requirements/technical-requirements.md#tr-012-storage-identity-and-cache-isolation) requires SQLite repositories, immutable local artifacts, explicit document roles/run references, and fingerprints covering relevant inputs, parser, model/profile, region, prompts, schemas, and inference settings. Request context and annotations also affect assessment identity. [TR-002](../requirements/technical-requirements.md#tr-002-immutable-sources-and-layout-extraction) requires immutable originals and extraction revisions. Stored annotations retain provenance; they do not replace source evidence.
+[TR-012](../requirements/technical-requirements.md#tr-012-storage-identity-and-cache-isolation) requires SQLite repositories, immutable local artifacts, explicit document roles/run references, and fingerprints covering relevant inputs, parser, provider/model, SDK, prompts, schemas, and inference settings. Request context and annotations also affect assessment identity. [TR-002](../requirements/technical-requirements.md#tr-002-immutable-sources-and-layout-extraction) requires immutable originals and extraction revisions. Stored annotations retain provenance; they do not replace source evidence.
 
 ## Implementation tasks
 
-- [ ] Implement `backend/app/storage/` repositories for documents, extractions, runs, annotations, and validated artifacts.
-- [ ] Define fingerprint construction and lookup rules; reuse only compatible completed artifacts.
-- [ ] Persist artifact files before publishing completed-stage metadata, so incomplete writes cannot appear reusable.
-- [ ] Add reload, lineage, role/reference, configuration-change, and interrupted-write tests without requiring AWS.
+- [x] Implement `backend/app/storage/` repositories for documents, extractions, runs, annotations, and validated artifacts.
+- [x] Define fingerprint construction and lookup rules; reuse only compatible completed artifacts.
+- [x] Persist artifact files before publishing completed-stage metadata, so incomplete writes cannot appear reusable.
+- [x] Add reload, lineage, role/reference, configuration-change, and interrupted-write tests without contacting a model provider.
 
 ## Acceptance criteria
 
-- [ ] A09 retains an old result while a changed guideline produces a distinct result tied to its new input.
-- [ ] A15 rejects wrong-document references rather than resolving similar content elsewhere.
-- [ ] A17 reuses compatible work but invalidates affected artifacts after parser, prompt, model, request, or annotation changes.
-- [ ] A17 preserves failed/interrupted attempts and does not expose missing artifact files as completed reusable stages.
+- [x] A09 retains an old result while a changed guideline produces a distinct result tied to its new input.
+- [x] A15 rejects wrong-document references rather than resolving similar content elsewhere.
+- [x] A17 reuses compatible work but invalidates affected artifacts after parser, prompt, model, request, or annotation changes.
+- [x] A17 preserves failed/interrupted attempts and does not expose missing artifact files as completed reusable stages.
 
 Checks follow the [evaluation matrix](../evaluation.md#required-scenarios). Duplicate uploads may share immutable bytes while retaining correct application metadata and roles. Fixed temperature is not a substitute for saving actual model output.
 
@@ -34,4 +34,4 @@ Checks follow the [evaluation matrix](../evaluation.md#required-scenarios). Dupl
 
 Completion dependency: [WP-02](../work-breakdown.md#wp-02-domain-and-interface-contracts).
 
-Design references: [domain records](../architecture.md#domain-records), [execution and persistence](../architecture.md#execution-and-persistence), and [run lifecycle](../architecture.md#request-and-run-lifecycle). Workflow transition ownership remains with WP-11; storage does not invoke parsers/models or advance the assessment itself.
+Design references: [domain records](../architecture.md#domain-records), [execution and persistence](../architecture.md#execution-and-persistence), and [run lifecycle](../architecture.md#request-and-run-lifecycle). Workflow transition ownership remains with WP-11; storage does not invoke parsers/models or advance the assessment itself. The verified results are recorded in [results/storage.md](../results/storage.md); the remaining boundary is workflow integration in WP-11.
