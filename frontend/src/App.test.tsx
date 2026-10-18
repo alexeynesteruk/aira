@@ -3,16 +3,30 @@ import { describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 
 describe('workspace availability', () => {
-  it('explains unavailable processing without inventing an assessment', async () => {
+  it('explains unavailable processing with its missing prerequisites', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ status: 'not_ready', reasons: ['Not implemented'], provider_verification: 'unverified' }),
+      JSON.stringify({
+        ready: false,
+        missing_prerequisites: ['Server configuration needs OPENAI_API_KEY and AIRA_MODEL.'],
+        provider: { status: 'unverified' },
+      }),
       { status: 503, headers: { 'Content-Type': 'application/json' } },
     )))
     render(<App />)
     expect(screen.getByRole('status')).toHaveTextContent('Checking')
-    expect(await screen.findByText('Assessment processing is not available in this build.')).toBeVisible()
+    expect(await screen.findByText('Assessment processing is not available.')).toBeVisible()
+    expect(screen.getByText('Server configuration needs OPENAI_API_KEY and AIRA_MODEL.')).toBeVisible()
     expect(screen.getByText('No documents have been processed.')).toBeVisible()
     expect(screen.queryByRole('button', { name: /assess|approve/i })).not.toBeInTheDocument()
+  })
+
+  it('reports a ready application', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ready: true, missing_prerequisites: [], provider: { status: 'unverified' } }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )))
+    render(<App />)
+    expect(await screen.findByText('Ready to assess documents.')).toBeVisible()
   })
 
   it.each(['network', 'invalid-json', 'unexpected-status'])(

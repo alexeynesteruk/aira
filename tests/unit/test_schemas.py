@@ -16,6 +16,7 @@ from app.schemas import (
     ConfigurationProvenance,
     CreateAssessmentRequest,
     DocumentResponse,
+    ErrorCode,
     Finding,
     Policy,
     PolicyCandidate,
@@ -355,3 +356,31 @@ def test_domain_and_candidate_json_schemas_are_separate() -> None:
     assert "SourceSpan" in domain["$defs"]
     assert "CandidateCitation" in candidate["$defs"]
     assert "SourceSpan" not in candidate["$defs"]
+
+
+def test_http_error_envelope_codes_remain_additive() -> None:
+    """The TRD's 404/409/422 envelopes need codes distinct from stage failures."""
+    assert {
+        ErrorCode.NOT_FOUND.value,
+        ErrorCode.INVALID_REQUEST.value,
+        ErrorCode.STATE_CONFLICT.value,
+    } == {"not_found", "invalid_request", "state_conflict"}
+    stage_codes = {
+        "access_denied",
+        "throttled",
+        "timeout",
+        "refused",
+        "invalid_output",
+        "citation_invalid",
+        "extraction_failed",
+        "configuration_missing",
+        "unsupported_input",
+        "queue_full",
+        "interrupted",
+        "internal_error",
+    }
+    assert {code.value for code in ErrorCode} == stage_codes | {
+        "not_found",
+        "invalid_request",
+        "state_conflict",
+    }

@@ -64,6 +64,9 @@ class ErrorCode(StrEnum):
     QUEUE_FULL = "queue_full"
     INTERRUPTED = "interrupted"
     INTERNAL_ERROR = "internal_error"
+    NOT_FOUND = "not_found"
+    INVALID_REQUEST = "invalid_request"
+    STATE_CONFLICT = "state_conflict"
 
 
 class OperationalError(StrictModel):

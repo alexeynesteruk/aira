@@ -13,7 +13,7 @@ make install
 make check
 ```
 
-Start `make dev-api` and `make dev-ui` in separate terminals, then open http://localhost:5173. Alternatively, `npm --prefix frontend run build` followed by `make dev-api` serves the built UI at http://localhost:8000. Neither path requires credentials for the shell. `/health/live` returns 200; `/health/ready` returns 503 because assessment processing is not yet available.
+Start `make dev-api` and `make dev-ui` in separate terminals, then open http://localhost:5173. Alternatively, `npm --prefix frontend run build` followed by `make dev-api` serves the built UI at http://localhost:8000. `/health/live` returns 200; `/health/ready` returns 503 until `OPENAI_API_KEY` and `AIRA_MODEL` are configured (see `.env.example`), since the app then starts the real workflow engine. The application stores its data under `AIRA_DATA_DIR`, defaulting to `data/app`; the `/api` routes accept document uploads, assessment submissions, status polling, source pages, and exports. Submitting an assessment makes billable model calls and remains blocked until quota is restored.
 
 Run the saved Chromium tests after installing the browser:
 

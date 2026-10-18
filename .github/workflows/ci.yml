@@ -84,7 +84,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:8000/health/live
           test "$(curl --silent --output /tmp/aira-ready.json --write-out '%{http_code}' http://127.0.0.1:8000/health/ready)" = 503
-          python3 -c 'import json; r=json.load(open("/tmp/aira-ready.json")); assert r["status"] == "not_ready" and r["provider_verification"] == "unverified"'
+          python3 -c 'import json; r=json.load(open("/tmp/aira-ready.json")); assert r["ready"] is False and r["provider"]["status"] == "unverified" and r["missing_prerequisites"]'
       - run: npm --prefix frontend ci
       - name: Install Chromium
         working-directory: frontend

@@ -16,17 +16,17 @@ The frontend and reviewers receive a stable interface for uploads, run progress,
 
 ## Implementation tasks
 
-- [ ] Implement upload, document metadata/original/page, assessment creation/status, and health routes in `backend/app/api/`.
-- [ ] Validate document roles, IDs, revisions, request context, and optional `parent_run_id` before queuing.
-- [ ] Return `202` with run ID/status URL promptly; expose persisted failures through status polling.
-- [ ] Generate API documentation and boundary tests. Export generation/routes are implemented by WP-14 against the same contract.
+- [x] Implement upload, document metadata/original/page, assessment creation/status, and health routes in `backend/app/api/`.
+- [x] Validate document roles, IDs, revisions, request context, and optional `parent_run_id` before queuing.
+- [x] Return `202` with run ID/status URL promptly; expose persisted failures through status polling.
+- [x] Generate API documentation and boundary tests. Export generation/routes are implemented by WP-14 against the same contract.
 
 ## Acceptance criteria
 
-- [ ] A14 distinguishes unsupported type, malformed PDF, and configured limits without silent truncation.
-- [ ] A12/A15 reject wrong roles/IDs/revisions; one-based page access returns the original run's evidence.
-- [ ] A16 returns specified queue/configuration errors; a known failed run still polls successfully with `status=failed`.
-- [ ] A19 source inspection works, and repeated health checks make no model calls. The UI remains available to explain missing configuration.
+- [x] A14 distinguishes unsupported type, malformed PDF, and configured limits without silent truncation.
+- [x] A12/A15 reject wrong roles/IDs/revisions; one-based page access returns the original run's evidence.
+- [x] A16 returns specified queue/configuration errors; a known failed run still polls successfully with `status=failed`.
+- [x] A19 source inspection works, and repeated health checks make no model calls. The UI remains available to explain missing configuration.
 
 Checks follow the [evaluation matrix](../evaluation.md#required-scenarios) and [error envelope](../requirements/technical-requirements.md#status-and-error-contracts).
 
@@ -34,4 +34,4 @@ Checks follow the [evaluation matrix](../evaluation.md#required-scenarios) and [
 
 Completion dependencies: [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-06](../work-breakdown.md#wp-06-storage-and-identity), [WP-11](../work-breakdown.md#wp-11-workflow-and-recovery).
 
-Design references: [component boundaries](../architecture.md#components-and-dependency-direction), [request lifecycle](../architecture.md#request-and-run-lifecycle), and [reviewer configuration](../model-provider.md#reviewer-configuration).
+Design references: [component boundaries](../architecture.md#components-and-dependency-direction), [request lifecycle](../architecture.md#request-and-run-lifecycle), and [reviewer configuration](../model-provider.md#reviewer-configuration). The verified boundary is recorded in [results/http-api.md](../results/http-api.md); the remaining work is the WP-13 staff interface over these routes.

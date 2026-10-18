@@ -20,18 +20,18 @@ Include run/parent IDs, export time, workflow/outcome, document names/hashes, po
 
 ## Implementation tasks
 
-- [ ] Implement deterministic JSON serialization and Markdown checklist rendering.
-- [ ] Add state-aware export routing and useful unavailable-artifact responses.
+- [x] Implement deterministic JSON serialization and Markdown checklist rendering.
+- [x] Add state-aware export routing and useful unavailable-artifact responses.
 - [ ] Provide the staff interface with the implemented endpoint, format, filename, and error contracts.
-- [ ] Compare exported content with saved records across changed-policy and linked-run cases.
+- [x] Compare exported content with saved records across changed-policy and linked-run cases.
 
 ## Acceptance criteria
 
 - [ ] Exported findings, source identities, citations, and unresolved issues match the saved run; WP-16 checks parity with the integrated UI. [A19](../evaluation.md#required-scenarios)
-- [ ] An older assessment's substantive content remains unchanged after a new policy or annotation creates another run. [A09, A17](../evaluation.md#required-scenarios)
+- [x] An older assessment's substantive content remains unchanged after a new policy or annotation creates another run. [A09, A17](../evaluation.md#required-scenarios)
 - [ ] A `needs_input` export clearly records the stop and no invented necessity outcome; failed, interrupted, or running executions cannot masquerade as completed checklists. [A16, A19](../evaluation.md#required-scenarios)
-- [ ] Export generation makes no inference call and exposes no credentials. [A19](../evaluation.md#required-scenarios)
+- [x] Export generation makes no inference call and exposes no credentials. [A19](../evaluation.md#required-scenarios)
 
 ## Dependencies and references
 
-Completion depends on [WP-11](../work-breakdown.md#wp-11-workflow-and-recovery) and [WP-12](../work-breakdown.md#wp-12-http-and-source-api). Coordinate the download contract with [WP-13](13-staff-review-interface.md); [WP-16](16-evaluation-regression.md) verifies UI integration. Follow the [run lifecycle](../architecture.md#request-and-run-lifecycle) and [execution and persistence](../architecture.md#execution-and-persistence) boundaries.
+Completion depends on [WP-11](../work-breakdown.md#wp-11-workflow-and-recovery) and [WP-12](../work-breakdown.md#wp-12-http-and-source-api). Coordinate the download contract with [WP-13](13-staff-review-interface.md); [WP-16](16-evaluation-regression.md) verifies UI integration. Follow the [run lifecycle](../architecture.md#request-and-run-lifecycle) and [execution and persistence](../architecture.md#execution-and-persistence) boundaries. Route-level evidence is in [results/http-api.md](../results/http-api.md); the remaining boundary is the WP-13 download action and WP-16 UI parity.

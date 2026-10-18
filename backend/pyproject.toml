@@ -13,6 +13,7 @@ dependencies = [
   "pdfplumber>=0.11,<0.12",
   "pydantic>=2.10,<3",
   "python-dotenv>=1.2.4",
+  "python-multipart>=0.0.20,<0.1",
   "uvicorn>=0.34,<1",
 ]
 
@@ -31,6 +32,7 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["../tests"]
+pythonpath = ["../tests"]
 addopts = "-ra --strict-markers"
 markers = ["live: explicitly invoked tests that require live OpenAI access"]
 
