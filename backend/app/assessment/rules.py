@@ -9,39 +9,22 @@ from app.schemas import (
     ApplicabilityStatus,
     AssessmentOutcome,
     CriterionNode,
+    EvaluationResult,
     EvidenceStatus,
     Finding,
     LogicalValue,
+    NodeTrace,
     Policy,
+    ReadinessBlocker,
     ReviewIssue,
 )
-from app.schemas.base import StrictModel
 
-
-class NodeTrace(StrictModel):
-    node_id: str
-    kind: Literal["all", "any", "criterion"]
-    logical_value: LogicalValue
-    children: tuple[str, ...] = ()
-    criterion_id: str | None = None
-    finding: Finding | None = None
-    unresolved_reasons: tuple[str, ...] = ()
-    supporting_children: tuple[str, ...] = ()
-
-
-class ReadinessBlocker(StrictModel):
-    code: str
-    reference_id: str | None = None
-    message: str
-
-
-class EvaluationResult(StrictModel):
-    root_id: str
-    logical_value: LogicalValue | None
-    outcome: AssessmentOutcome | None
-    traces: tuple[NodeTrace, ...] = ()
-    satisfied_path: tuple[str, ...] = ()
-    blockers: tuple[ReadinessBlocker, ...] = ()
+__all__ = [
+    "EvaluationResult",
+    "NodeTrace",
+    "ReadinessBlocker",
+    "evaluate_policy",
+]
 
 
 def _aggregate(kind: Literal["all", "any"], values: Sequence[LogicalValue]) -> LogicalValue:

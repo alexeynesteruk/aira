@@ -37,5 +37,7 @@ Commands run from the repository root:
 ## Limitations
 
 - Controlled interpreter: outcomes are scripted; live provider behavior remains unverified behind the deferred quota.
-- The staff review UI (WP-13) has not yet consumed these routes; UI download parity is a WP-16 check.
+- OpenAPI: the spec documents typed request bodies (multipart upload, `CreateAssessmentRequest`), response models for every route status (`ErrorResponse`, `DocumentResponse`, `PageResponse`, `RunRecord`, `AssessmentExport`, `LivenessResponse`, `ReadinessResponse`), and every `$ref` resolves within components.
+- Provider verification: readiness reports the last explicit `python -m app.llm.preflight` record persisted to `<data_dir>/provider-verification.json` when its model matches `AIRA_MODEL`; a stale or absent record stays `unverified`. Readiness never calls the provider.
+- The staff review UI (WP-13) consumes these routes; fixture-interpreter parity evidence is in [review-ui.md](review-ui.md).
 - `TestClient` exercises the same lifespan/worker path as uvicorn but not container networking or process signals.

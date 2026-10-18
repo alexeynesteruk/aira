@@ -204,6 +204,32 @@ export interface Finding {
   unresolved_reasons: string[]
 }
 
+export type LogicalValue = 'true' | 'false' | 'unknown'
+
+export interface NodeTrace {
+  node_id: string
+  kind: 'all' | 'any' | 'criterion'
+  logical_value: LogicalValue
+  children: string[]
+  criterion_id?: string | null
+  unresolved_reasons: string[]
+  supporting_children: string[]
+}
+
+export interface EvaluationResult {
+  root_id: string
+  logical_value: LogicalValue | null
+  outcome:
+    | 'applicability_mismatch'
+    | 'documented_requirements_satisfied'
+    | 'documentation_gaps_or_contrary_evidence'
+    | 'review_required'
+    | null
+  traces: NodeTrace[]
+  satisfied_path: string[]
+  blockers: { code: string; reference_id?: string | null; message: string }[]
+}
+
 export interface AssessmentResult {
   outcome:
     | 'applicability_mismatch'
@@ -214,8 +240,9 @@ export interface AssessmentResult {
   policy?: Policy | null
   facts: ChartFact[]
   findings: Finding[]
-  logical_value?: 'true' | 'false' | 'unknown' | null
+  logical_value?: LogicalValue | null
   issues: ReviewIssue[]
+  evaluation?: EvaluationResult | null
 }
 
 export interface StageUsage {

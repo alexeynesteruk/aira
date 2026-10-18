@@ -46,10 +46,15 @@ from app.assessment.stages import (  # noqa: E402
     ScopeInterpretation,
     StageInputs,
 )
+from app.assessment.workflow import (  # noqa: E402
+    WorkflowLimits,
+    workflow_parser_fingerprint,
+)
 from app.documents.native import PARSER_VERSION  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.schemas import (  # noqa: E402
     AllNode,
+    AnyNode,
     ApplicabilityResult,
     ApplicabilityStatus,
     ChartFact,
@@ -81,14 +86,18 @@ CHART_CONFLICT_AGAINST_QUOTE = (4, "Symptom Correlation: No patient-triggered ev
 PROVIDER_DETAIL = "Fixture interpreter for browser tests; no live model calls."
 
 
+def fixture_limits() -> WorkflowLimits:
+    """Parallel journey workers share one engine; keep headroom over the default."""
+    return WorkflowLimits(max_pending=16)
+
+
 def fixture_configuration() -> ConfigurationProvenance:
-    from app.assessment.workflow import WorkflowLimits, workflow_parser_fingerprint
     from app.documents import NativePdfConfig
 
     return ConfigurationProvenance(
         parser=VersionReference(name="pdfplumber", version=PARSER_VERSION),
         parser_configuration_sha256=workflow_parser_fingerprint(
-            NativePdfConfig(), WorkflowLimits()
+            NativePdfConfig(), fixture_limits()
         ),
         prompts=(VersionReference(name="fixture", version="1"),),
         provider=ModelProvider.OPENAI,
@@ -124,7 +133,13 @@ class E2EInterpreter:
                     unresolved_fields=(RequestField.PLAN,),
                 ),
             )
-        if procedure in {"E2E gaps", "E2E clarify", "E2E contrary", "E2E satisfied"}:
+        if procedure in {
+            "E2E gaps",
+            "E2E clarify",
+            "E2E contrary",
+            "E2E satisfied",
+            "E2E alternative",
+        }:
             return ScopeInterpretation(
                 request=RequestContext(
                     procedure=procedure,
@@ -178,6 +193,48 @@ class E2EInterpreter:
                 question="Does the chart document demonstrated perforator reflux?"
             ),
         )
+        if _annotation_value(inputs, "procedure") == "E2E alternative":
+            return PolicyInterpretation(
+                policy=Policy(
+                    policy_id="e2e-fixture-policy",
+                    document_id=inputs.policy_document.document_id,
+                    document_sha256=inputs.policy_document.sha256,
+                    title="Fixture venous requirements",
+                    scope_summary="Scripted alternatives for the OR-path browser journey.",
+                    criteria=(criterion_a, criterion_b),
+                    nodes=(
+                        AnyNode(
+                            node_id="node-any",
+                            children=("node-a", "node-b"),
+                            sources=(first,),
+                        ),
+                        CriterionNode(
+                            node_id="node-a",
+                            criterion_id="criterion-telangiectasia",
+                            sources=(first,),
+                        ),
+                        CriterionNode(
+                            node_id="node-b",
+                            criterion_id="criterion-perforator-reflux",
+                            sources=(second,),
+                        ),
+                    ),
+                    root_id="node-any",
+                    sections=(
+                        PolicySection(
+                            section_id="requirements",
+                            heading="Requirements",
+                            sources=(heading,),
+                            disposition="requirements",
+                            criterion_ids=(
+                                "criterion-telangiectasia",
+                                "criterion-perforator-reflux",
+                            ),
+                            explanation="Either scripted alternative satisfies the group.",
+                        ),
+                    ),
+                )
+            )
         if _annotation_value(inputs, "procedure") == "E2E satisfied":
             return PolicyInterpretation(
                 policy=Policy(
@@ -365,6 +422,7 @@ def main() -> None:
         env_file=data_dir / "missing.env",
         interpreter=E2EInterpreter(),
         configuration=fixture_configuration(),
+        limits=fixture_limits(),
         provider_detail=PROVIDER_DETAIL,
     )
     uvicorn.run(app, host="127.0.0.1", port=args.port)

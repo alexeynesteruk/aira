@@ -98,3 +98,13 @@ export function phaseLabel(phase: string | null | undefined): string {
 export function relationLabel(relation: string): string {
   return RELATION_LABELS[relation] ?? relation
 }
+
+const PAGE_QUALITY_LABELS: Record<string, string> = {
+  needs_ocr: 'Needs OCR (scans are unsupported)',
+  unusable: 'Unusable',
+  uninspected: 'Not inspected',
+}
+
+export function pageQualityLabel(quality: string): string {
+  return PAGE_QUALITY_LABELS[quality] ?? quality
+}

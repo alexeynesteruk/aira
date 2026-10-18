@@ -188,6 +188,10 @@ async def test_applicable_run_completes_every_phase_with_persisted_evaluation(
     assert set(by_phase) == set(phases)
     evaluation = store.get_artifact(by_phase[RunPhase.EVALUATING], EvaluationResult)
     assert evaluation.value.outcome == result.outcome
+    # The run's saved evaluation carries the exact persisted artifact so the UI
+    # and export can render OR-path states without re-evaluating.
+    assert result.evaluation is not None
+    assert result.evaluation == evaluation.value
 
 
 @pytest.mark.anyio

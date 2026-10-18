@@ -5,12 +5,12 @@ import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from fastapi import FastAPI, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from starlette.types import ExceptionHandler
 
 from app.api import (
@@ -28,13 +28,60 @@ from app.documents import NativePdfConfig
 from app.llm.config import OpenAISettings
 from app.llm.interpreter import OpenAIStageInterpreter, openai_configuration
 from app.llm.openai_adapter import OpenAIAdapter
+from app.runtime import default_data_dir
 from app.schemas import (
+    AssessmentExport,
     ConfigurationProvenance,
+    CreateAssessmentRequest,
+    ErrorResponse,
     LivenessResponse,
     ProviderVerification,
     ReadinessResponse,
+    RunRecord,
 )
 from app.storage import LocalStore, StorageError
+
+
+def _register_openapi_schemas(application: FastAPI, models: tuple[type[BaseModel], ...]) -> None:
+    """Merge request/response contract models into components so every $ref resolves."""
+    base_openapi = application.openapi
+
+    def openapi() -> dict[str, Any]:
+        spec = base_openapi()
+        components = spec.setdefault("components", {}).setdefault("schemas", {})
+        for model in models:
+            schema = model.model_json_schema(ref_template="#/components/schemas/{model}")
+            pending = [schema.pop("$defs", {})]
+            components.setdefault(model.__name__, schema)
+            while pending:
+                for name, subschema in pending.pop().items():
+                    components.setdefault(
+                        name, {key: value for key, value in subschema.items() if key != "$defs"}
+                    )
+                    if "$defs" in subschema:
+                        pending.append(subschema["$defs"])
+        return spec
+
+    application.openapi = openapi  # type: ignore[method-assign]
+
+
+def _provider_status(application: FastAPI, provider_detail: str | None) -> ProviderVerification:
+    """Report the last explicit verification; readiness never calls the provider."""
+    settings = application.state.openai_settings
+    if settings is None:
+        return ProviderVerification(detail=provider_detail)
+    record_path = Path(application.state.data_dir) / "provider-verification.json"
+    try:
+        record = ProviderVerification.model_validate_json(record_path.read_bytes())
+    except (OSError, ValidationError):
+        record = None
+    if record is None or record.status.value == "unverified":
+        return ProviderVerification(detail=provider_detail)
+    if record.model_id != settings.model:
+        return ProviderVerification(
+            detail=f"Last verification was for a different model ({record.model_id})."
+        )
+    return record
 
 
 def create_app(
@@ -50,12 +97,7 @@ def create_app(
 ) -> FastAPI:
     """Wire the store, interpreter, and engine at lifespan start; no model calls."""
     if data_dir is None:
-        data_dir = Path(
-            os.environ.get(
-                "AIRA_DATA_DIR",
-                Path(__file__).resolve().parents[2] / "data" / "app",
-            )
-        )
+        data_dir = default_data_dir()
     if env_file is None:
         env_file = Path(".env")
     if parser_config is None:
@@ -77,16 +119,17 @@ def create_app(
             missing.append(f"The local data directory is not writable: {data_dir}.")
         active_interpreter = interpreter
         active_configuration = configuration
+        openai_settings: OpenAISettings | None = None
         if active_interpreter is None:
             try:
-                settings = OpenAISettings.from_environment(env_file=env_file)
+                openai_settings = OpenAISettings.from_environment(env_file=env_file)
             except ValidationError:
                 missing.append("Server configuration needs OPENAI_API_KEY and AIRA_MODEL.")
             else:
-                adapter = OpenAIAdapter(settings)
+                adapter = OpenAIAdapter(openai_settings)
                 active_interpreter = OpenAIStageInterpreter(adapter)
                 active_configuration = openai_configuration(
-                    settings, workflow_parser_fingerprint(parser_config, limits)
+                    openai_settings, workflow_parser_fingerprint(parser_config, limits)
                 )
         if (
             store is not None
@@ -105,6 +148,8 @@ def create_app(
         application.state.engine = engine
         application.state.missing_prerequisites = missing
         application.state.parser_config = parser_config
+        application.state.data_dir = data_dir
+        application.state.openai_settings = openai_settings
         try:
             yield
         finally:
@@ -123,15 +168,22 @@ def create_app(
         RequestValidationError, cast(ExceptionHandler, request_validation_error)
     )
     application.include_router(router)
+    _register_openapi_schemas(
+        application,
+        (CreateAssessmentRequest, ErrorResponse, RunRecord, AssessmentExport),
+    )
 
-    @application.get("/health/live")
+    @application.get("/health/live", responses={200: {"model": LivenessResponse}})
     async def live() -> Response:
         return Response(
             content=LivenessResponse().model_dump_json(),
             media_type="application/json",
         )
 
-    @application.get("/health/ready")
+    @application.get(
+        "/health/ready",
+        responses={200: {"model": ReadinessResponse}, 503: {"model": ReadinessResponse}},
+    )
     async def ready() -> Response:
         missing = list(application.state.missing_prerequisites)
         engine = application.state.engine
@@ -142,7 +194,7 @@ def create_app(
         body = ReadinessResponse(
             ready=not missing,
             missing_prerequisites=tuple(missing),
-            provider=ProviderVerification(detail=provider_detail),
+            provider=_provider_status(application, provider_detail),
         )
         return Response(
             status_code=200 if body.ready else 503,

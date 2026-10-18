@@ -26,4 +26,13 @@ class OpenAISettings(BaseModel):
         environment = os.environ if environ is None else environ
         key = environment.get("OPENAI_API_KEY", values.get("OPENAI_API_KEY") or "").strip()
         model = environment.get("AIRA_MODEL", values.get("AIRA_MODEL") or "").strip()
-        return cls(api_key=SecretStr(key), model=model)
+        max_tokens = environment.get(
+            "AIRA_MAX_OUTPUT_TOKENS", values.get("AIRA_MAX_OUTPUT_TOKENS") or "4096"
+        ).strip()
+        return cls.model_validate(
+            {
+                "api_key": SecretStr(key),
+                "model": model,
+                "max_output_tokens": max_tokens,
+            }
+        )

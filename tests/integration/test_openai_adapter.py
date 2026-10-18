@@ -352,3 +352,78 @@ def test_preflight_cli_fails_safely_without_configuration(tmp_path):
         result.stderr.strip()
         == "Configure OPENAI_API_KEY and AIRA_MODEL in the environment or .env."
     )
+
+
+@pytest.mark.anyio
+async def test_preflight_persists_a_verified_record_without_the_key(tmp_path):
+    from app.llm.preflight import verify
+
+    instance = adapter(
+        lambda request: httpx.Response(200, json={**wire_response(), "model": "served-model-name"})
+    )
+    try:
+        code = await verify(settings(), adapter=instance, data_dir=tmp_path)
+    finally:
+        await instance.close()
+    assert code == 0
+    record = json.loads((tmp_path / "provider-verification.json").read_text())
+    assert record["status"] == "verified"
+    assert record["provider"] == "openai"
+    assert record["model_id"] == "test-model"
+    assert record["detail"] == "served-model-name"
+    assert record["checked_at"]
+    assert "test-key-not-real" not in json.dumps(record)
+
+
+@pytest.mark.anyio
+async def test_preflight_persists_a_failed_record(tmp_path):
+    from app.llm.preflight import verify
+
+    instance = adapter(
+        lambda request: httpx.Response(
+            429,
+            json={
+                "error": {
+                    "type": "insufficient_quota",
+                    "code": "insufficient_quota",
+                    "message": "You exceeded your current quota.",
+                }
+            },
+        )
+    )
+    try:
+        code = await verify(settings(), adapter=instance, data_dir=tmp_path)
+    finally:
+        await instance.close()
+    assert code == 1
+    record = json.loads((tmp_path / "provider-verification.json").read_text())
+    assert record["status"] == "failed"
+    assert record["model_id"] == "test-model"
+    assert "throttled" in record["detail"]
+    assert "test-key-not-real" not in json.dumps(record)
+
+
+def test_output_token_budget_defaults_overrides_and_validates(tmp_path):
+    base = {"OPENAI_API_KEY": "local-test-key", "AIRA_MODEL": "test-model"}
+    default = OpenAISettings.from_environment(env_file=tmp_path / "missing", environ=base)
+    assert default.max_output_tokens == 4096
+
+    overridden = OpenAISettings.from_environment(
+        env_file=tmp_path / "missing",
+        environ={**base, "AIRA_MAX_OUTPUT_TOKENS": "8192"},
+    )
+    assert overridden.max_output_tokens == 8192
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "OPENAI_API_KEY=local-test-key\nAIRA_MODEL=file-model\nAIRA_MAX_OUTPUT_TOKENS=6144\n"
+    )
+    from_file = OpenAISettings.from_environment(env_file=env_file, environ=base)
+    assert from_file.max_output_tokens == 6144
+
+    for bad in ("0", "32769", "not-a-number"):
+        with pytest.raises(ValidationError):
+            OpenAISettings.from_environment(
+                env_file=tmp_path / "missing",
+                environ={**base, "AIRA_MAX_OUTPUT_TOKENS": bad},
+            )

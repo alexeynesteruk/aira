@@ -97,3 +97,54 @@ describe('RunView', () => {
     expect(screen.getByText('Documentation readiness only — not an insurer decision.')).toBeVisible()
   })
 })
+
+describe('ErrorNotice', () => {
+  it('lists the failing pages of the bound document', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            document: {
+              document_id: 'doc-1',
+              filename: 'scan.pdf',
+              page_count: 3,
+              sha256: 'a'.repeat(64),
+              role: 'chart',
+              byte_count: 10,
+              created_at: '2026-10-18T10:00:00Z',
+            },
+            extractions: [
+              {
+                extraction_id: 'ext-1',
+                pages: [
+                  { page: 1, quality: 'needs_ocr', blocks: [], issues: ['raster scan'] },
+                  { page: 2, quality: 'usable', blocks: [], issues: [] },
+                ],
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    )
+    const { ErrorNotice } = await import('./RunView')
+    render(
+      <ErrorNotice
+        error={{
+          code: 'extraction_failed',
+          message: 'The complete document is not usable for native-text assessment.',
+          retryable: false,
+          action: 'Upload a complete native-text PDF.',
+          stage: 'extracting',
+          document_id: 'doc-1',
+          page: 1,
+        }}
+      />,
+    )
+    expect(await screen.findByText('Document: scan.pdf')).toBeVisible()
+    expect(screen.getByText(/Page 1 — Needs OCR/)).toBeVisible()
+    expect(screen.getByText(/— page 1/)).toBeVisible()
+    expect(screen.queryByText(/Page 2/)).not.toBeInTheDocument()
+  })
+})

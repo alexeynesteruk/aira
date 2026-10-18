@@ -87,3 +87,87 @@ def test_failed_run_cannot_be_exported_as_a_checklist():
     }
     with pytest.raises(ValidationError, match="only completed or needs_input"):
         AssessmentExport.model_validate_json(json.dumps(data))
+
+
+def test_markdown_reports_satisfied_path_and_unused_alternatives():
+    item = export("completed_run.json")
+    data = item.model_dump(mode="json")
+    result = data["run"]["result"]
+    criterion = result["policy"]["criteria"][0]
+    sources = result["policy"]["nodes"][0]["sources"]
+    result["policy"]["criteria"].append(
+        {**criterion, "criterion_id": "criterion-2", "wording": "An alternative requirement."}
+    )
+    result["policy"]["nodes"] = [
+        {
+            "kind": "any",
+            "node_id": "root",
+            "children": ["node-a", "node-b"],
+            "sources": sources,
+        },
+        {
+            "kind": "criterion",
+            "node_id": "node-a",
+            "criterion_id": "criterion-1",
+            "sources": sources,
+        },
+        {
+            "kind": "criterion",
+            "node_id": "node-b",
+            "criterion_id": "criterion-2",
+            "sources": sources,
+        },
+    ]
+    result["policy"]["sections"][0]["criterion_ids"] = ["criterion-1", "criterion-2"]
+    result["findings"].append(
+        {
+            "criterion_id": "criterion-2",
+            "status": "missing",
+            "rationale": "No alternative was documented.",
+            "evidence": [],
+            "unresolved_reasons": ["No alternative was documented."],
+        }
+    )
+    result["evaluation"] = {
+        "root_id": "root",
+        "logical_value": "true",
+        "outcome": "documented_requirements_satisfied",
+        "traces": [
+            {
+                "node_id": "root",
+                "kind": "any",
+                "logical_value": "true",
+                "children": ["node-a", "node-b"],
+                "supporting_children": ["node-a"],
+            },
+            {
+                "node_id": "node-a",
+                "kind": "criterion",
+                "logical_value": "true",
+                "criterion_id": "criterion-1",
+            },
+            {
+                "node_id": "node-b",
+                "kind": "criterion",
+                "logical_value": "unknown",
+                "criterion_id": "criterion-2",
+            },
+        ],
+        "satisfied_path": ["root", "node-a"],
+        "blockers": [],
+    }
+    rerun = AssessmentExport.model_validate_json(json.dumps(data))
+    markdown = render_markdown(rerun)
+    assert "Policy path: supports the satisfied path." in markdown
+    assert (
+        "Policy path: alternative not needed (another alternative satisfies its group)." in markdown
+    )
+    assert "`root`: any → node-a, node-b (evaluated: true)" in markdown
+    assert "(evaluated: unknown)" in markdown
+
+
+def test_markdown_keeps_existing_rendering_without_an_evaluation():
+    item = export("completed_run.json")
+    markdown = render_markdown(item)
+    assert "Policy path:" not in markdown
+    assert "(evaluated:" not in markdown

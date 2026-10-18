@@ -79,3 +79,13 @@ mark { border-radius: 2px; }
 .clarify-field input { padding: 8px 10px; border: 1px solid #c8d4cc; border-radius: 8px; width: 100%; }
 
 @media (max-width: 550px) { main { margin: 48px auto; } .workspace-label { display: none; } .setup-card { padding: 24px 18px; gap: 15px; } .upload-grid { grid-template-columns: 1fr; } }
+
+.finding-card.not-needed {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.badge.node-state {
+  margin-left: 0.5em;
+  font-weight: normal;
+}

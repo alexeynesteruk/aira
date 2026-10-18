@@ -6,6 +6,7 @@ evidence. No test contacts a provider: the configured-app cases assert zero
 outbound HTTP through a patched httpx sender.
 """
 
+import json
 import time
 from pathlib import Path
 
@@ -547,3 +548,120 @@ def test_child_run_export_keeps_parent_link_and_annotation(tmp_path, monkeypatch
             **parent_again,
             "exported_at": None,
         }
+
+
+def test_openapi_documents_typed_bodies_status_codes_and_resolvable_refs(
+    tmp_path, monkeypatch
+) -> None:
+    app = _app(tmp_path, monkeypatch, interpreter=ControlledInterpreter())
+    client = TestClient(app)
+    spec = client.get("/openapi.json").json()
+    components = spec["components"]["schemas"]
+    for name in (
+        "CreateAssessmentRequest",
+        "ErrorResponse",
+        "RunRecord",
+        "AssessmentExport",
+        "ReadinessResponse",
+    ):
+        assert name in components
+
+    def resolve(value: object) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key == "$ref" and isinstance(item, str):
+                    if item.startswith("#/components/schemas/"):
+                        assert item.rsplit("/", 1)[-1] in components
+                else:
+                    resolve(item)
+        elif isinstance(value, list):
+            for item in value:
+                resolve(item)
+
+    resolve(spec)
+
+    paths = spec["paths"]
+    upload = paths["/api/documents"]["post"]
+    upload_body = upload["requestBody"]["content"]["multipart/form-data"]["schema"]
+    assert upload_body["properties"]["file"] == {"type": "string", "format": "binary"}
+    assert upload_body["properties"]["role"] == {"type": "string", "enum": ["policy", "chart"]}
+    assert {"201", "413", "415", "422", "503"} <= set(upload["responses"])
+
+    submit = paths["/api/assessments"]["post"]
+    body = submit["requestBody"]["content"]["application/json"]["schema"]
+    assert body == {"$ref": "#/components/schemas/CreateAssessmentRequest"}
+    assert {"202", "400", "404", "422", "429", "503"} <= set(submit["responses"])
+
+    run = paths["/api/assessments/{run_id}"]["get"]
+    assert {"200", "404", "503"} <= set(run["responses"])
+    assert (
+        run["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/RunRecord"
+    )
+    export = paths["/api/assessments/{run_id}/export"]["get"]
+    assert {"200", "404", "409", "422", "503"} <= set(export["responses"])
+    assert "text/markdown" in export["responses"]["200"]["content"]
+    file_route = paths["/api/documents/{document_id}/file"]["get"]
+    assert "application/pdf" in file_route["responses"]["200"]["content"]
+    pages = paths["/api/documents/{document_id}/pages/{page}"]["get"]
+    assert {"200", "404", "422", "503"} <= set(pages["responses"])
+    ready = paths["/health/ready"]["get"]
+    assert set(ready["responses"]) == {"200", "503"}
+
+
+def test_readiness_reports_the_last_verification_for_the_configured_model(
+    tmp_path, monkeypatch
+) -> None:
+    data_dir = tmp_path / "data"
+    app = _app(tmp_path, monkeypatch, interpreter=None, data_dir=data_dir)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-fake-key-do-not-use")
+    monkeypatch.setenv("AIRA_MODEL", "test-model")
+    data_dir.mkdir(parents=True)
+    (data_dir / "provider-verification.json").write_text(
+        json.dumps(
+            {
+                "status": "verified",
+                "provider": "openai",
+                "checked_at": "2026-10-18T12:00:00+00:00",
+                "model_id": "test-model",
+                "detail": "served-model-name",
+            }
+        )
+    )
+    sent: list[object] = []
+    monkeypatch.setattr(
+        httpx.AsyncClient,
+        "send",
+        lambda self, request, **kwargs: sent.append(request),
+    )
+    with TestClient(app) as client:
+        body = client.get("/health/ready").json()
+    assert body["provider"]["status"] == "verified"
+    assert body["provider"]["model_id"] == "test-model"
+    assert body["provider"]["detail"] == "served-model-name"
+    assert "test-fake-key-do-not-use" not in json.dumps(body)
+    assert sent == []
+
+
+def test_readiness_marks_a_verification_for_another_model_unverified(tmp_path, monkeypatch) -> None:
+    data_dir = tmp_path / "data"
+    app = _app(tmp_path, monkeypatch, interpreter=None, data_dir=data_dir)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-fake-key-do-not-use")
+    monkeypatch.setenv("AIRA_MODEL", "current-model")
+    data_dir.mkdir(parents=True)
+    (data_dir / "provider-verification.json").write_text(
+        json.dumps(
+            {
+                "status": "verified",
+                "provider": "openai",
+                "checked_at": "2026-10-18T12:00:00+00:00",
+                "model_id": "older-model",
+            }
+        )
+    )
+    with TestClient(app) as client:
+        body = client.get("/health/ready").json()
+    assert body["provider"]["status"] == "unverified"
+    assert body["provider"]["detail"] == (
+        "Last verification was for a different model (older-model)."
+    )

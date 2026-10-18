@@ -5,6 +5,8 @@ import json
 from app.schemas import (
     AssessmentExport,
     AssessmentOutcome,
+    EvaluationResult,
+    LogicalValue,
     RunStatus,
     SourceSpan,
 )
@@ -16,6 +18,45 @@ def _text(value: object) -> str:
     for character in ("\\", "`", "*", "_", "[", "]", "<", ">", "|", "#"):
         text = text.replace(character, "\\" + character)
     return text
+
+
+def not_needed_nodes(evaluation: EvaluationResult) -> set[str]:
+    """Node IDs whose branch an already-true `any` group made unnecessary.
+
+    Traversal only — no rule evaluation: a node is not needed when an ancestor
+    `any` trace is true and the child link leading to it is not among that
+    ancestor's supporting children.
+    """
+    traces = {trace.node_id: trace for trace in evaluation.traces}
+    not_needed: set[str] = set()
+    pending = [(evaluation.root_id, False)]
+    while pending:
+        node_id, inherited = pending.pop()
+        trace = traces.get(node_id)
+        if trace is None:
+            continue
+        if inherited:
+            not_needed.add(node_id)
+        for child in trace.children:
+            skipped = (
+                trace.kind == "any"
+                and trace.logical_value == LogicalValue.TRUE
+                and child not in trace.supporting_children
+            )
+            pending.append((child, inherited or skipped))
+    return not_needed
+
+
+def _policy_path_line(
+    criterion_node_id: str,
+    evaluation: EvaluationResult,
+    not_needed: set[str],
+) -> str | None:
+    if criterion_node_id in evaluation.satisfied_path:
+        return "Policy path: supports the satisfied path."
+    if criterion_node_id in not_needed:
+        return "Policy path: alternative not needed (another alternative satisfies its group)."
+    return None
 
 
 def _sources(sources: tuple[SourceSpan, ...]) -> list[str]:
@@ -123,6 +164,18 @@ def render_markdown(export: AssessmentExport) -> str:
             )
             facts = {fact.fact_id: fact for fact in result.facts}
             findings = {finding.criterion_id: finding for finding in result.findings}
+            evaluation = result.evaluation
+            not_needed = not_needed_nodes(evaluation) if evaluation else set()
+            criterion_nodes = (
+                {
+                    node.criterion_id: node.node_id
+                    for node in policy.nodes
+                    if node.kind == "criterion"
+                }
+                if evaluation
+                else {}
+            )
+            traces = {trace.node_id: trace for trace in evaluation.traces} if evaluation else {}
             lines.extend(["", "## Requirements and evidence", ""])
             for criterion in policy.criteria:
                 finding = findings[criterion.criterion_id]
@@ -139,6 +192,12 @@ def render_markdown(export: AssessmentExport) -> str:
                         f"Finding: {_text(finding.rationale)}",
                     ]
                 )
+                if evaluation:
+                    path_line = _policy_path_line(
+                        criterion_nodes[criterion.criterion_id], evaluation, not_needed
+                    )
+                    if path_line:
+                        lines.append(path_line)
                 for reason in finding.unresolved_reasons:
                     lines.append(f"- Unresolved: {_text(reason)}")
                 for reference in finding.evidence:
@@ -158,7 +217,12 @@ def render_markdown(export: AssessmentExport) -> str:
             lines.append(f"Root: `{policy.root_id}`.")
             for node in policy.nodes:
                 target = node.criterion_id if node.kind == "criterion" else ", ".join(node.children)
-                lines.append(f"- `{node.node_id}`: {node.kind} → {_text(target)}")
+                evaluated = (
+                    f" (evaluated: {traces[node.node_id].logical_value.value})"
+                    if node.node_id in traces
+                    else ""
+                )
+                lines.append(f"- `{node.node_id}`: {node.kind} → {_text(target)}{evaluated}")
             lines.extend(["", "## Sections and unresolved issues", ""])
             for section in policy.sections:
                 lines.append(

@@ -15,6 +15,7 @@ from .base import (
     StrictModel,
     VersionedModel,
 )
+from .evaluation import AssessmentOutcome, EvaluationResult, LogicalValue
 from .evidence import ChartFact, EvidenceStatus, Finding
 from .policies import Policy, ReviewIssue
 from .requests import ApplicabilityResult, ApplicabilityStatus, MetadataAnnotation, RequestContext
@@ -36,19 +37,6 @@ class RunPhase(StrEnum):
     MAPPING_EVIDENCE = "mapping_evidence"
     VALIDATING = "validating"
     EVALUATING = "evaluating"
-
-
-class AssessmentOutcome(StrEnum):
-    APPLICABILITY_MISMATCH = "applicability_mismatch"
-    DOCUMENTED_REQUIREMENTS_SATISFIED = "documented_requirements_satisfied"
-    DOCUMENTATION_GAPS_OR_CONTRARY_EVIDENCE = "documentation_gaps_or_contrary_evidence"
-    REVIEW_REQUIRED = "review_required"
-
-
-class LogicalValue(StrEnum):
-    TRUE = "true"
-    FALSE = "false"
-    UNKNOWN = "unknown"
 
 
 class ErrorCode(StrEnum):
@@ -151,13 +139,19 @@ class AssessmentResult(VersionedModel):
     findings: tuple[Finding, ...] = ()
     logical_value: LogicalValue | None = None
     issues: tuple[ReviewIssue, ...] = ()
+    evaluation: EvaluationResult | None = None
 
     @model_validator(mode="after")
     def coherent_result(self) -> Self:
         if self.outcome == AssessmentOutcome.APPLICABILITY_MISMATCH:
             if self.applicability.status != ApplicabilityStatus.MISMATCH:
                 raise ValueError("mismatch outcome requires a mismatch applicability finding")
-            if self.policy is not None or self.findings or self.logical_value is not None:
+            if (
+                self.policy is not None
+                or self.findings
+                or self.logical_value is not None
+                or self.evaluation is not None
+            ):
                 raise ValueError("mismatch cannot contain a necessity evaluation")
             return self
         if self.applicability.status != ApplicabilityStatus.APPLICABLE:
@@ -182,6 +176,16 @@ class AssessmentResult(VersionedModel):
         for issue in self.issues:
             if not set(issue.criterion_ids).issubset(criteria):
                 raise ValueError("result issue references an unknown criterion")
+        if self.evaluation is not None:
+            if self.evaluation.root_id != self.policy.root_id:
+                raise ValueError("evaluation must be over the result policy's root")
+            if self.evaluation.logical_value != self.logical_value:
+                raise ValueError("evaluation must agree with the stored logical result")
+            if self.evaluation.outcome != self.outcome:
+                raise ValueError("evaluation must agree with the stored outcome")
+            node_ids = {node.node_id for node in self.policy.nodes}
+            if any(trace.node_id not in node_ids for trace in self.evaluation.traces):
+                raise ValueError("evaluation traces an unknown policy node")
         if self.outcome == AssessmentOutcome.DOCUMENTED_REQUIREMENTS_SATISFIED:
             if self.logical_value != LogicalValue.TRUE:
                 raise ValueError("satisfied outcome requires a true evaluated root")

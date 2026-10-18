@@ -8,7 +8,7 @@ On October 18, 2026, the supplied key could list models, but inference returned 
 
 Controlled tests run the real SDK over a mock HTTP transport. They cover successful structured output, request identity/usage, access rejection, rate limits, exhausted quota, transient recovery, connection/request/stage timeouts, refusal, incomplete output, malformed envelopes and JSON, local schema rejection, and secret omission. Experiment tests verify source hashes, development-only inputs, separation from expected patient answers, and preparation without credentials. These tests establish adapter behavior, not model quality.
 
-The initial configuration has a 30-second request timeout, a 65-second stage deadline, at most two provider attempts, and a 4,096-token output cap. These are provisional engineering bounds, not measured performance limits. SDK retries are disabled; the adapter owns transient retries. Exhausted quota is detected in either the provider's `code` or `type`, including nested error envelopes, and requires corrective action without retry. Invalid output is rejected without automatic repair in this first adapter.
+The initial configuration has a 30-second request timeout, a 65-second stage deadline, at most two provider attempts, and a 4,096-token output cap configurable via `AIRA_MAX_OUTPUT_TOKENS` (validated 1–32,768; changing it changes run/cache identity). These are provisional engineering bounds, not measured performance limits. SDK retries are disabled; the adapter owns transient retries. Exhausted quota is detected in either the provider's `code` or `type`, including nested error envelopes, and requires corrective action without retry. Invalid output is rejected without automatic repair in this first adapter.
 
 ## Observed live access result
 
@@ -37,7 +37,10 @@ The command writes the exact prompt, schema, logical page-tagged inputs, version
 After quota is restored, explicitly verify access:
 
 ```sh
-uv run --project backend python -m app.llm.preflight
+uv run --project backend python -m app.llm.preflight [--data-dir DIR]
+
+# The probe persists its verdict atomically to <data-dir>/provider-verification.json
+# (verified or failed, never the key); readiness reports it when its model matches.
 ```
 
 Then run a billable stage experiment with the configured model:

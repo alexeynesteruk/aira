@@ -121,6 +121,33 @@ test('satisfied journey labels the satisfied outcome', async ({ page }) => {
   ).toHaveText('Met')
 })
 
+test('alternative journey marks the unused OR branch without a documentation need', async ({ page }) => {
+  await uploadBoth(page)
+  await page.getByLabel('Procedure', { exact: true }).fill('E2E alternative')
+  await submitAndWait(page)
+  await expect(
+    page.getByRole('heading', { name: 'Documented requirements satisfied' }),
+  ).toBeVisible({ timeout: 20_000 })
+  const group = page.getByRole('heading', { name: /Any one of the following/ })
+  await expect(group).toBeVisible()
+  await expect(group.locator('.badge')).toHaveText('Satisfied')
+  const metCard = page.getByLabel('Finding: criterion-telangiectasia')
+  await expect(metCard.locator('.badge')).toHaveText('Met')
+  await expect(metCard.getByText('Supports the satisfied path')).toBeVisible()
+  const unused = page.getByLabel('Finding: criterion-perforator-reflux')
+  await expect(unused.locator('.badge')).toHaveText('Missing')
+  await expect(
+    unused.getByText('Not needed — another alternative satisfies this group'),
+  ).toBeVisible()
+  await expect(unused.getByText('Documentation needed')).not.toBeVisible()
+
+  const mdDownload = page.waitForEvent('download')
+  await page.getByRole('link', { name: 'Download Markdown' }).click()
+  const markdown = await mdDownload
+  const text = await readFile(await markdown.path()!, 'utf-8')
+  expect(text).toContain('alternative not needed')
+})
+
 test('clarify journey creates a linked child run and keeps the parent stopped', async ({ page }) => {
   await uploadBoth(page)
   await page.getByLabel('Procedure', { exact: true }).fill('E2E clarify')
@@ -159,6 +186,8 @@ test('a failed extraction explains the failure without an outcome banner', async
   await expect(page.getByText('Failed', { exact: true })).toBeVisible({ timeout: 20_000 })
   await expect(page.getByRole('alert')).toContainText(/not usable for native-text assessment/i)
   await expect(page.getByRole('alert')).toContainText(/extraction_failed/)
+  await expect(page.getByRole('alert')).toContainText('Document: image-only.pdf')
+  await expect(page.getByRole('alert')).toContainText(/Page 1 — Needs OCR/)
   await expect(page.getByRole('heading', { name: /does not apply|satisfied|gaps|Review required/ })).not.toBeVisible()
   await expect(page.getByText('Documentation readiness only — not an insurer decision.')).not.toBeVisible()
   await expect(page.getByRole('button', { name: 'Start a new run' })).toBeVisible()

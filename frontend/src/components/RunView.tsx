@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import {
   ApiRequestError,
+  type DocumentResponse,
   getDocument,
   getRun,
   type OperationalError,
@@ -13,6 +14,7 @@ import {
   APPLICABILITY_LABELS,
   fieldLabel,
   outcomeLabel,
+  pageQualityLabel,
   phaseLabel,
   READINESS_DISCLAIMER,
   runStatusLabel,
@@ -24,7 +26,24 @@ import { SourceViewer } from './SourceViewer'
 
 const TERMINAL = new Set(['completed', 'needs_input', 'failed', 'interrupted'])
 
-function ErrorNotice({ error }: { error: OperationalError }) {
+export function ErrorNotice({ error }: { error: OperationalError }) {
+  const [document, setDocument] = useState<DocumentResponse | null>(null)
+  useEffect(() => {
+    if (!error.document_id) return
+    let cancelled = false
+    getDocument(error.document_id)
+      .then((response) => {
+        if (!cancelled) setDocument(response)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [error.document_id])
+  const latest = document?.extractions[document.extractions.length - 1]
+  const failedPages = (latest?.pages ?? []).filter(
+    (page) => page.quality !== 'usable' && page.quality !== 'blank',
+  )
   return (
     <div className="error-card" role="alert">
       <p>
@@ -33,7 +52,19 @@ function ErrorNotice({ error }: { error: OperationalError }) {
       <p>
         {error.action} <code>{error.code}</code>
         {error.stage ? ` — ${phaseLabel(error.stage)}` : ''}
+        {error.page ? ` — page ${error.page}` : ''}
       </p>
+      {document && <p className="note">Document: {document.document.filename}</p>}
+      {failedPages.length > 0 && (
+        <ul className="unresolved">
+          {failedPages.map((page) => (
+            <li key={page.page}>
+              Page {page.page} — {pageQualityLabel(page.quality)}
+              {page.issues.length > 0 ? ` — ${page.issues.join('; ')}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -402,6 +433,7 @@ export function RunView({
                 findings={run.result.findings}
                 facts={run.result.facts}
                 onCite={openSource}
+                evaluation={run.result.evaluation}
               />
             </section>
           )}

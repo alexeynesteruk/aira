@@ -25,6 +25,13 @@ from .documents import (
     SourceSpan,
     TextBlock,
 )
+from .evaluation import (
+    AssessmentOutcome,
+    EvaluationResult,
+    LogicalValue,
+    NodeTrace,
+    ReadinessBlocker,
+)
 from .evidence import (
     ChartFact,
     EvidenceReference,
@@ -76,12 +83,10 @@ from .requests import (
     TextAnnotation,
 )
 from .runs import (
-    AssessmentOutcome,
     AssessmentResult,
     ConfigurationProvenance,
     ErrorCode,
     InferenceSettings,
-    LogicalValue,
     ModelProvider,
     OperationalError,
     RunPhase,
@@ -124,6 +129,7 @@ __all__ = [
     "DocumentResponse",
     "DocumentRole",
     "ErrorCode",
+    "EvaluationResult",
     "ErrorResponse",
     "EvidenceCandidate",
     "EvidenceReference",
@@ -141,6 +147,7 @@ __all__ = [
     "LivenessResponse",
     "LogicalValue",
     "MetadataAnnotation",
+    "NodeTrace",
     "ModelProvider",
     "NarrativePredicate",
     "NumericPredicate",
@@ -155,6 +162,7 @@ __all__ = [
     "PolicySection",
     "Predicate",
     "ProviderVerification",
+    "ReadinessBlocker",
     "ReadinessResponse",
     "RequestContext",
     "RequestField",

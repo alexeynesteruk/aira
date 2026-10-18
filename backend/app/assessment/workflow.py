@@ -625,6 +625,7 @@ class WorkflowEngine:
                 findings=findings,
                 logical_value=evaluation.logical_value,
                 issues=evidence.issues,
+                evaluation=evaluation,
             )
             self.store.put_validated_artifact(
                 run_id,

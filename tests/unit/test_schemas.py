@@ -384,3 +384,66 @@ def test_http_error_envelope_codes_remain_additive() -> None:
         "invalid_request",
         "state_conflict",
     }
+
+
+def _evaluation(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "root_id": "root",
+        "logical_value": "true",
+        "outcome": "documented_requirements_satisfied",
+        "traces": [
+            {
+                "node_id": "root",
+                "kind": "criterion",
+                "logical_value": "true",
+                "criterion_id": "criterion-1",
+            }
+        ],
+        "satisfied_path": ["root"],
+        "blockers": [],
+    }
+    data.update(overrides)
+    return data
+
+
+def test_result_accepts_a_consistent_evaluation_artifact() -> None:
+    data = completed()
+    data["result"]["evaluation"] = _evaluation()
+    parsed = parse_run(data).result
+    assert parsed is not None and parsed.evaluation is not None
+    assert parsed.evaluation.root_id == "root"
+    assert parsed.evaluation.satisfied_path == ("root",)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"root_id": "other-root"}, "root"),
+        ({"logical_value": "unknown"}, "logical result"),
+        ({"outcome": "review_required"}, "stored outcome"),
+        (
+            {"traces": [{"node_id": "ghost", "kind": "all", "logical_value": "true"}]},
+            "unknown policy node",
+        ),
+    ],
+)
+def test_result_rejects_evaluation_inconsistent_with_the_result(
+    overrides: dict[str, Any], match: str
+) -> None:
+    data = completed()
+    data["result"]["evaluation"] = _evaluation(**overrides)
+    with pytest.raises(ValidationError, match=match):
+        parse_run(data)
+
+
+def test_mismatch_result_cannot_carry_an_evaluation() -> None:
+    data = completed()
+    applicability = data["result"]["applicability"]
+    applicability["status"] = "mismatch"
+    data["result"] = {
+        "outcome": "applicability_mismatch",
+        "applicability": applicability,
+        "evaluation": _evaluation(),
+    }
+    with pytest.raises(ValidationError, match="mismatch cannot contain"):
+        parse_run(data)
