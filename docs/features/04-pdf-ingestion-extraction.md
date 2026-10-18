@@ -16,17 +16,17 @@ Clinic staff and assessors can supply unfamiliar policy and chart PDFs. The docu
 
 ## Implementation tasks
 
-- [ ] Implement intake validation and one-based page inventory in `backend/app/documents/`.
-- [ ] Implement native extraction with parser/configuration identity, page quality issues, and layout-aware blocks.
-- [ ] Inspect rendered columns, tables, dates, units, and cross-page passages against extracted output.
-- [ ] Produce an extraction report describing tested settings, failures, and pages needing the WP-15 OCR decision.
+- [x] Implement intake validation and one-based page inventory in `backend/app/documents/`.
+- [x] Implement native extraction with parser/configuration identity, page quality issues, and layout-aware blocks.
+- [x] Inspect rendered columns, tables, dates, units, and cross-page passages against extracted output.
+- [x] Produce an extraction report describing tested settings, failures, and unsupported pages informing the WP-15 input boundary.
 
 ## Acceptance criteria
 
-- [ ] A05/A13 preserve the chart's conflicting date roles, table labels/values, and adjacent-page passages; citations identify the original pages.
-- [ ] A10 preserves both policy snapshots without inventing effective dates or clinical changes.
-- [ ] A14 rejects malformed, encrypted, or over-limit input clearly; blank/suspect pages remain in the inventory.
-- [ ] Extraction records preserve distinct document/page/span identities across inputs for WP-10's A15 citation checks. Unusable extraction never appears as fully processed input.
+- [x] A05/A13 preserve the chart's conflicting date roles, table labels/values, and adjacent-page passages; citations identify the original pages.
+- [x] A10 preserves both policy snapshots without inventing effective dates or clinical changes.
+- [x] A14 rejects malformed, encrypted, or over-limit input clearly; blank/suspect pages remain in the inventory.
+- [x] Extraction records preserve distinct document/page/span identities across inputs for WP-10's A15 citation checks. Unusable extraction never appears as fully processed input.
 
 Checks use the [evaluation matrix](../evaluation.md#required-scenarios); this package does not claim OCR support.
 
@@ -34,4 +34,4 @@ Checks use the [evaluation matrix](../evaluation.md#required-scenarios); this pa
 
 Completion dependencies: [WP-02](../work-breakdown.md#wp-02-domain-and-interface-contracts), [WP-03](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluation-expectations).
 
-Design references: [document records](../architecture.md#domain-records), [sample extraction observations](../exploration.md#pdf-extraction-observations), and [OCR/input-envelope decision](15-ocr-input-limits.md).
+Design references: [document records](../architecture.md#domain-records), [sample extraction observations](../exploration.md#pdf-extraction-observations), and [OCR/input-envelope decision](15-ocr-input-limits.md). The verified results are recorded in [results/pdf-extraction.md](../results/pdf-extraction.md); the remaining boundary is persistence/workflow use in WP-06/WP-11 and the measured model envelope in WP-15.

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fictional native PDF extraction fixture</title>
+  <style>
+    @page { size: letter; margin: 36pt; }
+    body { font: 11pt sans-serif; color: #111; }
+    h1 { font-size: 17pt; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16pt; }
+    th, td { border: 1pt solid #444; padding: 6pt; text-align: left; }
+    .columns { display: flex; gap: 50pt; }
+    .column { width: 235pt; }
+    .next { break-before: page; }
+  </style>
+</head>
+<body>
+  <h1>FICTIONAL SOFTWARE TEST FIXTURE</h1>
+  <p>No patient record, payer policy, or medical recommendation is represented.</p>
+  <div class="columns">
+    <div class="column"><p>LEFT FIELD: selected right side.</p><p>LEFT NOTE: pain denied.</p></div>
+    <div class="column"><p>RIGHT FIELD: other left side.</p><p>RIGHT NOTE: swelling recorded.</p></div>
+  </div>
+  <table>
+    <tr><th>Test label</th><th>Measured value</th><th>Context</th></tr>
+    <tr><td>Marker A</td><td>7.2 mg</td><td>right side</td></tr>
+    <tr><td>Marker B</td><td>72.0 mg</td><td>left side</td></tr>
+  </table>
+  <h2>Report section begins</h2>
+  <p>Observation window: November 1-29, 2025.</p>
+  <p>Longest pause: 3.1 seconds on November 12, during sleep.</p>
+  <section class="next">
+    <h1>FICTIONAL SOFTWARE TEST FIXTURE</h1>
+    <h2>Report section continued</h2>
+    <p>No symptom-rhythm correlation can be established.</p>
+    <p>Report signed: November 11, 2025.</p>
+    <p>The source deliberately retains these conflicting dates.</p>
+  </section>
+</body>
+</html>

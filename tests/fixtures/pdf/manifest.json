@@ -1,0 +1,132 @@
+{
+  "schema_version": "0.1.0",
+  "created_on": "2026-10-18",
+  "generator": "pdf-tools CLI; pdf-create reports WeasyPrint 70.0",
+  "note": "These are fictional parser fixtures, not new clinical gold cases. The password fixture-only is public test data. Malformed inputs are literal invalid byte strings in tests, not modified source PDFs.",
+  "fixtures": [
+    {
+      "filename": "native-layout.pdf",
+      "sha256": "c0f705601ded67b9119f95744a18d51f558bc10e449f8ec9d6c60c0ddf3aaac9",
+      "page_count": 2,
+      "purpose": "native text, two columns, ruled table, adjacent-page report",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-create html tests/fixtures/pdf/native-layout.html --out tests/fixtures/pdf/native-layout.pdf"
+      ],
+      "inspection": "pdf-inspect reports two text pages; both rendered pages visually reviewed at 110 dpi."
+    },
+    {
+      "filename": "blank.pdf",
+      "sha256": "ee499b923d05d915fd9b023896fc5df3478e2f9dbca1b43f1d639470041d4f5e",
+      "page_count": 1,
+      "purpose": "intentionally blank page",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-create html tests/fixtures/pdf/blank.html --out tests/fixtures/pdf/blank.pdf"
+      ],
+      "inspection": "pdf-inspect reports one page, no text, no fonts, and no images."
+    },
+    {
+      "filename": "vector-only.pdf",
+      "sha256": "d430ac2012c8ad5113407e2712f0ffa813a1762dcbea1e7f5f262d1aef3094aa",
+      "page_count": 1,
+      "purpose": "nontext vector drawing, not a blank page",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-create html tests/fixtures/pdf/vector-only.html --out tests/fixtures/pdf/vector-only.pdf"
+      ],
+      "inspection": "pdf-inspect reports no text/images; rendered drawing visually reviewed at 72 dpi."
+    },
+    {
+      "filename": "image-only.pdf",
+      "sha256": "260b0525df92f71b2fa3c9cc0ea543e3bafca0c348921ae58206664ba0bc85d3",
+      "page_count": 1,
+      "purpose": "rasterized fictional page with no native text",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-render tests/fixtures/pdf/native-layout.pdf --out-dir tests/fixtures/pdf/assets --pages 1 --dpi 110",
+        "pdf-create html tests/fixtures/pdf/image-only.html --out tests/fixtures/pdf/image-only.pdf"
+      ],
+      "inspection": "pdf-inspect reports one image and no text; rendered page visually reviewed at 72 dpi."
+    },
+    {
+      "filename": "mixed-page.pdf",
+      "sha256": "37e6dbb61f0110b4b0e33947430a5c721fe3ef21a8f6aaf917e6b9225482575e",
+      "page_count": 1,
+      "purpose": "native header and rasterized content on the same page",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-create html tests/fixtures/pdf/mixed-page.html --out tests/fixtures/pdf/mixed-page.pdf"
+      ],
+      "inspection": "pdf-inspect reports native text and one image; rendered page visually reviewed at 72 dpi."
+    },
+    {
+      "filename": "encrypted.pdf",
+      "sha256": "c5ae368a9c397b624f4b2f7fadcb8717f52c7aadd0f08818fdb205f0c30f7259",
+      "page_count": 2,
+      "purpose": "password-protected input rejection",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-crypto encrypt tests/fixtures/pdf/native-layout.pdf --password fixture-only --out tests/fixtures/pdf/encrypted.pdf"
+      ],
+      "inspection": "pdf-inspect exits 3 with requires a password, as expected; application test requires encrypted_pdf rejection."
+    },
+    {
+      "filename": "mixed-document.pdf",
+      "sha256": "560fd939b9a1664b63a6a2249df2b048ffeee3f1dacf49231dea3312b4b72e75",
+      "page_count": 3,
+      "purpose": "native page, image-only page, blank page",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-merge tests/fixtures/pdf/native-layout.pdf tests/fixtures/pdf/image-only.pdf tests/fixtures/pdf/blank.pdf --pages tests/fixtures/pdf/native-layout.pdf:1 --out tests/fixtures/pdf/mixed-document.pdf --dry-run",
+        "pdf-merge tests/fixtures/pdf/native-layout.pdf tests/fixtures/pdf/image-only.pdf tests/fixtures/pdf/blank.pdf --pages tests/fixtures/pdf/native-layout.pdf:1 --out tests/fixtures/pdf/mixed-document.pdf"
+      ],
+      "inspection": "pdf-inspect confirms three pages in order: text, one image without text, blank. Constituent rendered pages reviewed separately."
+    },
+    {
+      "filename": "native-with-blank.pdf",
+      "sha256": "abaefd41b00285d40f68cbdb72691bdcd01971696c6ecdf56c16c4377a445826",
+      "page_count": 2,
+      "purpose": "native page plus explicitly inventoried blank page",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-merge tests/fixtures/pdf/native-layout.pdf tests/fixtures/pdf/blank.pdf --pages tests/fixtures/pdf/native-layout.pdf:1 --out tests/fixtures/pdf/native-with-blank.pdf --dry-run",
+        "pdf-merge tests/fixtures/pdf/native-layout.pdf tests/fixtures/pdf/blank.pdf --pages tests/fixtures/pdf/native-layout.pdf:1 --out tests/fixtures/pdf/native-with-blank.pdf"
+      ],
+      "inspection": "pdf-inspect confirms a native text page followed by a blank page."
+    },
+    {
+      "filename": "annotation-only.pdf",
+      "sha256": "2daef97f3b83df8bf27d0ab8c16968eba0c51d71eb7e4a3fab63c18e3dfd4978",
+      "page_count": 1,
+      "purpose": "sticky-note amendment on a page with no native text",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-annotate add tests/fixtures/pdf/blank.pdf --out tests/fixtures/pdf/annotation-only.pdf --type note --page 1 --bbox 72,680,180,720 --text \"FICTIONAL SOFTWARE TEST FIXTURE: amended measurement requires review.\" --author \"Aira fixture author\""
+      ],
+      "inspection": "pdf-inspect reports no native text; pdf-annotate list confirms a Text annotation; rendered note icon visually reviewed at 110 dpi."
+    },
+    {
+      "filename": "native-with-annotation.pdf",
+      "sha256": "d08c7515aa9f34cd6f7da2a56333680e32fc12fc4ba4a50747a91b9991045b3d",
+      "page_count": 2,
+      "purpose": "visible strikeout amendment on a native text page",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-annotate add tests/fixtures/pdf/native-layout.pdf --out tests/fixtures/pdf/native-with-annotation.pdf --type strike --page 1 --bbox 195,568,250,586 --text \"FICTIONAL SOFTWARE TEST FIXTURE: this measurement is withdrawn.\" --author \"Aira fixture author\""
+      ],
+      "inspection": "pdf-inspect confirms two native pages; pdf-annotate list confirms a StrikeOut annotation; red strikeout over the value area visually reviewed at 110 dpi."
+    },
+    {
+      "filename": "navigation-link.pdf",
+      "sha256": "c4f06a17ec0576586709618b3ef66a305edc3b688094d91e1dc087b89ad04bd6",
+      "page_count": 1,
+      "purpose": "native text with a harmless noncontent URI navigation link",
+      "origin": "fictional_pdf_tools_fixture",
+      "creation_commands": [
+        "pdf-create html tests/fixtures/pdf/navigation-link.html --out tests/fixtures/pdf/navigation-link.pdf"
+      ],
+      "inspection": "pdf-inspect confirms native text and no images; pdf-extract links confirms a URI annotation; rendered native label and measurement visually reviewed at 110 dpi."
+    }
+  ]
+}
