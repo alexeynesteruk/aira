@@ -16,6 +16,8 @@ Verified October 18, 2026 against the working-tree application. [WP-13](../work-
 | --- | --- |
 | Mismatch (A01): upload without metadata → "Policy does not apply to this request", no checklist, applicability citation opens the page with the exact `<mark>` span, fixture label visible. | A01, A19 |
 | Gaps (A03): procedure `E2E gaps` → "Documentation gaps or contrary evidence", "All of the following" tree, Met finding with chart citation, Missing finding with "Documentation needed" and no chart citation, policy p3 and chart p3 viewers, JSON export filename `aira-<run>.json` reloaded to the same run and badge-matching statuses, Markdown export `aira-<run>.md`. | A03, A12, A13, A19 |
+| Contrary: procedure `E2E contrary` → real evaluator outcome `documentation_gaps_or_contrary_evidence`, "Not met" and "Conflicting" badges, the "Contradicting" relation label, and a mutually conflicting fact pair. | A02, A04, A05 |
+| Satisfied: procedure `E2E satisfied` → single met criterion → "Documented requirements satisfied". | A03 |
 | Clarify: procedure `E2E clarify` → `needs_input` listing `plan`; submitting creates a linked child run (new URL, "Previous attempt") completing with the staff `plan` annotation preserved; the parent stays `needs_input` and its Markdown export states "Assessment stopped for staff input". | A13, A16, A17 |
 | Failure: image-only chart → status `failed` with the extraction message/action and no outcome banner; linked retry offered. | A16 |
 | Upload rejection: encrypted chart → the API error message shows and Start stays disabled. | A14 |
@@ -27,14 +29,13 @@ The shell spec still proves the unconfigured application explains missing prereq
 
 | Command | Result |
 | --- | --- |
-| `npm --prefix frontend test` | 17 checks across 5 files pass. |
-| `npx playwright test` (`shell` + `journeys`) | 8 checks pass (2 shell, 6 journeys). |
+| `npm --prefix frontend test` | 19 checks across 6 files pass. |
+| `npx playwright test` (`shell` + `journeys`) | 10 checks pass (2 shell, 8 journeys). |
 | `make check` | Backend checks pass; frontend lint/typecheck/Vitest/build pass. |
 
-Unit coverage: outcome/finding label maps (five distinct finding labels and an unsatisfied `review_required`), the all/any policy tree in node order, a missing finding without a chart citation, conflict-resolution vs plain clarification annotations, the failed-run view with its action and retry, and readiness prerequisites plus `provider.detail`.
+Unit coverage: outcome/finding label maps (five distinct finding labels and an unsatisfied `review_required`), the all/any policy tree in node order, a missing finding without a chart citation, conflict-resolution vs plain clarification annotations, the failed-run view with its action and retry, readiness prerequisites plus `provider.detail`, and code-point-accurate citation highlighting through an astral-plane character.
 
 ## Limitations
 
 - Fixture interpreter: outcomes are scripted records over real citations; semantic quality and live A19 remain unverified behind the deferred quota.
-- Contrary/conflicting run cases are not exercised (the fixture produces mismatch, gaps, needs_input, and extraction failure).
 - No Docker locally — the container path is verified in CI; locally the same static mount serves the built assets.

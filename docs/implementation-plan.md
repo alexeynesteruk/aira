@@ -4,7 +4,7 @@ Build a provider-facing assistant that compares one selected procedure request w
 
 The chosen direction is Python, FastAPI, React, TypeScript, Pydantic, and a thin OpenAI Responses API adapter, with a local container launch for assessment reviewers. The user selected OpenAI for the initial MVP on October 18, superseding the earlier Bedrock proposal. No AWS credentials or deployment are required. The exact model configuration remains subject to M1 verification; native PDF text is the initial input path, with unsupported scans explicitly rejected. See the [provider decision](model-provider.md).
 
-Status on October 18, 2026: the application shell, domain contracts, and independently reviewed fixture corpus are implemented. GitHub Actions builds and browser-tests the container and delivers a checksummed image. Parser/provider/storage/rule implementation is underway. The OpenAI access probe reached the provider but failed with insufficient quota; the user deferred quota resolution. Full assessment processing, model quality, and live reviewer acceptance are not yet verified. The [BRD and TRD](requirements/README.md) define requirements and contracts; [architecture](architecture.md) defines the design; [evaluation](evaluation.md) defines the acceptance cases; [model provider decision](model-provider.md) records the active integration boundary; [AWS research](aws.md) preserves the earlier proposal and future options.
+Status on October 18, 2026: the full non-live stack is implemented — contracts, PDF intake, storage, stage interpreter + adapter, workflow, HTTP source API, exports, and the staff review UI — with deterministic, controlled-interpreter, and fixture-interpreter evidence passing in GitHub Actions. The OpenAI access probe reached the provider but failed with insufficient quota; the user deferred quota resolution, so live semantic validation, the measured token envelope, and the live reviewer acceptance run remain open. The [BRD and TRD](requirements/README.md) define requirements and contracts; [architecture](architecture.md) defines the design; [evaluation](evaluation.md) defines the acceptance cases; [model provider decision](model-provider.md) records the active integration boundary; [AWS research](aws.md) preserves the earlier proposal and future options.
 
 ## Stable delivery baseline
 
@@ -100,9 +100,11 @@ compose.yaml
 .env.example
 ```
 
+Actual deviations from this plan: there is no separate `app/observability/` module — usage lives on `RunRecord.usage`/`StageUsage`; the frontend organizes review views under `src/components/` rather than `src/features/*`; and shared test/fixture support lives in `tests/support.py` and `tests/e2e/` rather than the sketched layout.
+
 ## Reviewer launch contract
 
-The target command is `docker compose up --build`, after the documented prerequisite setup. It currently builds and serves the shell, as verified in GitHub Actions. Live upload-to-export processing remains the delivery target. Build the React assets into the application image, serve them from FastAPI on one documented port, and persist local data through a volume. Keep parser dependencies in the image and lock Python and JavaScript dependencies.
+The target command is `docker compose up --build`, after the documented prerequisite setup. The container now serves the full UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured; the live path remains unverified under the deferred quota. Build the React assets into the application image, serve them from FastAPI on one documented port, and persist local data through a volume. Keep parser dependencies in the image and lock Python and JavaScript dependencies.
 
 Live inference requires a server-side `OPENAI_API_KEY` with access to the explicitly configured `AIRA_MODEL`. Verify this configuration inside the backend container. Document nonsecret settings and input limitations in `.env.example`; do not put keys in the repository, frontend build variables, prompts, exports, or logs. Model access and configuration remain M1 verification outcomes. Do not depend on the author's laptop services, private registry, local LLM gateway, or personal browser session.
 

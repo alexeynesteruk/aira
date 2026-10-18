@@ -20,7 +20,7 @@ Map governing text to a supported rule, contextual definition, or unresolved int
 
 ## Implementation tasks
 
-- [x] Implement policy interpretation functions and versioned prompts in `backend/app/policies/`.
+- [x] Implement policy interpretation: versioned prompts in `backend/app/llm/prompts.py`, the stage interpreter in `backend/app/llm/interpreter.py`, and conversion/graph validation in `backend/app/policies/`.
 - [x] Capture criteria, connectives, definitions, exceptions, and section coverage with source spans.
 - [x] Represent unsupported predicates as explicit review issues.
 - [ ] Compare extracted trees against independently annotated expectations from two policy families.

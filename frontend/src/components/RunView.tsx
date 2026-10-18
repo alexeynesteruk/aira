@@ -38,26 +38,13 @@ function ErrorNotice({ error }: { error: OperationalError }) {
   )
 }
 
-function RunDocuments({ run }: { run: RunRecord }) {
-  const [names, setNames] = useState<Record<string, string>>({})
-  useEffect(() => {
-    let cancelled = false
-    const load = async (id: string) => {
-      try {
-        const response = await getDocument(id)
-        if (!cancelled) {
-          setNames((current) => ({ ...current, [id]: response.document.filename }))
-        }
-      } catch {
-        if (!cancelled) setNames((current) => ({ ...current, [id]: id }))
-      }
-    }
-    void load(run.policy_document_id)
-    void load(run.chart_document_id)
-    return () => {
-      cancelled = true
-    }
-  }, [run.policy_document_id, run.chart_document_id])
+function RunDocuments({
+  run,
+  names,
+}: {
+  run: RunRecord
+  names: Record<string, string>
+}) {
   return (
     <p className="note">
       Policy: {names[run.policy_document_id] ?? '…'} · Chart:{' '}
@@ -270,16 +257,27 @@ export function RunView({
     [docNames],
   )
 
+  // Fetch each document's name once per ID — the run object changes on every
+  // poll but the bound document IDs do not.
+  const documentIds = run
+    ? `${run.policy_document_id}|${run.chart_document_id}`
+    : ''
   useEffect(() => {
-    if (!run) return
-    for (const id of [run.policy_document_id, run.chart_document_id]) {
+    if (!documentIds) return
+    let cancelled = false
+    for (const id of documentIds.split('|')) {
       void getDocument(id)
-        .then((response) =>
-          setDocNames((current) => ({ ...current, [id]: response.document.filename })),
-        )
+        .then((response) => {
+          if (!cancelled) {
+            setDocNames((current) => ({ ...current, [id]: response.document.filename }))
+          }
+        })
         .catch(() => undefined)
     }
-  }, [run])
+    return () => {
+      cancelled = true
+    }
+  }, [documentIds])
 
   async function startNewRun() {
     if (!run) return
@@ -336,7 +334,7 @@ export function RunView({
             </a>
           </p>
         )}
-        <RunDocuments run={run} />
+        <RunDocuments run={run} names={docNames} />
         {run.progress.total_pages != null && (
           <p className="note">
             Pages processed: {run.progress.completed_pages} of {run.progress.total_pages}

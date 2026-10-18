@@ -92,6 +92,35 @@ test('gaps journey shows the checklist, evidence states, and exports', async ({ 
   expect(markdown.suggestedFilename()).toBe(`aira-${runId}.md`)
 })
 
+test('contrary journey shows Not met, Conflicting, and the Contradicting relation', async ({ page }) => {
+  await uploadBoth(page)
+  await page.getByLabel('Procedure', { exact: true }).fill('E2E contrary')
+  await submitAndWait(page)
+  await expect(
+    page.getByRole('heading', { name: 'Documentation gaps or contrary evidence' }),
+  ).toBeVisible({ timeout: 20_000 })
+  const notMetCard = page.getByLabel('Finding: criterion-telangiectasia')
+  await expect(notMetCard.locator('.badge')).toHaveText('Not met')
+  await expect(notMetCard.getByText('Contradicting:', { exact: true })).toBeVisible()
+  const conflictingCard = page.getByLabel('Finding: criterion-perforator-reflux')
+  await expect(conflictingCard.locator('.badge')).toHaveText('Conflicting')
+  await expect(conflictingCard.getByText('Supporting:', { exact: true })).toBeVisible()
+  await expect(conflictingCard.getByText('Contradicting:', { exact: true })).toBeVisible()
+  await expect(conflictingCard.getByText(/disagree on symptom correlation/)).toBeVisible()
+})
+
+test('satisfied journey labels the satisfied outcome', async ({ page }) => {
+  await uploadBoth(page)
+  await page.getByLabel('Procedure', { exact: true }).fill('E2E satisfied')
+  await submitAndWait(page)
+  await expect(
+    page.getByRole('heading', { name: 'Documented requirements satisfied' }),
+  ).toBeVisible({ timeout: 20_000 })
+  await expect(
+    page.getByLabel('Finding: criterion-telangiectasia').locator('.badge'),
+  ).toHaveText('Met')
+})
+
 test('clarify journey creates a linked child run and keeps the parent stopped', async ({ page }) => {
   await uploadBoth(page)
   await page.getByLabel('Procedure', { exact: true }).fill('E2E clarify')

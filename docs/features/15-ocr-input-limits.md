@@ -16,16 +16,16 @@ Staff and assessors know which PDFs the release can process and receive explicit
 
 ## Implementation tasks
 
-- [ ] Create full-scan, mixed-page, table, and adjacent-page fixtures from reviewed examples.
-- [ ] Compare native extraction with original rendered pages; detect unsupported scans, mixed-page failures, and misleading text layers.
+- [x] Create full-scan, mixed-page, table, and adjacent-page fixtures from reviewed examples.
+- [x] Compare native extraction with original rendered pages; detect unsupported scans, mixed-page failures, and misleading text layers.
 - [ ] Combine parser and model results to select upload/page/input-output token limits and test their boundaries.
-- [ ] Record the native-text support decision and scan limitations; document any evidence that would justify a later OCR experiment.
+- [x] Record the native-text support decision and scan limitations; document any evidence that would justify a later OCR experiment.
 
 ## Acceptance criteria
 
-- [ ] A13 preserves table relationships and cross-page continuity for the supported native-text inputs.
-- [ ] A14 accounts for every original page, including blank and failed pages. A failed page cannot disappear from a completed assessment.
-- [ ] A14 explicitly rejects unsupported scans or over-limit documents; no text-only path claims tested OCR support.
+- [x] A13 preserves table relationships and cross-page continuity for the supported native-text inputs.
+- [x] A14 accounts for every original page, including blank and failed pages. A failed page cannot disappear from a completed assessment.
+- [x] A14 explicitly rejects unsupported scans or over-limit documents; no text-only path claims tested OCR support.
 - [ ] A16/A18 expose token-budget exhaustion and unusable extraction without accepting partial input as complete; measurements identify actual tested limits.
 
 Use the [evaluation matrix](../evaluation.md#required-scenarios). No AWS or Textract access is required for the initial support boundary. Live model access is verified separately in WP-05.
@@ -34,4 +34,4 @@ Use the [evaluation matrix](../evaluation.md#required-scenarios). No AWS or Text
 
 Completion dependencies: [WP-03](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluation-expectations), [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter).
 
-Design references: [PDF support boundary](../model-provider.md#pdf-support-and-future-options), [measured decisions](../requirements/technical-requirements.md#measured-limits-and-open-feasibility-decisions), and [source representation](../architecture.md#domain-records). The dated [AWS research](../aws.md) is a future option, not a delivery dependency.
+Evidence is recorded in [results/input-limits.md](../results/input-limits.md); the token-envelope task stays open behind the deferred quota. Design references: [PDF support boundary](../model-provider.md#pdf-support-and-future-options), [measured decisions](../requirements/technical-requirements.md#measured-limits-and-open-feasibility-decisions), and [source representation](../architecture.md#domain-records). The dated [AWS research](../aws.md) is a future option, not a delivery dependency.

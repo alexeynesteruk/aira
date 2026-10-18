@@ -61,7 +61,7 @@ It makes billable model calls and remains blocked until quota is restored; run i
 
 [GitHub Actions](https://github.com/alexeynesteruk/aira/actions/workflows/ci.yml) runs on pull requests and pushes to `main`. Python and TypeScript checks gate a Docker build and browser tests against that exact image. Successful `main` runs deliver a checksummed Linux/amd64 image archive as an Actions artifact. Its included README explains how to load and run it. Workflow jobs have no model credentials and make no live inference calls.
 
-The local container command is `docker compose up --build`. Docker is required. The container currently serves the shell; this is not yet the live A19 upload-to-export workflow. Container build verification is performed in GitHub Actions because Docker is not installed on the current development machine.
+The local container command is `docker compose up --build`. Docker is required. The container serves the full review UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured; the live A19 upload-to-export workflow remains unverified under the deferred quota. Container build verification is performed in GitHub Actions because Docker is not installed on the current development machine.
 
 ## Project documentation
 
@@ -73,6 +73,8 @@ The local container command is `docker compose up --build`. Docker is required. 
 - [Feature list and individual specifications](docs/features/README.md)
 - [Technical design document (TDD) and architecture](docs/architecture.md)
 - [Evaluation and release checks](docs/evaluation.md)
+- [HTTP API, stage interpreter, workflow, and input-limit records](docs/README.md#documentation-guide)
+- [Review UI journeys record](docs/results/review-ui.md)
 - [OpenAI integration and feasibility record](docs/results/model-feasibility.md)
 - [Historical AWS research and future options](docs/aws.md)
 - [Initial document exploration](docs/exploration.md)
@@ -85,10 +87,11 @@ The local container command is `docker compose up --build`. Docker is required. 
 
 ```text
 backend/                     FastAPI application and locked Python dependencies
+  app/api/                   HTTP routes, error envelopes, request IDs, readiness
   app/assessment/            Workflow engine, stage-input renderer, rules, Markdown export
   app/documents/             Native PDF intake, extraction, and source spans
   app/evidence/              Citation validation, bounded predicates, finding checks
-  app/llm/                   OpenAI adapter, versioned prompts, preflight, experiment CLI
+  app/llm/                   OpenAI adapter, stage interpreter, prompts, preflight, experiment CLI
   app/policies/              Provider-candidate conversion to validated domain records
   app/schemas/               Versioned domain, request, provider, and API contracts
   app/storage/               SQLite metadata, immutable objects, artifact reuse

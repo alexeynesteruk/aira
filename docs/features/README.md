@@ -2,7 +2,7 @@
 
 Each feature has its own implementation brief with linked business and technical requirements, concrete tasks, acceptance criteria, dependencies, and design references. The list includes product features and the engineering/delivery enablers required to ship them. Existing WP identifiers are reused so specifications and implementation packages stay connected.
 
-These files define the implementation scope and checked work. The shell, contract baseline, and reviewed evaluation corpus are implemented; the full assessment workflow remains under construction. The [work breakdown](../work-breakdown.md#work-packages-and-dependencies) is the authoritative record for dependencies, owner roles, and implementation status. Checkbox completion in a feature file must be supported by actual artifacts and checks before its package is marked complete.
+These files define the implementation scope and checked work. The contract baseline, reviewed evaluation corpus, and the full non-live stack — extraction, storage, interpreter, workflow, API, exports, and review UI — are implemented; live model validation remains deferred behind API project quota. The [work breakdown](../work-breakdown.md#work-packages-and-dependencies) is the authoritative record for dependencies, owner roles, and implementation status. Checkbox completion in a feature file must be supported by actual artifacts and checks before its package is marked complete.
 
 ## Feature specifications
 

@@ -20,7 +20,7 @@ Summary assertions retain their summary provenance; a normal-CBC statement canno
 
 ## Implementation tasks
 
-- [x] Implement fact extraction and criterion evidence mapping in `backend/app/evidence/`.
+- [x] Implement fact extraction and criterion evidence mapping through the model interpreter plus `app.policies.convert_evidence`, with citation/predicate validation in `backend/app/evidence/`.
 - [x] Add versioned prompts, source-bound fact records, and uncertainty handling.
 - [ ] Preserve chronological and anatomical constraints across page-spanning passages.
 - [ ] Add paired evidence-removal, negation, conflict, and distractor cases.

@@ -2,7 +2,7 @@
 
 Build a small, working assistant that helps clinic staff assess prior authorization readiness using a patient chart PDF and an insurer guideline PDF. It must work on new documents supplied by reviewers. The implementation direction is a cited evidence checklist using FastAPI, React/TypeScript, and the OpenAI Responses API, with a local one-command launch.
 
-Requirements, architecture, and task decomposition are documented. The application shell, shared contracts, and reviewed fixture corpus pass CI; native PDF extraction, versioned storage, and the pure validation/rule core are implemented, and candidate conversion, the workflow engine, and the Markdown export exist with controlled-test evidence. Live inference remains blocked by API project quota and was deferred by the user. Start with the [business and technical requirements](requirements/README.md), then use the [work breakdown](work-breakdown.md) to execute the plan.
+Requirements, architecture, and task decomposition are documented. The full non-live stack — PDF intake, storage, stage interpreter, workflow, HTTP API, exports, and the review UI — is implemented and passes deterministic, controlled-interpreter, and fixture-interpreter checks in CI. Live inference remains blocked by API project quota and was deferred by the user. Start with the [business and technical requirements](requirements/README.md), then use the [work breakdown](work-breakdown.md) to execute the plan.
 
 ## Confirmed requirements
 
@@ -48,6 +48,7 @@ The supplied chart is a UHC pacemaker request, while the example guideline conce
 | [Workflow record](results/workflow.md) | Controlled-interpreter evidence for the bounded execution engine. |
 | [Stage interpreter record](results/stage-interpreter.md) | Production interpreter and CLI slice over mocked transport; no live calls. |
 | [HTTP API record](results/http-api.md) | API routes, startup/readiness wiring, and export routes under controlled evidence. |
+| [Input limits record](results/input-limits.md) | Declared native-text boundary, parser/API limit evidence, and the open token envelope. |
 | [Review UI record](results/review-ui.md) | Saved staff journeys and unit checks over the fixture interpreter. |
 | [WP-03 fixture review](reviews/wp03-fixtures.md) | Independent review of the annotated fixture corpus. |
 | [Agent handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules for coding agents. |
@@ -62,4 +63,4 @@ The Obsidian review informs engineering practices such as versioned prompts, ind
 
 ## Next implementation gate
 
-WP-01–WP-04, WP-06, and WP-10 are complete; their [completion evidence](work-breakdown.md#implementation-evidence) identifies commits and result records. The [feature index](features/README.md) links each implementation brief. The next implementation gate is an OpenAI `StageInterpreter` behind the workflow boundary together with WP-12 HTTP admission; its live half stays blocked by the deferred API project quota while controlled orchestration evidence already exists. Unsupported scans are explicitly rejected in the initial MVP; no AWS credentials or deployment are needed. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.
+WP-01–WP-15's non-live work and WP-16/WP-17's deterministic halves are done; their [completion evidence](work-breakdown.md#implementation-evidence) identifies commits and result records. The [feature index](features/README.md) links each implementation brief. The remaining work is live-gated: WP-05 model selection, WP-07–WP-09 semantic acceptance, the WP-11 live CLI run, the WP-15 measured token envelope, WP-16's live evaluation report, and WP-17/WP-18's live container and clean-checkout checks. Unsupported scans are explicitly rejected in the initial MVP; no AWS credentials or deployment are needed. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.

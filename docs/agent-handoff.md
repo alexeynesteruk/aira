@@ -24,7 +24,7 @@ The feature files supply the task and acceptance checklists; the work-breakdown 
 | Rule evaluation | `app.assessment.evaluate_policy`; [aggregation semantics](results/rules.md#aggregation-and-independent-blockers). | Supply one validated finding per criterion, retain traces and independent blockers. |
 | Persistence | `app.storage.LocalStore`, `assessment_fingerprint`; [storage API](results/storage.md#integration-api). | Publish validated stages after files exist; preserve stopped runs and original input identity. |
 | Workflow | `app.assessment.workflow.StageInterpreter` and `WorkflowEngine` are implemented with controlled-interpreter checks; `app.llm.interpreter.OpenAIStageInterpreter` is the production implementation; the app lifespan starts the engine ([workflow record](results/workflow.md), [stage interpreter record](results/stage-interpreter.md), [HTTP API record](results/http-api.md)). | Live integrated evaluation remains open; the live run is quota-blocked. |
-| HTTP and browser | `backend/app/api/` implements the [TRD endpoint table](requirements/technical-requirements.md#http-interface-contracts); the lifespan in `app.main.create_app` wires store/engine/readiness; the staff workspace consumes the routes with 6 saved fixture journeys ([HTTP API record](results/http-api.md), [review UI record](results/review-ui.md)). | Update backend, UI, CI health assertions, and browser tests together; live-model journeys remain quota-blocked. |
+| HTTP and browser | `backend/app/api/` implements the [TRD endpoint table](requirements/technical-requirements.md#http-interface-contracts); the lifespan in `app.main.create_app` wires store/engine/readiness; the staff workspace consumes the routes with 8 saved fixture journeys ([HTTP API record](results/http-api.md), [review UI record](results/review-ui.md)). | Update backend, UI, CI health assertions, and browser tests together; live-model journeys remain quota-blocked. |
 
 Names for unfinished functions/files are agreed implementation targets, not a claim that their tests pass. Confirm the latest code before writing consumers.
 
@@ -44,7 +44,7 @@ evidence(StageInputs, Policy) -> EvidenceInterpretation
 
 ## Work that can continue without live quota
 
-Finish candidate conversion, workflow, API, source inspection, UI, exports, deterministic integration tests, and container packaging. Use controlled interpreter/HTTP fixtures explicitly in tests. Production execution must continue to use the configured OpenAI adapter and surface its real errors.
+Almost every non-live package is done: candidate conversion, workflow, API, source inspection, the review UI, exports, deterministic integration tests, and container packaging all have controlled evidence. Remaining no-live-call work: the WP-16 evaluation report structure (a versioned record with input/configuration/commit identities ready to fill from a live run), plus any still-open feature tasks that need no live calls. Use controlled interpreter/HTTP fixtures explicitly in tests. Production execution must continue to use the configured OpenAI adapter and surface its real errors.
 
 The supplied key failed inference with `insufficient_quota`; the user deferred resolution. Do not repeat paid probes automatically, seek a new provider, select a model as validated, or close live acceptance gates. WP-05 model comparison, WP-15 measured model envelope, WP-16 live semantic trials, and WP-18 live clean-checkout acceptance remain open until access is restored. This does not pause independent implementation.
 

@@ -18,7 +18,7 @@ This is the canonical technical design document (TDD), updated October 18, 2026.
 | Persistence | `backend/app/storage/` supplies SQLite, immutable content-addressed files, run history, and conservative versioned caching; [30 checks](results/storage.md) pass. `WorkflowEngine.start()` calls `interrupt_unfinished` and now runs in the application lifespan. | The engine is a local singleton per process; no shared/clustered store exists. |
 | Workflow | `backend/app/assessment/workflow.py` runs bounded single-worker execution with persisted phase artifacts and reuse; [15 controlled-interpreter checks plus 9 rendered-input checks](results/workflow.md) pass over the real parser and store, plus 3 engine runs through the mocked production interpreter. The HTTP app starts the engine in its lifespan. | A live run remains blocked on deferred quota. |
 | Exports | `backend/app/assessment/export.py` renders a Markdown evidence checklist from a saved snapshot; `GET /api/assessments/{id}/export` serves JSON or Markdown with 409 on ineligible runs; the UI offers both download actions. | WP-16 parity against live runs remains open. |
-| HTTP API and review UI | `backend/app/api/` serves uploads, document metadata/originals/pages, assessment submit/status/export, and the readiness contract; [14 API checks](results/http-api.md) pass with the controlled interpreter. The staff workspace in `frontend/src/` consumes them; [6 saved journeys](results/review-ui.md) pass against the fixture interpreter. | Contrary/conflicting run cases and WP-16 live parity remain unexercised. |
+| HTTP API and review UI | `backend/app/api/` serves uploads, document metadata/originals/pages, assessment submit/status/export, and the readiness contract; [15 API checks](results/http-api.md) pass with the controlled interpreter. The staff workspace in `frontend/src/` consumes them; [8 saved journeys](results/review-ui.md) pass against the fixture interpreter. | WP-16 live parity remains unexercised. |
 
 The health endpoints now use the WP-02 contracts: liveness returns `{"status":"alive"}`; readiness returns 200 only when the store opened, provider configuration resolved, and the engine started — otherwise 503 with `missing_prerequisites` and `provider` stuck at `unverified`. Do not treat a successful shell/container check or a ready response as live assessment readiness: readiness never verifies model access. Test details and successful CI runs are linked from [implementation evidence](work-breakdown.md#implementation-evidence).
 
@@ -48,7 +48,7 @@ This topology deliberately has one local executor and one metadata store. Its re
 | Component | Owns | Boundary |
 | --- | --- | --- |
 | React interface | Upload, request clarification, progress, checklist, source navigation, export actions. | Calls the HTTP contract; does not evaluate policy rules. |
-| `api/` | Input validation, resource IDs, status/source/export routes, liveness and readiness. | Starts work and returns a run ID; does not perform model work inline in an upload request. |
+| `api/` | Implemented in `backend/app/api/`: input validation, resource IDs, status/source/export routes, liveness and readiness. | Starts work and returns a run ID; does not perform model work inline in an upload request. |
 | `documents/` | Native extraction, layout, page accounting, quality checks, and explicit scan rejection. | Returns versioned document records; does not decide policy applicability. |
 | `policies/` | Scope/criteria interpretation, section inventory, logical node validation. | Uses typed model results and source references; no patient-specific coverage rules in code. |
 | `evidence/` | Facts, context, candidate evidence, citation resolution and conflicts. | Consumes an explicit request and criteria; does not select a payer decision. |
@@ -56,7 +56,7 @@ This topology deliberately has one local executor and one metadata store. Its re
 | `llm/` | OpenAI Responses API transport, schema adaptation, prompt versions, bounded calls, usage and provider errors. | Implements a narrow model interface; contains no decision aggregation. |
 | `storage/` | Metadata repositories, source/artifact files, fingerprints and lineage. | Persists versioned artifacts; does not call parsers or models. |
 | `schemas/` | Shared typed data contracts, enums, API/provider shapes. | Has no HTTP, database, or cloud side effects. |
-| `observability/` | Run/stage events, timings, usage and error categories. | Records execution facts without making assessment decisions. |
+| `observability/` | Run/stage events, timings, usage and error categories. | Records execution facts without making assessment decisions. **Currently no separate module**: these responsibilities are carried by `RunRecord.usage`/`StageUsage` (timings, attempts, tokens, request/response IDs) and the typed error categories on runs and errors. |
 
 Keep the logical evaluator and provenance checks callable without FastAPI, SQLite, or a model provider. Workflow functions receive storage/model/parser dependencies through narrow typed interfaces. Adapters translate service responses into those contracts. The modules live in one application; each table row does not imply another deployable service.
 

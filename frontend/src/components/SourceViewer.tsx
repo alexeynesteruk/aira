@@ -2,12 +2,23 @@ import { useEffect, useState } from 'react'
 
 import { ApiRequestError, getPage, type PageResponse, type SourceSpan } from '../api'
 
-function BlockText({ text, start, end }: { text: string; start: number; end: number }) {
+export function BlockText({
+  text,
+  start,
+  end,
+}: {
+  text: string
+  start: number
+  end: number
+}) {
+  // Backend SourceSpan offsets are Unicode code points; slice by code point
+  // so astral characters cannot shift the highlight.
+  const characters = Array.from(text)
   return (
     <p className="cited-block">
-      {text.slice(0, start)}
-      <mark>{text.slice(start, end)}</mark>
-      {text.slice(end)}
+      {characters.slice(0, start).join('')}
+      <mark>{characters.slice(start, end).join('')}</mark>
+      {characters.slice(end).join('')}
     </p>
   )
 }

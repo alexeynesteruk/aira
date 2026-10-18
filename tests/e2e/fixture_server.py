@@ -13,6 +13,12 @@ annotation is the scenario switch (a test-only control channel):
 - no procedure annotation -> scope mismatch citing both documents;
 - "E2E gaps" -> applicable scope, two-criterion policy, one met finding and one
   missing finding -> documentation_gaps_or_contrary_evidence;
+- "E2E contrary" -> applicable scope, the same two-criterion policy, one
+  not-met finding backed by a contradicting fact and one conflicting finding
+  backed by a mutually conflicting fact pair — the engine's real evaluator
+  decides the outcome;
+- "E2E satisfied" -> applicable scope, a single met criterion ->
+  documented_requirements_satisfied;
 - "E2E clarify" without a plan annotation -> unresolved scope (needs_input);
   with a plan annotation -> the gaps path.
 
@@ -68,6 +74,9 @@ from app.schemas import (  # noqa: E402
 POLICY_CRITERION_QUOTE = (3, "Treatment of telangiectasia such as spider veins")
 POLICY_SECOND_QUOTE = (3, "There is demonstrated perforator reflux; AND")
 POLICY_SECTION_QUOTE = (3, "Perforator Veins")
+CHART_CONTRARY_QUOTE = (5, "Interpretation: Sinus bradycardia at 44 bpm.")
+CHART_CONFLICT_SUPPORT_QUOTE = (4, "Pauses > 2.5 sec: 12 events recorded")
+CHART_CONFLICT_AGAINST_QUOTE = (4, "Symptom Correlation: No patient-triggered events logged")
 
 PROVIDER_DETAIL = "Fixture interpreter for browser tests; no live model calls."
 
@@ -115,7 +124,7 @@ class E2EInterpreter:
                     unresolved_fields=(RequestField.PLAN,),
                 ),
             )
-        if procedure in {"E2E gaps", "E2E clarify"}:
+        if procedure in {"E2E gaps", "E2E clarify", "E2E contrary", "E2E satisfied"}:
             return ScopeInterpretation(
                 request=RequestContext(
                     procedure=procedure,
@@ -169,6 +178,35 @@ class E2EInterpreter:
                 question="Does the chart document demonstrated perforator reflux?"
             ),
         )
+        if _annotation_value(inputs, "procedure") == "E2E satisfied":
+            return PolicyInterpretation(
+                policy=Policy(
+                    policy_id="e2e-fixture-policy",
+                    document_id=inputs.policy_document.document_id,
+                    document_sha256=inputs.policy_document.sha256,
+                    title="Fixture venous requirements",
+                    scope_summary="Scripted requirement for the satisfied browser journey.",
+                    criteria=(criterion_a,),
+                    nodes=(
+                        CriterionNode(
+                            node_id="node-a",
+                            criterion_id="criterion-telangiectasia",
+                            sources=(first,),
+                        ),
+                    ),
+                    root_id="node-a",
+                    sections=(
+                        PolicySection(
+                            section_id="requirements",
+                            heading="Requirements",
+                            sources=(heading,),
+                            disposition="requirements",
+                            criterion_ids=("criterion-telangiectasia",),
+                            explanation="The single scripted criterion is a requirement.",
+                        ),
+                    ),
+                )
+            )
         return PolicyInterpretation(
             policy=Policy(
                 policy_id="e2e-fixture-policy",
@@ -220,6 +258,72 @@ class E2EInterpreter:
             sources=(span,),
             polarity=FactPolarity.AFFIRMED,
         )
+        if _annotation_value(inputs, "procedure") == "E2E contrary":
+            contrary = ChartFact(
+                fact_id="fact-ekg-brady",
+                proposition="The chart documents sinus bradycardia at 44 bpm.",
+                sources=(quote(inputs, inputs.chart_document, *CHART_CONTRARY_QUOTE),),
+                polarity=FactPolarity.AFFIRMED,
+            )
+            conflict_support = ChartFact(
+                fact_id="fact-pauses",
+                proposition="The chart documents 12 pauses over 2.5 seconds.",
+                sources=(quote(inputs, inputs.chart_document, *CHART_CONFLICT_SUPPORT_QUOTE),),
+                polarity=FactPolarity.AFFIRMED,
+                conflicting_fact_ids=("fact-symptoms",),
+            )
+            conflict_against = ChartFact(
+                fact_id="fact-symptoms",
+                proposition="The chart records no patient-triggered symptom events.",
+                sources=(quote(inputs, inputs.chart_document, *CHART_CONFLICT_AGAINST_QUOTE),),
+                polarity=FactPolarity.AFFIRMED,
+                conflicting_fact_ids=("fact-pauses",),
+            )
+            findings = tuple(
+                Finding(
+                    criterion_id=criterion.criterion_id,
+                    status=(
+                        EvidenceStatus.NOT_MET
+                        if criterion.criterion_id == "criterion-telangiectasia"
+                        else EvidenceStatus.CONFLICTING
+                    ),
+                    rationale=(
+                        "The cited EKG interpretation contradicts the requirement."
+                        if criterion.criterion_id == "criterion-telangiectasia"
+                        else "Supporting and contrary chart facts disagree on symptoms."
+                    ),
+                    evidence=(
+                        (
+                            EvidenceReference(
+                                fact_id=contrary.fact_id,
+                                relation=EvidenceRelation.CONTRADICTING,
+                            ),
+                        )
+                        if criterion.criterion_id == "criterion-telangiectasia"
+                        else (
+                            EvidenceReference(
+                                fact_id=conflict_support.fact_id,
+                                relation=EvidenceRelation.SUPPORTING,
+                            ),
+                            EvidenceReference(
+                                fact_id=conflict_against.fact_id,
+                                relation=EvidenceRelation.CONTRADICTING,
+                            ),
+                        )
+                    ),
+                    unresolved_reasons=(
+                        ()
+                        if criterion.criterion_id == "criterion-telangiectasia"
+                        else (
+                            "Supporting and contrary chart facts disagree on symptom correlation.",
+                        )
+                    ),
+                )
+                for criterion in policy.criteria
+            )
+            return EvidenceInterpretation(
+                facts=(contrary, conflict_support, conflict_against), findings=findings
+            )
         findings = tuple(
             Finding(
                 criterion_id=criterion.criterion_id,

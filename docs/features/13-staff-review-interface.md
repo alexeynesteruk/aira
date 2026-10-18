@@ -27,11 +27,11 @@ Use original page numbering and extraction-specific spans. Missing findings disp
 
 ## Acceptance criteria
 
-- [ ] Matched, mismatched, missing, contrary, and conflicting cases have distinguishable visible outcomes. [A01–A05](../evaluation.md#required-scenarios)
+- [x] Matched, mismatched, missing, contrary, and conflicting cases have distinguishable visible outcomes. [A01–A05](../evaluation.md#required-scenarios)
 - [x] Clarification preserves source facts; both policy and chart citations open the correct pages. [A12, A13](../evaluation.md#required-scenarios)
 - [x] Dependency failure explains recovery without displaying a clinical conclusion. [A16](../evaluation.md#required-scenarios)
 - [x] A reviewer reopens a saved run and inspects sources; the export action sends the requested format and handles the documented response. Live download and content parity are verified in WP-16. [A19](../evaluation.md#required-scenarios)
 
 ## Dependencies and references
 
-Completion depends on [WP-12](../work-breakdown.md#wp-12-http-and-source-api). Coordinate the download contract with [WP-14](../work-breakdown.md#wp-14-exports); [WP-16](16-evaluation-regression.md) verifies their integration. Follow [component boundaries](../architecture.md#components-and-dependency-direction) and the [run lifecycle](../architecture.md#request-and-run-lifecycle). The fixture-interpreter evidence is recorded in [results/review-ui.md](../results/review-ui.md); the remaining boundary covers contrary/conflicting run cases and WP-16 live parity.
+Completion depends on [WP-12](../work-breakdown.md#wp-12-http-and-source-api). Coordinate the download contract with [WP-14](../work-breakdown.md#wp-14-exports); [WP-16](16-evaluation-regression.md) verifies their integration. Follow [component boundaries](../architecture.md#components-and-dependency-direction) and the [run lifecycle](../architecture.md#request-and-run-lifecycle). The fixture-interpreter evidence is recorded in [results/review-ui.md](../results/review-ui.md); the remaining boundary is WP-16 live parity.
