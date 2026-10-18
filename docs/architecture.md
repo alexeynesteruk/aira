@@ -1,8 +1,26 @@
-# Aira application architecture
+# Aira technical design document
 
-Use an explicit pipeline with durable, inspectable artifacts. Model calls interpret language; ordinary code validates structure, verifies source references, evaluates supported logic, and manages execution. AWS Bedrock provides inference through a thin adapter. The initial application runs locally for reviewers.
+Use an explicit pipeline with durable, inspectable artifacts. Model calls interpret language; ordinary code validates structure, verifies source references, evaluates supported logic, and manages execution. The OpenAI Responses API provides inference through a thin adapter, subject to the [model feasibility decision](model-provider.md). The initial application runs locally for reviewers.
 
-This is the design to implement, not a description of deployed software. The [business requirements](requirements/business-requirements.md) define the staff outcome; the [technical requirements](requirements/technical-requirements.md) define normative system contracts. The [implementation plan](implementation-plan.md) groups milestones, and the [work breakdown](work-breakdown.md) owns package dependencies and completion evidence.
+This is the canonical technical design document (TDD), updated October 18, 2026. The [business requirements](requirements/business-requirements.md) define the staff outcome; the [technical requirements](requirements/technical-requirements.md) define normative system contracts. The [implementation plan](implementation-plan.md) groups milestones, and the [work breakdown](work-breakdown.md) owns package dependencies and completion evidence. The design below remains the target; the implementation snapshot distinguishes available components from unfinished integration.
+
+## Implementation snapshot
+
+| Area | Current implementation | Integration boundary |
+| --- | --- | --- |
+| Application and delivery | `backend/app/main.py`, React shell, locked dependencies, lint/type/tests/build, GitHub Actions container/browser checks and image artifact delivery. | The UI explains that assessment processing is unavailable. The full staff journey is pending. |
+| Shared records | Strict, frozen schema version `0.1.0` in `backend/app/schemas/`; [contract examples and tests](contracts.md). | Candidate interpretations still require domain validation before use. |
+| Evaluation inputs | Hash-pinned development sources, independently reviewed expectations, and a separately reserved pair in `evals/`. | Fixture integrity is verified; live semantic evaluation is pending. |
+| Model boundary | `backend/app/llm/`: OpenAI Responses adapter, versioned prompts, access probe, and an explicit isolated-stage CLI. | Live calls failed with insufficient quota. No tested model/default or model-quality claim exists. |
+| Native extraction | `backend/app/documents/` performs intake checks, page-accounted native extraction, and the complete-input gate; [34 checks](results/pdf-extraction.md) pass on the supplied chart and both policy snapshots. | The measured model-input envelope remains WP-15 scope. |
+| Provenance and rules | `backend/app/evidence/` and `backend/app/assessment/rules.py` provide pure citation validation, bounded predicates, and three-valued aggregation; [140 checks](results/rules.md) pass. | Semantic support and policy completeness stay reviewed judgments. |
+| Candidate conversion | `backend/app/policies/` converts provider candidates into source-valid domain records; 52 checks pass. | The OpenAI stage interpreter that produces these candidates is not implemented. |
+| Persistence | `backend/app/storage/` supplies SQLite, immutable content-addressed files, run history, and conservative versioned caching; [30 checks](results/storage.md) pass. `WorkflowEngine.start()` calls `interrupt_unfinished`. | The HTTP application does not yet start the engine. |
+| Workflow | `backend/app/assessment/workflow.py` runs bounded single-worker execution with persisted phase artifacts and reuse; [15 controlled-interpreter checks plus 9 rendered-input checks](results/workflow.md) pass over the real parser and store. | Controlled evidence only: the engine is not started by the HTTP app, and no OpenAI stage interpreter exists yet. |
+| Exports | `backend/app/assessment/export.py` renders a Markdown evidence checklist from a saved snapshot; 4 checks pass. | Export routes and UI actions are not implemented. |
+| HTTP API and review UI | Contracts and feature specifications are prepared; the shell serves health endpoints and the built UI. | Uploads, source inspection, run routes, and staff review remain unimplemented. |
+
+The current shell health endpoints are the WP-01 contract: liveness returns 200 and readiness returns 503 with an unavailable-processing reason. WP-12 will adopt the versioned health/API records from WP-02 when the actual processing prerequisites exist. Do not treat a successful shell/container check as live assessment readiness. Test details and successful CI runs are linked from [implementation evidence](work-breakdown.md#implementation-evidence).
 
 ## System context and deployment boundary
 
@@ -17,17 +35,13 @@ flowchart LR
         Volume --> DB[SQLite run metadata]
         Volume --> Files[Original PDFs and immutable artifacts]
     end
-    subgraph AWS[AWS managed services]
-        Bedrock[Bedrock inference]
-        Textract[Optional synchronous Textract]
-    end
-    App -->|Configured model calls| Bedrock
-    App -.->|Selected pages if OCR is enabled| Textract
+    OpenAI[OpenAI Responses API]
+    App -->|Configured server-side model calls| OpenAI
 ```
 
-FastAPI serves the built React application and the HTTP API from one origin. The container includes the tested parser dependencies; the mounted volume preserves runs across restarts. Only the backend resolves AWS credentials and calls the model/OCR adapters. The browser receives business results and source content, not AWS credentials. Model access is a documented prerequisite, and the UI can explain missing configuration without returning fixture answers.
+FastAPI serves the built React application and the HTTP API from one origin. The container includes the tested parser dependencies; the mounted volume preserves runs across restarts. Only the backend reads `OPENAI_API_KEY` and calls the model adapter. The browser receives business results and source content; the API key stays on the server. Model access is a documented prerequisite, and the UI can explain missing configuration without returning fixture answers.
 
-This topology deliberately has one local executor and one metadata store. Its restart behavior is explicit below. A hosted target is described under [AWS responsibilities](#aws-responsibilities); it is not an implemented deployment or a replacement for the local reviewer contract.
+This topology deliberately has one local executor and one metadata store. Its restart behavior is explicit below. A hosted target is described under [future AWS options](#future-aws-options); it is not an implemented deployment or a replacement for the local reviewer contract.
 
 ## Components and dependency direction
 
@@ -35,16 +49,16 @@ This topology deliberately has one local executor and one metadata store. Its re
 | --- | --- | --- |
 | React interface | Upload, request clarification, progress, checklist, source navigation, export actions. | Calls the HTTP contract; does not evaluate policy rules. |
 | `api/` | Input validation, resource IDs, status/source/export routes, liveness and readiness. | Starts work and returns a run ID; does not perform model work inline in an upload request. |
-| `documents/` | Native extraction, layout, page accounting, quality checks, optional OCR. | Returns versioned document records; does not decide policy applicability. |
+| `documents/` | Native extraction, layout, page accounting, quality checks, and explicit scan rejection. | Returns versioned document records; does not decide policy applicability. |
 | `policies/` | Scope/criteria interpretation, section inventory, logical node validation. | Uses typed model results and source references; no patient-specific coverage rules in code. |
 | `evidence/` | Facts, context, candidate evidence, citation resolution and conflicts. | Consumes an explicit request and criteria; does not select a payer decision. |
 | `assessment/` | Stage order, state transitions, blockers, pure rule evaluation, final result assembly. | Owns orchestration; storage and provider adapters do not advance the workflow themselves. |
-| `llm/` | Bedrock transport, schema adaptation, prompt versions, bounded calls, usage and provider errors. | Implements a narrow model interface; contains no decision aggregation. |
+| `llm/` | OpenAI Responses API transport, schema adaptation, prompt versions, bounded calls, usage and provider errors. | Implements a narrow model interface; contains no decision aggregation. |
 | `storage/` | Metadata repositories, source/artifact files, fingerprints and lineage. | Persists versioned artifacts; does not call parsers or models. |
 | `schemas/` | Shared typed data contracts, enums, API/provider shapes. | Has no HTTP, database, or cloud side effects. |
 | `observability/` | Run/stage events, timings, usage and error categories. | Records execution facts without making assessment decisions. |
 
-Keep the logical evaluator and provenance checks callable without FastAPI, SQLite, or AWS. Workflow functions receive storage/model/parser dependencies through narrow typed interfaces. Adapters translate service responses into those contracts. The modules live in one application; each table row does not imply another deployable service.
+Keep the logical evaluator and provenance checks callable without FastAPI, SQLite, or a model provider. Workflow functions receive storage/model/parser dependencies through narrow typed interfaces. Adapters translate service responses into those contracts. The modules live in one application; each table row does not imply another deployable service.
 
 Prompt templates are versioned with code, while uploaded rules and clinical facts are input data. Store provider-compatible flat output schemas separately from additional local invariants when the provider cannot enforce them. A change to either contract updates its version and the affected consumers/evaluations.
 
@@ -66,7 +80,7 @@ flowchart TD
     R --> O[Checklist, issues, source viewer, and export]
 ```
 
-Bedrock serves the scope, policy interpretation, and evidence stages. Start with page-tagged full text inside explicit input limits. Layout extraction preserves tables and block positions. A future retrieval adapter must demonstrate evidence recall before replacing the full-context baseline.
+The OpenAI adapter serves the scope, policy interpretation, and evidence stages. Start with page-tagged full text inside explicit input limits. Layout extraction preserves tables and block positions. A future retrieval adapter must demonstrate evidence recall before replacing the full-context baseline.
 
 Validate each stage's structure and source references before its output is consumed or reused. The final validation node in the flow represents cross-stage checks as well as result assembly; it does not postpone scope or policy validation until after evidence mapping.
 
@@ -81,7 +95,7 @@ sequenceDiagram
     participant API as FastAPI
     participant Store as Metadata and artifacts
     participant Worker as Local executor
-    participant Model as Bedrock adapter
+    participant Model as OpenAI adapter
     Reviewer->>UI: Upload policy and chart
     UI->>API: Upload documents
     API->>Store: Preserve inputs and identifiers
@@ -142,7 +156,7 @@ Operational failures can occur in every running phase and produce a `failed` run
 | Criterion | Stable within-version ID, source wording/spans, interpreted requirement, supported predicate or narrative question, required context, and any exception references. |
 | Chart fact | Source spans, documented proposition, value/unit where present, polarity, event date, documentation date, uncertainty and conflicting alternatives. |
 | Finding | Criterion ID, evidence references, status, rationale, unresolved reasons, and evaluator inputs. An empty evidence set cannot establish a positive finding. |
-| Run | Input/request fingerprints, parser/prompt/schema versions, model/profile and region, inference settings, stage state, artifacts, timing/usage, failure details, and result. |
+| Run | Input/request fingerprints, parser/prompt/schema versions, provider/model and SDK, inference settings, stage state, artifacts, timing/usage, failure details, and result. |
 
 Dates are not interchangeable. A document signature, observation, proposed service, policy revision, and policy effective date retain their own meanings. Never repair inconsistent dates silently. Summarized clinical facts keep their summary provenance; a claimed normal CBC does not create laboratory values absent from the chart.
 
@@ -196,12 +210,14 @@ Use a single-process executor with bounded concurrency for the local MVP, plus S
 
 Fingerprint reusable artifacts with input bytes plus parser, prompt, schema, model, and relevant configuration versions. Include selected request and user annotations in assessment identity. Cache only completed, validated artifacts. A retry cannot overwrite a prior final result or silently reuse output from a changed policy. Store actual outputs: a fixed temperature does not guarantee reproducible model responses.
 
-Bound provider retries for transient errors with exponential backoff and jitter, and an overall stage deadline. Avoid retry multiplication between SDK and application layers. Authentication errors, invalid schemas, and unsupported input require corrective action rather than repeated calls. Record attempts and distinguish OCR/parser failure, access failure, throttling, timeout, refusal, invalid output, and citation failure. All-page accounting and complete model responses are prerequisites for an ordinary completed assessment.
+The implemented storage API uses separate role-scoped document IDs even when identical bytes share a blob. The original submitted fingerprint remains immutable; derived request context is saved in each run snapshot and participates in stage cache keys. Exact extraction revisions, upstream artifact identities, output schema, and validator version also participate. Files publish atomically before SQLite metadata, and reads verify their hashes. See the [storage verification record](results/storage.md) for APIs and failure tests. The workflow must validate candidate semantics before calling the artifact publication API.
 
-Liveness reports that the HTTP process is serving. Readiness reports local dependencies and configuration needed to accept work; it does not promise current Bedrock authorization or trigger repeated paid inference. Record the outcome/time of a separately invoked live access check when available. Both stale access and mid-run provider failure remain possible and use the ordinary error path.
+Bound provider retries for transient errors with exponential backoff and jitter, and an overall stage deadline. Avoid retry multiplication between SDK and application layers. Authentication errors, invalid schemas, and unsupported input require corrective action rather than repeated calls. Record attempts and distinguish parser failure, access failure, throttling, timeout, refusal, invalid output, and citation failure. All-page accounting and complete model responses are prerequisites for an ordinary completed assessment.
 
-## AWS responsibilities
+Liveness reports that the HTTP process is serving. Readiness reports local dependencies and configuration needed to accept work; it does not promise current model access or trigger repeated paid inference. Record the outcome/time of a separately invoked live access check when available. Both stale access and mid-run provider failure remain possible and use the ordinary error path.
 
-The MVP uses Bedrock for language interpretation. Pagewise synchronous Textract is the optional OCR path to evaluate; it can accept bytes without S3. A later asynchronous path for longer scans introduces S3 and job coordination. Credentials and model access are explicit reviewer prerequisites. No infrastructure provisioning is part of the current documentation work.
+## Future AWS options
 
-A later hosted version can package the same API/UI image on ECS Fargate, store immutable documents and artifacts in S3, and move shared metadata to Postgres. Add SQS and a worker when execution must survive restarts or multiple workers. Use CloudWatch for service signals, then evaluate Step Functions only if cross-service retries and workflow recovery justify it. Bedrock Knowledge Bases, OpenSearch, EKS, and autonomous agent orchestration have no demonstrated requirement in the current scope. See [AWS research](aws.md) for service details and the decision rationale.
+The initial MVP uses OpenAI for language interpretation and native PDF extraction locally. Unsupported scans or unusable image-only pages receive an explicit failure; they are never silently omitted. No AWS credentials or services are required. Adding OCR needs a justified scope decision and extraction/failure verification. The [provider decision](model-provider.md) owns the active integration boundary.
+
+A later hosted version can package the same API/UI image on ECS Fargate, store immutable documents and artifacts in S3, and move shared metadata to Postgres. Add SQS and a worker when execution must survive restarts or multiple workers. Use CloudWatch for service signals, then evaluate Step Functions only if cross-service retries and workflow recovery justify it. Bedrock Knowledge Bases, OpenSearch, EKS, and autonomous agent orchestration have no demonstrated requirement in the current scope. The dated [AWS research](aws.md) preserves the earlier Bedrock/Textract proposal and service details for future evaluation; it does not define initial MVP prerequisites.

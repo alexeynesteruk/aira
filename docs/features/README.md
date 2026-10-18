@@ -2,7 +2,7 @@
 
 Each feature has its own implementation brief with linked business and technical requirements, concrete tasks, acceptance criteria, dependencies, and design references. The list includes product features and the engineering/delivery enablers required to ship them. Existing WP identifiers are reused so specifications and implementation packages stay connected.
 
-These files define work to implement; they do not establish that the application exists. The [work breakdown](../work-breakdown.md#work-packages-and-dependencies) is the authoritative record for dependencies, owner roles, and implementation status. Checkbox completion in a feature file must be supported by actual artifacts and checks before its package is marked complete.
+These files define the implementation scope and checked work. The shell, contract baseline, and reviewed evaluation corpus are implemented; the full assessment workflow remains under construction. The [work breakdown](../work-breakdown.md#work-packages-and-dependencies) is the authoritative record for dependencies, owner roles, and implementation status. Checkbox completion in a feature file must be supported by actual artifacts and checks before its package is marked complete.
 
 ## Feature specifications
 
@@ -12,7 +12,7 @@ These files define work to implement; they do not establish that the application
 | WP-02 | [Domain and interface contract baseline](02-domain-contracts.md) | Engineering enabler | M0 |
 | WP-03 | [Annotated fixtures and expected outcomes](03-evaluation-fixtures.md) | Engineering enabler | M0 |
 | WP-04 | [Native PDF ingestion and extraction](04-pdf-ingestion-extraction.md) | Product feature | M2 |
-| WP-05 | [Bedrock integration and feasibility](05-bedrock-integration.md) | Engineering enabler | M1 |
+| WP-05 | [OpenAI integration and model feasibility](05-model-integration.md) | Engineering enabler | M1 |
 | WP-06 | [Versioned storage and artifact identity](06-versioned-storage.md) | Engineering enabler | M3 |
 | WP-07 | [Request context and applicability](07-request-applicability.md) | Product feature | M3 |
 | WP-08 | [Policy interpretation and completeness](08-policy-interpretation.md) | Product feature | M3 |
@@ -29,14 +29,14 @@ These files define work to implement; they do not establish that the application
 
 ## Start order
 
-Start with [WP-01](01-repository-foundation.md), then establish the [WP-02 contracts](02-domain-contracts.md) and [WP-03 expectations](03-evaluation-fixtures.md). After the contract baseline, storage can progress independently. After the core fixtures, native PDF extraction, Bedrock feasibility, and pure validation/rule evaluation can proceed in parallel.
+Start with [WP-01](01-repository-foundation.md), then establish the [WP-02 contracts](02-domain-contracts.md) and [WP-03 expectations](03-evaluation-fixtures.md). After the contract baseline, storage can progress independently. After the core fixtures, native PDF extraction, model feasibility, and pure validation/rule evaluation can proceed in parallel.
 
-Applicability, policy, and evidence stages can be developed against shared fixtures before their runtime integration. The workflow can be completed only after the OCR/input-limit decision; supporting scans is conditional, but handling unsupported pages and setting measured limits is mandatory. Follow the [dependency graph and table](../work-breakdown.md#work-packages-and-dependencies) for later work and completion prerequisites.
+Applicability, policy, and evidence stages can be developed against shared fixtures before their runtime integration. The workflow can be completed only after the input-limit decision. The initial MVP explicitly rejects unsupported scans; handling unusable pages and setting measured limits are mandatory. OCR requires a later justified scope decision. Follow the [dependency graph and table](../work-breakdown.md#work-packages-and-dependencies) for later work and completion prerequisites.
 
 ## Requirements and evidence
 
 Read the relevant [BRD](../requirements/business-requirements.md) and [TRD](../requirements/technical-requirements.md) clauses before implementation. The feature briefs describe each package's contribution to those requirements; a reference to a broad requirement does not mean that one package implements every clause.
 
-Keep API/status/error definitions in the TRD, design decisions in [architecture](../architecture.md) and [AWS guidance](../aws.md), and scenario definitions in [evaluation](../evaluation.md). Feature files own task checklists and feature-specific acceptance details. When scope changes, update the owning requirement and its dependent references rather than creating a competing definition here.
+Keep API/status/error definitions in the TRD, design decisions in [architecture](../architecture.md) and the [model provider decision](../model-provider.md), and scenario definitions in [evaluation](../evaluation.md). Feature files own task checklists and feature-specific acceptance details. When scope changes, update the owning requirement and its dependent references rather than creating a competing definition here.
 
 Record implementation commit, checks run, observed results, and limitations in the work package's completion record. Keep live model evidence separate from fixture tests, preserve reviewed expected outcomes, and leave unchecked work visibly unfinished.

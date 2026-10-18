@@ -13,7 +13,7 @@ Work package: [WP-18](../work-breakdown.md#wp-18-release-evidence-and-handoff). 
 ## Technical requirements
 
 - [TR-017](../requirements/technical-requirements.md#tr-017-evaluation-and-release-gates): require release evidence for the implemented revision and retain every material failure/limitation.
-- [TR-018](../requirements/technical-requirements.md#tr-018-packaging-and-reviewer-delivery): verify the packaged workflow and document where judgment lives, data versus code, messy-input failure boundaries, and the next AWS step.
+- [TR-018](../requirements/technical-requirements.md#tr-018-packaging-and-reviewer-delivery): verify the packaged workflow and document where judgment lives, data versus code, messy-input failure boundaries, and a future hosting extension.
 
 ## Implementation tasks
 
@@ -26,7 +26,7 @@ Work package: [WP-18](../work-breakdown.md#wp-18-release-evidence-and-handoff). 
 
 ## Acceptance criteria
 
-- [ ] [A11 and A19](../evaluation.md#required-scenarios) pass on the identified release revision with documented AWS access and no author-specific dependency.
+- [ ] [A11 and A19](../evaluation.md#required-scenarios) pass on the identified release revision with documented OpenAI model access and no author-specific dependency.
 - [ ] No critical release blocker remains; previous results and input versions remain inspectable.
 - [ ] The [verification record](../evaluation.md#final-verification-record) contains observed results rather than expected successes.
 - [ ] Code, prerequisites, launch command, known limits, and design note are ready for the agreed delivery deadline. Actual external submission requires user authorization.

@@ -33,4 +33,4 @@ Return typed scope outcomes that WP-11 maps to `completed` with `applicability_m
 
 ## Dependencies and references
 
-Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-bedrock-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Follow the [run lifecycle](../architecture.md#request-and-run-lifecycle) and [domain records](../architecture.md#domain-records). Persisted stopping and linked-run checks belong to [WP-11](11-assessment-workflow.md).
+Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Follow the [run lifecycle](../architecture.md#request-and-run-lifecycle) and [domain records](../architecture.md#domain-records). Persisted stopping and linked-run checks belong to [WP-11](11-assessment-workflow.md).

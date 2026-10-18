@@ -34,4 +34,4 @@ Summary assertions retain their summary provenance; a normal-CBC statement canno
 
 ## Dependencies and references
 
-Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-bedrock-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Develop against agreed request/policy fixtures; WP-11 enforces runtime order. Follow [domain records](../architecture.md#domain-records) and [finding semantics](../architecture.md#finding-and-aggregation-semantics).
+Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Develop against agreed request/policy fixtures; WP-11 enforces runtime order. Follow [domain records](../architecture.md#domain-records) and [finding semantics](../architecture.md#finding-and-aggregation-semantics).

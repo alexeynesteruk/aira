@@ -1,8 +1,8 @@
 # Aira project documentation
 
-Build a small, working assistant that helps clinic staff assess prior authorization readiness using a patient chart PDF and an insurer guideline PDF. It must work on new documents supplied by reviewers. The implementation direction is a cited evidence checklist using FastAPI, React/TypeScript, and AWS Bedrock, with a local one-command launch.
+Build a small, working assistant that helps clinic staff assess prior authorization readiness using a patient chart PDF and an insurer guideline PDF. It must work on new documents supplied by reviewers. The implementation direction is a cited evidence checklist using FastAPI, React/TypeScript, and the OpenAI Responses API, with a local one-command launch.
 
-Requirements, architecture, and task decomposition are documented; application implementation and live service validation are next. Start with the [business and technical requirements](requirements/README.md), then use the [work breakdown](work-breakdown.md) to execute the plan.
+Requirements, architecture, and task decomposition are documented. The application shell, shared contracts, and reviewed fixture corpus pass CI; native PDF extraction, versioned storage, and the pure validation/rule core are implemented, and candidate conversion, the workflow engine, and the Markdown export exist with controlled-test evidence. Live inference remains blocked by API project quota and was deferred by the user. Start with the [business and technical requirements](requirements/README.md), then use the [work breakdown](work-breakdown.md) to execute the plan.
 
 ## Confirmed requirements
 
@@ -39,15 +39,24 @@ The supplied chart is a UHC pacemaker request, while the example guideline conce
 | [Implementation plan](implementation-plan.md) | Product scope, decisions, M0–M6 milestones, planned folders, reviewer launch, risks, and delivery. |
 | [Work breakdown](work-breakdown.md) | Assignable packages, dependencies, deliverables, owner roles, and completion evidence. |
 | [Feature specifications](features/README.md) | One file per package, with business/technical requirements, implementation tasks, acceptance checks, and source references. |
-| [Architecture](architecture.md) | Context/deployment, component boundaries, runtime diagrams, data model, evidence logic, and storage. |
+| [Technical design document (TDD)](architecture.md) | Current implementation snapshot, system architecture, component boundaries, runtime diagrams, data model, evidence logic, and storage. |
 | [Evaluation](evaluation.md) | Acceptance scenarios, independent expectations, test layers, metrics, and release blockers. |
-| [AWS research](aws.md) | Verified service constraints, Bedrock configuration, OCR choices, and later hosting path. |
+| [Contract record](contracts.md) | Schema version baseline, contract examples, and verified amendment history. |
+| [Extraction record](results/pdf-extraction.md) | Verified native-PDF intake/extraction behavior, limits, and failures. |
+| [Storage record](results/storage.md) | Verified SQLite/immutable-object storage boundary and cache identity. |
+| [Rules record](results/rules.md) | Verified pure provenance validation, bounded predicates, and aggregation. |
+| [Workflow record](results/workflow.md) | Controlled-interpreter evidence for the bounded execution engine. |
+| [WP-03 fixture review](reviews/wp03-fixtures.md) | Independent review of the annotated fixture corpus. |
+| [Agent handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules for coding agents. |
+| [Model provider decision](model-provider.md) | OpenAI integration, server-side configuration, and native PDF boundary. |
+| [Model feasibility record](results/model-feasibility.md) | Implemented adapter/CLI, controlled checks, observed quota failure, and commands to resume live validation. |
+| [AWS research](aws.md) | Dated service findings and the superseded Bedrock proposal, retained as future options. |
 | [Online implementation research](research.md) | Reddit workflow observations, public implementations, PDF tooling, and design tradeoffs. |
 | [Document exploration](exploration.md) | Sample mismatch, source evidence, chronology conflicts, and extraction risks. |
 | [Guideline provenance](../examples/guidelines/README.md) | Two exact policy snapshots, hashes, and observed differences. |
 
-The Obsidian review informs engineering practices such as versioned prompts, independent test expectations, source verification, and honest failure reporting. Its detailed private source register stays in the vault. AWS-specific capabilities are checked against current public documentation.
+The Obsidian review informs engineering practices such as versioned prompts, independent test expectations, source verification, and honest failure reporting. Its detailed private source register stays in the vault. The active provider boundary is recorded in the model decision; the AWS research retains the dates and sources of its earlier verification.
 
 ## Next implementation gate
 
-Start with the [WP-01 foundation specification](features/01-repository-foundation.md), then WP-02 contracts and WP-03 annotated cases. The [feature index](features/README.md) links each implementation brief. Bedrock and PDF experiments then establish the exact model/region, credential onboarding, parser settings, tested input limits, and whether OCR is included. No AWS deployment is needed to perform this work. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.
+WP-01–WP-04, WP-06, and WP-10 are complete; their [completion evidence](work-breakdown.md#implementation-evidence) identifies commits and result records. The [feature index](features/README.md) links each implementation brief. The next implementation gate is an OpenAI `StageInterpreter` behind the workflow boundary together with WP-12 HTTP admission; its live half stays blocked by the deferred API project quota while controlled orchestration evidence already exists. Unsupported scans are explicitly rejected in the initial MVP; no AWS credentials or deployment are needed. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.

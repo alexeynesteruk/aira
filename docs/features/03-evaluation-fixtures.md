@@ -16,19 +16,21 @@ Work package: [WP-03](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluati
 
 ## Implementation tasks
 
-- [ ] Create manifests with source hashes, selected request, fixture purpose, annotation provenance, and expected results.
-- [ ] Add fictional matched vascular charts and missing, negative, conflicting, and wrong-context variants.
-- [ ] Keep the supplied pair as a mismatch; test its chronology at the extraction stage and use an applicable fictional pair for end-to-end conflict handling.
-- [ ] Add a controlled synthetic policy change and select a second policy family; reserve an independent release pair.
-- [ ] Map every evaluation scenario to inputs or a concrete fixture-construction task; label synthetic materials clearly.
+- [x] Create manifests with source hashes, selected request, fixture purpose, annotation provenance, and expected results.
+- [x] Add fictional matched vascular charts and missing, negative, conflicting, and wrong-context variants.
+- [x] Keep the supplied pair as a mismatch; test its chronology at the extraction stage and use an applicable fictional pair for end-to-end conflict handling.
+- [x] Add a controlled synthetic policy change and select a second policy family; reserve an independent release pair.
+- [x] Map every evaluation scenario to inputs or a concrete fixture-construction task; label synthetic materials clearly.
 
 ## Acceptance criteria
 
-- [ ] Core matched, mismatched, missing, contrary, and conflicting cases have reviewed source-based expectations before prompt tuning: [A01–A05](../evaluation.md#required-scenarios).
-- [ ] Expected trees preserve branch semantics and completeness blockers: [A06–A08 and A20](../evaluation.md#required-scenarios).
-- [ ] The changed-rule case is distinct from the BCBS pair whose clinical pages did not change: [A09–A11](../evaluation.md#required-scenarios).
-- [ ] Evaluation cannot rewrite expectations silently. A held-out case used for tuning is recorded and replaced before release.
+- [x] Core matched, mismatched, missing, contrary, and conflicting cases have reviewed source-based expectations before prompt tuning: [A01–A05](../evaluation.md#required-scenarios).
+- [x] Expected trees preserve branch semantics and completeness blockers: [A06–A08 and A20](../evaluation.md#required-scenarios).
+- [x] The changed-rule case is distinct from the BCBS pair whose clinical pages did not change: [A09–A11](../evaluation.md#required-scenarios).
+- [x] Evaluation cannot rewrite expectations silently. A held-out case used for tuning is recorded and replaced before release.
 
 ## Dependencies and references
 
 Requires [WP-02](02-domain-contracts.md). Deliver `tests/fixtures/`, `evals/cases/`, and `evals/expected/` according to [case design](../evaluation.md#case-design), [source findings](../exploration.md), and [guideline provenance](../../examples/guidelines/README.md). Fixture coverage prepares later checks; this feature does not claim they have run.
+
+Completion evidence and remaining downstream limits are recorded in the [work breakdown](../work-breakdown.md#implementation-evidence).

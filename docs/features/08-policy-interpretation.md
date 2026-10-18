@@ -34,4 +34,4 @@ Map governing text to a supported rule, contextual definition, or unresolved int
 
 ## Dependencies and references
 
-Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-bedrock-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Use selected-request fixtures while applicability is integrated. Follow [policy structure](../architecture.md#policy-structure) and [validation boundaries](../architecture.md#validation-boundaries).
+Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Use selected-request fixtures while applicability is integrated. Follow [policy structure](../architecture.md#policy-structure) and [validation boundaries](../architecture.md#validation-boundaries).

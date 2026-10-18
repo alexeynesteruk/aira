@@ -1,6 +1,6 @@
 # Container packaging and reviewer setup
 
-Let an assessor start the application and process new PDFs with a documented command and explicit AWS prerequisites, using a fresh checkout on their machine.
+Let an assessor start the application and process new PDFs with a documented command and explicit provider configuration prerequisites, using a fresh checkout on their machine.
 
 Work package: [WP-17](../work-breakdown.md#wp-17-packaging-and-reviewer-setup). Kind: delivery enabler. Milestone: M6. Owner role: Integration. Implementation status and ownership are tracked in the [work breakdown](../work-breakdown.md#work-packages-and-dependencies).
 
@@ -12,14 +12,14 @@ Work package: [WP-17](../work-breakdown.md#wp-17-packaging-and-reviewer-setup). 
 
 ## Technical requirements
 
-- [TR-010](../requirements/technical-requirements.md#tr-010-bedrock-contract-and-configuration): forward documented credentials, including temporary session tokens, and validate model/region configuration without subscription changes.
+- [TR-010](../requirements/technical-requirements.md#tr-010-model-contract-and-configuration): read a documented server-only `OPENAI_API_KEY` and explicit `AIRA_MODEL`; verify the configured model/API combination without exposing the key to the browser.
 - [TR-018](../requirements/technical-requirements.md#tr-018-packaging-and-reviewer-delivery): package built React assets, FastAPI, locked dependencies, and parser tools in one application image with a persistent volume and documented port.
 
 ## Implementation tasks
 
 - [ ] Add `Dockerfile`, `compose.yaml`, and `.env.example` without secrets.
 - [ ] Implement the target `docker compose up --build` launch and persistent data directory.
-- [ ] Document Docker, AWS model access, credentials, region/model, OCR choice, input limits, and first-run behavior.
+- [ ] Document Docker, OpenAI model access, server-side key/model configuration, scan limitations, input limits, and first-run behavior.
 - [ ] Verify credentials inside the container and ensure setup failures remain understandable in the UI.
 - [ ] Exercise a new upload, source inspection, and export through live inference.
 
@@ -32,4 +32,4 @@ Work package: [WP-17](../work-breakdown.md#wp-17-packaging-and-reviewer-setup). 
 
 ## Dependencies and references
 
-Requires [WP-05](05-bedrock-integration.md), [WP-12](12-http-source-api.md), [WP-13](13-staff-review-interface.md), [WP-14](14-assessment-exports.md), and [WP-15](15-ocr-input-limits.md). Follow the [reviewer launch contract](../implementation-plan.md#reviewer-launch-contract), [AWS credential guidance](../aws.md#reviewer-credentials-and-configuration), and [local deployment boundary](../architecture.md#system-context-and-deployment-boundary). Hosted deployment is outside this package.
+Requires [WP-05](05-model-integration.md), [WP-12](12-http-source-api.md), [WP-13](13-staff-review-interface.md), [WP-14](14-assessment-exports.md), and [WP-15](15-ocr-input-limits.md). Follow the [reviewer launch contract](../implementation-plan.md#reviewer-launch-contract), [reviewer configuration](../model-provider.md#reviewer-configuration), and [local deployment boundary](../architecture.md#system-context-and-deployment-boundary). Hosted deployment is outside this package.

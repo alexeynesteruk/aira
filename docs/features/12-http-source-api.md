@@ -34,4 +34,4 @@ Checks follow the [evaluation matrix](../evaluation.md#required-scenarios) and [
 
 Completion dependencies: [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-06](../work-breakdown.md#wp-06-storage-and-identity), [WP-11](../work-breakdown.md#wp-11-workflow-and-recovery).
 
-Design references: [component boundaries](../architecture.md#components-and-dependency-direction), [request lifecycle](../architecture.md#request-and-run-lifecycle), and [reviewer configuration](../aws.md#reviewer-credentials-and-configuration).
+Design references: [component boundaries](../architecture.md#components-and-dependency-direction), [request lifecycle](../architecture.md#request-and-run-lifecycle), and [reviewer configuration](../model-provider.md#reviewer-configuration).

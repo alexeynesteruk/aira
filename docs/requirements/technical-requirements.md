@@ -2,7 +2,7 @@
 
 Implement a local application that assesses one selected procedure request against one uploaded policy and one chart PDF. The system must preserve source evidence, expose uncertainty, and produce a documentation checklist without issuing an insurer decision. These requirements translate the [business requirements](business-requirements.md) into implementation and acceptance contracts.
 
-Baseline date: October 18, 2026. Requirements describe the target MVP; M0–M6 in the [implementation plan](../implementation-plan.md) group delivery, and the [work breakdown](../work-breakdown.md) records dependencies and completion evidence. The [architecture](../architecture.md) defines domain semantics, [AWS decisions](../aws.md) define provider constraints, and the [evaluation matrix](../evaluation.md) identifies acceptance scenarios A01–A20.
+Updated October 18, 2026. This technical requirements document (TRD) retains stable TR-001–TR-018 identifiers and the target MVP contract. M0–M6 in the [implementation plan](../implementation-plan.md) group delivery, and the [work breakdown](../work-breakdown.md) records actual dependencies and completion evidence. The [technical design document (TDD)](../architecture.md) defines architecture, domain semantics, and the current implementation snapshot. The [model provider decision](../model-provider.md) defines the OpenAI boundary, and the [evaluation matrix](../evaluation.md) identifies acceptance scenarios A01–A20. A deferred quota issue blocks live validation, not the requirements themselves.
 
 ## Implementation boundaries
 
@@ -10,13 +10,13 @@ Baseline date: October 18, 2026. Requirements describe the target MVP; M0–M6 i
 | --- | --- |
 | Backend | Python, FastAPI, strict Pydantic contracts, and domain modules independent of HTTP, storage, and provider adapters. |
 | Frontend | React and TypeScript, with built assets served by the application container. |
-| Inference | A thin Boto3 Bedrock Runtime adapter using a model/profile and structured-output mechanism verified in M1. |
-| Documents | Native page-aware text/layout extraction; optional pagewise synchronous Textract after M2 verification. |
+| Inference | A thin OpenAI Responses API adapter using an explicit model and structured-output mechanism verified in M1. |
+| Documents | Native page-aware text/layout extraction; scans and unusable image-only pages receive an explicit unsupported-input response in the initial MVP. |
 | Persistence | SQLite metadata and immutable input/stage artifacts in a mounted local data directory. |
 | Execution | One application process with a bounded executor and persisted run state. No distributed queue is assumed. |
-| Delivery | A Docker Compose launch with documented AWS prerequisites and no author-specific services. |
+| Delivery | A Docker Compose launch with documented OpenAI key/model prerequisites and no author-specific services. |
 
-All numbered requirements are MVP obligations. TR-003 requires an explicit OCR inclusion decision; it does not claim scan support before verification. ECS Fargate, S3, Postgres, SQS, Step Functions, managed retrieval, EHR connections, and payer submission are possible extensions rather than delivery dependencies. Production compliance and infrastructure work remain outside the assessment scope.
+All numbered requirements are MVP obligations. TR-003 requires a verified native-text input boundary and explicit scan rejection; adding OCR requires a justified scope change and its own verification. AWS credentials and services are not MVP dependencies. ECS Fargate, S3, Postgres, SQS, Step Functions, managed retrieval, EHR connections, and payer submission are possible extensions. Production compliance and infrastructure work remain outside the assessment scope.
 
 ## Technical requirements
 
@@ -40,9 +40,11 @@ Preserve original bytes and SHA-256, then store versioned page/block extraction 
 
 **Business mapping:** BR-001, BR-009.
 
-M2 must choose verified OCR support or an explicit scan limitation. If included, use pagewise synchronous Textract on suspect pages, preserve raw blocks/model version, and map output back to original page numbers. Respect both application limits and current service limits: synchronous PDF/TIFF input is one page and at most 10 MB. Do not forward a multipage original to that operation. Keep native and OCR text distinguishable within a mixed document.
+M2 must establish native extraction quality and measured input limits. The initial MVP rejects scanned, image-only, or otherwise unusable pages explicitly rather than treating missing extracted text as absent clinical evidence. Inventory every page of mixed documents before assessment. OCR may be added later only when representative inputs justify it and its extraction, page mapping, provenance, resource limits, and failure behavior are verified. Any future OCR output must remain distinguishable from native extraction.
 
-**Acceptance:** A14 covers a full scan, a mixed PDF, and an OCR failure. Every page is either successfully represented, explicitly identified as blank, or reported unusable. An unusable page blocks ordinary assessment completion. If OCR is excluded, scanned inputs receive a clear unsupported-input response. Cross-page reconstruction is checked under A13. See [verified Textract constraints](../aws.md#textract-scan-experiment).
+The initial parser is conservative: any embedded raster image, including a decorative image on a text page, is unsupported because its relevance cannot be established without image interpretation. Rotated pages, interactive forms, and vector-only nontext pages are also outside the current native path. This boundary must be visible before an ordinary assessment can complete. Parser byte/page/character budgets are provisional until WP-15 combines extraction results with live model limits; the existence of parser limits does not establish an end-to-end supported envelope.
+
+**Acceptance:** A14 covers a full scan, a mixed PDF, and unusable extraction. Every page is either successfully represented, explicitly identified as blank, or reported unusable. An unusable page blocks ordinary assessment completion, and unsupported scans receive a clear response. Cross-page reconstruction is checked under A13. Any later OCR scope must add failure tests before claiming scan support. See the [PDF support boundary](../model-provider.md#pdf-support-and-future-options).
 
 ### TR-004 Request context and user annotations
 
@@ -92,19 +94,19 @@ Map `met` to true, `not_met` to false, and the other finding states to unknown. 
 
 **Acceptance:** A07 covers true/false/unknown combinations, including `false AND unknown` and `true OR unknown`. A06 does not require documentation for every unused OR alternative. A20 prevents a satisfied extracted tree from overriding known unresolved governing prose. No weighted score, criterion percentage, or model confidence controls aggregation.
 
-### TR-010 Bedrock contract and configuration
+### TR-010 Model contract and configuration
 
 **Business mapping:** BR-001, BR-010.
 
-Use a thin Bedrock adapter with versioned prompts, transport schemas, model/profile, region, inference settings, and SDK dependencies. M1 must verify the actual model/schema combination and select a tested default. Keep provider schema restrictions separate from local domain validation, and use our own source fields rather than incompatible provider-native citations. Use the SDK credential chain, including temporary session tokens; do not embed credentials or invoke subscription changes at startup.
+Use a thin OpenAI Responses API adapter with versioned prompts, transport schemas, explicit provider/model, inference settings, and SDK dependencies. M1 must verify the actual model/API/schema combination and select a tested configuration; no automatic model choice is considered validated before this experiment. Keep transport/schema checks separate from local domain validation, and use application source fields for citations. Read `OPENAI_API_KEY` only on the server and configure `AIRA_MODEL` explicitly. Never embed the key in frontend assets, prompts, exports, logs, or repository files. AWS credentials are not required.
 
-**Acceptance:** A16 exercises unsupported schema/model configuration, missing/expired credentials, access denial, refusal, and incomplete output. A19 includes a real call from the documented container credential path. Record candidate comparison or the single-model limitation. A fixture provider is labeled test execution and never silently replaces a failed live call. See [AWS output and credential contracts](../aws.md).
+**Acceptance:** A16 exercises unsupported schema/model configuration, missing/invalid credentials, access denial, refusal, and incomplete output. A19 includes a real call from the documented server/container configuration path. Record candidate comparison or the single-model limitation. A fixture provider is labeled test execution and never silently replaces a failed live call. See the [model and configuration contracts](../model-provider.md).
 
 ### TR-011 Bounded execution and failure lifecycle
 
 **Business mapping:** BR-009.
 
-Persist status separately from phase using the contracts below. Bound queue size, concurrent runs, call attempts, and stage duration. Retry transient provider errors with the configured SDK policy and avoid multiplication by general application retries. `needs_input` stops the current attempt. On restart, mark unfinished queued/running work `interrupted`. A user retry or clarification creates a new run with `parent_run_id`; reuse only compatible validated artifacts.
+Persist status separately from phase using the contracts below. Bound queue size, concurrent runs, call attempts, and stage duration. Retry transient provider errors through one bounded policy; disable overlapping SDK retries when the adapter owns attempts and the total deadline. `needs_input` stops the current attempt. On restart, mark unfinished queued/running work `interrupted`. A user retry or clarification creates a new run with `parent_run_id`; reuse only compatible validated artifacts.
 
 **Acceptance:** A16 verifies bounded timeout/throttling behavior, visible failure category and action, and interruption recovery. No failure is relabeled a clinical finding. A17 verifies that a retry retains the previous run and its diagnostics. Queue saturation is reported immediately, and an accepted job returns its run ID before long processing begins.
 
@@ -112,7 +114,7 @@ Persist status separately from phase using the contracts below. Bound queue size
 
 **Business mapping:** BR-008.
 
-Store documents, extractions, policies, annotations, runs, and stage artifacts with explicit relationships. A reusable artifact fingerprint includes its source bytes plus relevant parser, prompt, schema, model/profile, region, and inference settings; assessment identity also includes request context and annotations. Cache only completed validated artifacts. Keep policy and chart roles scoped to the run, and store actual outputs rather than assuming a fixed temperature reproduces them.
+Store documents, extractions, policies, annotations, runs, and stage artifacts with explicit relationships. A reusable artifact fingerprint includes its source bytes plus relevant parser, prompt, schema, provider/model, SDK, and inference settings; assessment identity also includes request context and annotations. Cache only completed validated artifacts. Keep policy and chart roles scoped to the run, and store actual outputs rather than assuming a fixed temperature reproduces them.
 
 **Acceptance:** A09, A10, and A17 show correct reuse on identical inputs and invalidation after a relevant change. New policy versions never overwrite old results. Duplicate uploads may share immutable bytes while retaining correct document metadata and role relationships. Interrupted writes cannot make an incomplete artifact appear reusable.
 
@@ -120,9 +122,9 @@ Store documents, extractions, policies, annotations, runs, and stage artifacts w
 
 **Business mapping:** BR-001, BR-008, BR-009.
 
-Implement the endpoint and error contracts below with typed request/response schemas exposed through FastAPI's API description. Resolve IDs and document roles before queuing work. Keep liveness independent of AWS; readiness checks local prerequisites and configuration without billable inference. Explicit live provider preflight is separate from periodic health checks and must expose whether model access was actually verified.
+Implement the endpoint and error contracts below with typed request/response schemas exposed through FastAPI's API description. Resolve IDs and document roles before queuing work. Keep liveness independent of the model provider; readiness checks local prerequisites and configuration without billable inference. Explicit live provider preflight is separate from periodic health checks and must expose whether model access was actually verified.
 
-**Acceptance:** Contract tests cover accepted uploads/jobs, wrong roles, unknown IDs, invalid fields, queue saturation, missing configuration, and premature export. A healthy UI remains reachable when AWS setup is missing. Repeated health checks produce no model calls; a real preflight outcome is labeled with its check time/configuration and cannot be mistaken for a permanent availability guarantee.
+**Acceptance:** Contract tests cover accepted uploads/jobs, wrong roles, unknown IDs, invalid fields, queue saturation, missing configuration, and premature export. A healthy UI remains reachable when model setup is missing. Repeated health checks produce no model calls; a real preflight outcome is labeled with its check time/configuration and cannot be mistaken for a permanent availability guarantee.
 
 ### TR-014 Review and clarification interface
 
@@ -144,7 +146,7 @@ Provide JSON and a readable Markdown checklist for completed and `needs_input` r
 
 **Business mapping:** BR-009, BR-011.
 
-Record run/stage IDs, durations, attempts, provider request IDs when available, input/output tokens, OCR pages, and failure categories. Enforce measured upload/page/token limits and finite call/concurrency budgets before work exceeds them. Record cold and warm model behavior, including schema compilation. Keep operational records separate from clinical evidence. Cost estimates, when included, must use a dated price source and identify model/region/OCR assumptions; usage must not be presented as an exact bill.
+Record run/stage IDs, durations, attempts, provider request IDs when available, input/output tokens, OCR pages if later supported, and failure categories. Enforce measured upload/page/token limits and finite call/concurrency budgets before work exceeds them. Record cold and warm model behavior, including any observed provider setup overhead. Keep operational records separate from clinical evidence. Cost estimates, when included, must use a dated price source and identify provider/model/OCR assumptions; usage must not be presented as an exact bill.
 
 **Acceptance:** A16–A19 account for failed/retried work and report actual measurements with denominators. Budget exhaustion yields a specific operational state instead of truncated input or output accepted as complete. M1–M2 set the numeric limits listed below; no unmeasured latency, cost, or throughput promise is a release claim.
 
@@ -160,7 +162,7 @@ Implement unit checks for rules/provenance/state, integration checks for parser/
 
 **Business mapping:** BR-010, BR-012.
 
-Package locked application/parser dependencies and built UI assets for the target command `docker compose up --build`, with one documented application port and a persistent local data volume. Document Docker, AWS access, credentials, region/model, input limits, OCR inclusion, and first-run behavior. Supply examples, the verification record, and a short design note explaining judgment, data versus code, failure boundaries, and the next AWS extension.
+Package locked application/parser dependencies and built UI assets for the target command `docker compose up --build`, with one documented application port and a persistent local data volume. Document Docker, the server-only OpenAI key, explicit model configuration, input limits, scan limitations, and first-run behavior. Supply examples, the verification record, and a short design note explaining judgment, data versus code, failure boundaries, and a future hosting extension. No AWS account or credentials are required for the initial MVP.
 
 **Acceptance:** M6/A19 starts from a fresh checkout and completes a live unseen-input workflow, citation inspection, and export using only documented prerequisites. Record actual build/type/lint/test commands and results. The run command is not declared working before this check. Prepare the repo or zip for delivery at least one day before the 45-minute discussion; actual submission remains a separate user-authorized action.
 
@@ -206,9 +208,9 @@ Provider failures preserve an application category such as `access_denied`, `thr
 
 | Decision | Required evidence and owner milestone |
 | --- | --- |
-| Bedrock model/profile, region, SDK and inference configuration | M1 live contract and annotated semantic results; record candidate comparisons or access limitations. |
-| Parser configuration, OCR inclusion, supported PDF forms | M2 rendered-page checks against native, scanned, mixed, and malformed fixtures. |
-| Maximum upload bytes, pages, OCR pages, and input/output tokens | M1–M2 resource and evidence-quality measurements; deterministic limit tests before M3 completion. |
+| OpenAI model, API/SDK and inference configuration | M1 live contract and annotated semantic results; record candidate comparisons or access limitations. |
+| Parser configuration and supported native PDF forms | M2 rendered-page checks against native, scanned, mixed, and malformed fixtures; unsupported scans are explicitly rejected. |
+| Maximum upload bytes, pages, and input/output tokens | M1–M2 resource and evidence-quality measurements; deterministic limit tests before M3 completion. Any later OCR scope adds its own limits. |
 | Maximum concurrent/queued runs, call attempts, and stage duration | M1–M3 observed latency and failure handling; finite settings must exist before live workflow release. |
 | Latency and cost targets | M5 measured counts/distributions and dated pricing when estimating currency. No target is fabricated from vendor or vault anecdotes. |
 | Supported numeric/date predicates and policy language | M0 annotated cases, M3 implementation, and A08/A20 release checks; unsupported semantics stay visible. |

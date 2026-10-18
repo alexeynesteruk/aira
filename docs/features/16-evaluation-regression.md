@@ -11,7 +11,7 @@ Work package: [WP-16](../work-breakdown.md#wp-16-integrated-regression-and-evalu
 
 ## Technical requirements
 
-- [TR-017](../requirements/technical-requirements.md#tr-017-evaluation-and-release-gates): combine unit/integration checks, saved browser journeys, and separately tagged live semantic evaluations. Keep ordinary CI independent of AWS credentials.
+- [TR-017](../requirements/technical-requirements.md#tr-017-evaluation-and-release-gates): combine unit/integration checks, saved browser journeys, and separately tagged live semantic evaluations. Keep ordinary CI independent of live provider credentials.
 - Apply the [release gates](../evaluation.md#metrics-and-release-gates); tests accompany earlier implementation packages, while this package verifies their integration.
 
 ## Implementation tasks

@@ -2,7 +2,7 @@
 
 Build a provider-facing evidence checklist that helps clinic staff prepare a prior authorization request using an uploaded patient chart and insurer guideline. Staff should be able to identify the applicable requirements, inspect the supporting evidence, and resolve documentation gaps before submission.
 
-This is the business baseline for the take-home MVP as of October 18, 2026. The requirements describe intended behavior; implementation and release verification remain pending. The [implementation plan](../implementation-plan.md), [architecture](../architecture.md), and [evaluation cases](../evaluation.md) define delivery and technical detail.
+This is the business requirements document (BRD), updated October 18, 2026. BR-001–BR-012 remain the stable take-home scope. Foundation, contracts, and reviewed test inputs are implemented; the complete staff workflow and live release verification remain pending. The [implementation plan](../implementation-plan.md), [technical design document](../architecture.md), and [evaluation cases](../evaluation.md) define delivery and technical detail. The [work breakdown](../work-breakdown.md) owns current package status.
 
 ## Problem and requirement sources
 
@@ -10,7 +10,7 @@ The [assessment brief, page 1](../sources/Aira_FDE_Build_Case.pdf) describes a F
 
 The brief requires a working product that accepts new guideline PDFs and unseen patient charts, runs locally from one command, and includes a short design note. It leaves product scope and stack to the developer. The assessment email adds a 45-minute discussion with the interviewer and founding engineer; code is due one day before the call.
 
-Requirements below identify their origin as **brief**, **email**, or **MVP design**. The user's AWS preference informs the selected Bedrock inference platform; AWS is not mandated by the brief, and cloud deployment is outside the assessment's required work. Source-specific risks come from the [document exploration](../exploration.md). In particular, the supplied UHC pacemaker chart and BCBS vein policy are an applicability mismatch, not a matched successful case.
+Requirements below identify their origin as **brief**, **email**, or **MVP design**. The user selected OpenAI for the initial MVP, superseding the earlier AWS inference preference. The brief mandates neither provider, and cloud deployment is outside the assessment's required work. Source-specific risks come from the [document exploration](../exploration.md). In particular, the supplied UHC pacemaker chart and BCBS vein policy are an applicability mismatch, not a matched successful case.
 
 ## Stakeholders and business outcomes
 
@@ -99,7 +99,7 @@ Acceptance: [A14](../evaluation.md#required-scenarios), [A16](../evaluation.md#r
 
 ### BR-010 One-command live reviewer workflow
 
-**Origin: brief; AWS direction comes from the user and the implementation decision.** From a clean checkout, assessors can launch the local application with one documented command after explicitly documented prerequisites, then process new uploads through live inference, inspect citations, and export results. AWS credentials and selected model access must be explained and verified before delivery. A fixture mode may support testing but cannot substitute for the live workflow. A hosted URL alone does not meet this requirement.
+**Origin: brief; the initial OpenAI provider selection comes from the user and the implementation decision.** From a clean checkout, assessors can launch the local application with one documented command after explicitly documented prerequisites, then process new uploads through live inference, inspect citations, and export results. Server-side OpenAI key configuration and selected model access must be explained and verified before delivery. A fixture mode may support testing but cannot substitute for the live workflow. A hosted URL alone does not meet this requirement.
 
 Acceptance: [A19](../evaluation.md#required-scenarios), with configuration and service failures covered by [A16](../evaluation.md#required-scenarios).
 
@@ -124,8 +124,8 @@ The following questions remain implementation or delivery decisions rather than 
 | Assumption or open decision | Required resolution |
 | --- | --- |
 | Staff have the intended chart, guideline, and sufficient request context. | Clarification must be possible when plan, procedure, relevant dates, or policy version cannot be established. A user annotation retains its origin and any source conflict. |
-| The release has a bounded PDF envelope. | Feasibility work determines scanned/mixed-PDF support and document limits. Publish the boundary and test supported inputs and rejection behavior. |
-| Reviewers can obtain the required AWS model access. | Verify and document the reviewer credential path before delivery; do not assume the author's access is transferable. |
+| The release has a bounded PDF envelope. | The initial native parser rejects every raster-image page, including decorative images, as well as unsupported rotation/forms. Preserve every page and explain the rejection. Publish the tested boundary; final model-input limits and broader layout support remain validation work. |
+| Reviewers can obtain the required OpenAI model access. | The supplied key currently fails inference with insufficient quota. The user deferred account resolution; live validation remains an open gate, without reducing the required product scope. Verify the reviewer credential path before delivery. |
 | Evaluation expectations can be independently reviewed. | Select the second policy family and annotate its requirements and cases before using it to claim generality. Preserve a held-out release pair. |
 | Delivery timing is relative to the call. | Confirm the actual call date and submission deadline when available; retain the one-day lead time and 45-minute discussion requirement. |
 

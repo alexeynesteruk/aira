@@ -1,6 +1,6 @@
 # OCR decision and supported input limits
 
-Staff and assessors know which PDFs the release can process and receive explicit rejection when an input exceeds that boundary. Document and model-integration owners establish measured limits and decide whether verified scan support fits the MVP.
+Staff and assessors know which PDFs the release can process and receive explicit rejection when an input exceeds that boundary. Document and model-integration owners establish measured native-text limits. Unsupported scans are explicitly rejected in the initial MVP; adding OCR requires a later justified scope decision.
 
 **Work package:** [WP-15](../work-breakdown.md#wp-15-ocr-and-input-envelope). **Kind:** Enabler. **Milestone:** M2. **Owner role:** Documents/model integration. **Status:** [Work breakdown](../work-breakdown.md#work-packages-and-dependencies).
 
@@ -12,26 +12,26 @@ Staff and assessors know which PDFs the release can process and receive explicit
 
 ## Technical requirements
 
-[TR-003](../requirements/technical-requirements.md#tr-003-ocr-support-and-input-limits) requires either verified OCR or an explicit text-only limitation. Conditional OCR uses synchronous Textract on individual suspect pages, preserves method/model/block provenance, and remaps original page numbers. Synchronous PDF/TIFF inputs are limited to one page and 10 MB; application limits must remain within service ceilings. [TR-016](../requirements/technical-requirements.md#tr-016-measurement-and-resource-budgets) requires measured byte/page/token budgets, OCR-page accounting, and visible exhaustion rather than truncation.
+[TR-003](../requirements/technical-requirements.md#tr-003-ocr-support-and-input-limits) requires an explicit native-text support boundary and complete page accounting. Image-only or unusable pages must be identified rather than represented as absent clinical evidence. A later OCR adapter would need extraction-method, model/block, and original-page provenance plus its own failure and limit checks. [TR-016](../requirements/technical-requirements.md#tr-016-measurement-and-resource-budgets) requires measured byte/page/token budgets and visible exhaustion rather than truncation.
 
 ## Implementation tasks
 
 - [ ] Create full-scan, mixed-page, table, and adjacent-page fixtures from reviewed examples.
-- [ ] Trial pagewise Textract if access permits; compare output with original rendered pages and preserve native/OCR distinction.
-- [ ] Combine parser and Bedrock results to select upload/page/OCR/input-output token limits and test their boundaries.
-- [ ] Record the support decision and limitations; ship the OCR adapter only if its extraction and failure checks pass.
+- [ ] Compare native extraction with original rendered pages; detect unsupported scans, mixed-page failures, and misleading text layers.
+- [ ] Combine parser and model results to select upload/page/input-output token limits and test their boundaries.
+- [ ] Record the native-text support decision and scan limitations; document any evidence that would justify a later OCR experiment.
 
 ## Acceptance criteria
 
-- [ ] If OCR is included, A13 preserves table relationships and cross-page continuity after pagewise processing.
+- [ ] A13 preserves table relationships and cross-page continuity for the supported native-text inputs.
 - [ ] A14 accounts for every original page, including blank and failed pages. A failed page cannot disappear from a completed assessment.
 - [ ] A14 explicitly rejects unsupported scans or over-limit documents; no text-only path claims tested OCR support.
-- [ ] A16/A18 expose token-budget exhaustion and, if OCR is included, OCR failure without accepting partial input as complete; measurements identify actual tested limits.
+- [ ] A16/A18 expose token-budget exhaustion and unusable extraction without accepting partial input as complete; measurements identify actual tested limits.
 
-Use the [evaluation matrix](../evaluation.md#required-scenarios). Missing Textract access permits a documented text-only decision; Bedrock access for live assessment remains required.
+Use the [evaluation matrix](../evaluation.md#required-scenarios). No AWS or Textract access is required for the initial support boundary. Live model access is verified separately in WP-05.
 
 ## Dependencies and references
 
-Completion dependencies: [WP-03](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluation-expectations), [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-bedrock-experiment-and-adapter); Textract access if trialing OCR.
+Completion dependencies: [WP-03](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluation-expectations), [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter).
 
-Design references: [verified Textract constraints](../aws.md#textract-scan-experiment), [measured decisions](../requirements/technical-requirements.md#measured-limits-and-open-feasibility-decisions), and [source representation](../architecture.md#domain-records).
+Design references: [PDF support boundary](../model-provider.md#pdf-support-and-future-options), [measured decisions](../requirements/technical-requirements.md#measured-limits-and-open-feasibility-decisions), and [source representation](../architecture.md#domain-records). The dated [AWS research](../aws.md) is a future option, not a delivery dependency.
