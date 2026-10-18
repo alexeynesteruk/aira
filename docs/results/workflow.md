@@ -20,7 +20,7 @@ Every interpreted stage is checked before consumption or cache publication: outp
 
 The guardrail previously measured the canonical JSON of the complete `DocumentRecord`/`ExtractionRecord` objects, geometry included: 148,461 characters for the supplied August 2025 policy and 61,345 for the supplied chart, about 209.8k characters against the 200,000 default. The supplied A01 pair therefore failed `unsupported_input` before applicability ran, although its native text is only about 48k characters.
 
-[`backend/app/assessment/stage_input.py`](../../backend/app/assessment/stage_input.py) now renders the exact text a stage consumes, and the guardrail measures that instead. `render_stage_input(inputs, stage, policy=None)` emits compact JSON with page-ordered native block text, the selected request fields, and staff annotations — never hashes, block IDs, geometry, extraction revisions, or source spans. Scope reads both documents (policy first), the policy stage reads the policy document, and evidence reads the chart plus the interpreted criteria. Measured rendered lengths for the supplied pair: **scope 51,533; policy 40,776; evidence 10,992 characters** — all within the provisional 200,000 default.
+[`backend/app/assessment/stages.py`](../../backend/app/assessment/stages.py) now renders the exact text a stage consumes, and the guardrail measures that instead. `render_stage_input(inputs, stage, policy=None)` emits compact JSON with page-ordered native block text, the selected request fields, and staff annotations — never hashes, block IDs, geometry, extraction revisions, or source spans. Scope reads both documents (policy first), the policy stage reads the policy document, and evidence reads the chart plus the interpreted criteria. Measured rendered lengths for the supplied pair: **scope 51,533; policy 40,776; evidence 10,992 characters** — all within the provisional 200,000 default.
 
 ## Observed verification
 
@@ -28,7 +28,7 @@ Commands run from the repository root:
 
 | Command | Result |
 | --- | --- |
-| `uv run --project backend --locked pytest -c backend/pyproject.toml tests/unit/test_stage_input.py -q` | 9 passed. |
+| `uv run --project backend --locked pytest -c backend/pyproject.toml tests/unit/test_stages.py -q` | 9 passed. |
 | `uv run --project backend --locked pytest -c backend/pyproject.toml tests/integration/test_workflow.py -q` | 15 passed in about 2 seconds. |
 | `make check` | Ruff lint/format, strict mypy, 397 pytest checks, backend build, and frontend lint/typecheck/Vitest/build all pass. |
 

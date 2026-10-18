@@ -20,8 +20,8 @@ Summary assertions retain their summary provenance; a normal-CBC statement canno
 
 ## Implementation tasks
 
-- [ ] Implement fact extraction and criterion evidence mapping in `backend/app/evidence/`.
-- [ ] Add versioned prompts, source-bound fact records, and uncertainty handling.
+- [x] Implement fact extraction and criterion evidence mapping in `backend/app/evidence/`.
+- [x] Add versioned prompts, source-bound fact records, and uncertainty handling.
 - [ ] Preserve chronological and anatomical constraints across page-spanning passages.
 - [ ] Add paired evidence-removal, negation, conflict, and distractor cases.
 
@@ -34,4 +34,4 @@ Summary assertions retain their summary provenance; a normal-CBC statement canno
 
 ## Dependencies and references
 
-Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Develop against agreed request/policy fixtures; WP-11 enforces runtime order. Follow [domain records](../architecture.md#domain-records) and [finding semantics](../architecture.md#finding-and-aggregation-semantics).
+Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Develop against agreed request/policy fixtures; WP-11 enforces runtime order. Follow [domain records](../architecture.md#domain-records) and [finding semantics](../architecture.md#finding-and-aggregation-semantics). Controlled-interpreter evidence is in [results/stage-interpreter.md](../results/stage-interpreter.md); acceptance requires live semantic evidence, blocked by the deferred API quota.

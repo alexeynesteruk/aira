@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from app.assessment import EvaluationResult, evaluate_policy
-from app.assessment.stage_input import render_stage_input
+from app.assessment.stages import render_stage_input
 from app.assessment.workflow import (
     _VALIDATION_VERSION,
     EvidenceArtifact,

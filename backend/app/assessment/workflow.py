@@ -13,7 +13,6 @@ from collections.abc import Awaitable, Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
-from typing import Protocol
 from uuid import uuid4
 
 from pydantic import BaseModel, ValidationError
@@ -55,48 +54,19 @@ from app.storage import LocalStore, StorageError, assessment_fingerprint, finger
 from app.storage.identity import canonical_bytes
 
 from .rules import EvaluationResult, evaluate_policy
-from .stage_input import StageInputs, StageName, render_stage_input
+from .stages import (
+    EvidenceInterpretation,
+    InterpretationFailure,
+    PolicyInterpretation,
+    ScopeInterpretation,
+    StageInputs,
+    StageInterpreter,
+    StageName,
+    render_stage_input,
+)
 
 _ACTIVE = frozenset({RunStatus.QUEUED, RunStatus.RUNNING})
 _VALIDATION_VERSION = "workflow-domain-v1"
-
-
-@dataclass(frozen=True)
-class ScopeInterpretation:
-    request: RequestContext
-    applicability: ApplicabilityResult
-    usage: StageUsage | None = None
-
-
-@dataclass(frozen=True)
-class PolicyInterpretation:
-    policy: Policy
-    usage: StageUsage | None = None
-
-
-@dataclass(frozen=True)
-class EvidenceInterpretation:
-    facts: tuple[ChartFact, ...]
-    findings: tuple[Finding, ...]
-    issues: tuple[ReviewIssue, ...] = ()
-    usage: StageUsage | None = None
-
-
-class StageInterpreter(Protocol):
-    async def scope(self, inputs: StageInputs) -> ScopeInterpretation: ...
-
-    async def policy(self, inputs: StageInputs) -> PolicyInterpretation: ...
-
-    async def evidence(self, inputs: StageInputs, policy: Policy) -> EvidenceInterpretation: ...
-
-
-class InterpretationFailure(Exception):
-    """Safe provider/conversion failure retaining reported usage, even on failure."""
-
-    def __init__(self, error: OperationalError, usage: StageUsage | None = None):
-        super().__init__(error.message)
-        self.error = error
-        self.usage = usage
 
 
 class WorkflowAdmissionError(Exception):

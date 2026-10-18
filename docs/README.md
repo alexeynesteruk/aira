@@ -46,6 +46,7 @@ The supplied chart is a UHC pacemaker request, while the example guideline conce
 | [Storage record](results/storage.md) | Verified SQLite/immutable-object storage boundary and cache identity. |
 | [Rules record](results/rules.md) | Verified pure provenance validation, bounded predicates, and aggregation. |
 | [Workflow record](results/workflow.md) | Controlled-interpreter evidence for the bounded execution engine. |
+| [Stage interpreter record](results/stage-interpreter.md) | Production interpreter and CLI slice over mocked transport; no live calls. |
 | [WP-03 fixture review](reviews/wp03-fixtures.md) | Independent review of the annotated fixture corpus. |
 | [Agent handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules for coding agents. |
 | [Model provider decision](model-provider.md) | OpenAI integration, server-side configuration, and native PDF boundary. |

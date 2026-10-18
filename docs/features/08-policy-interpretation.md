@@ -20,9 +20,9 @@ Map governing text to a supported rule, contextual definition, or unresolved int
 
 ## Implementation tasks
 
-- [ ] Implement policy interpretation functions and versioned prompts in `backend/app/policies/`.
-- [ ] Capture criteria, connectives, definitions, exceptions, and section coverage with source spans.
-- [ ] Represent unsupported predicates as explicit review issues.
+- [x] Implement policy interpretation functions and versioned prompts in `backend/app/policies/`.
+- [x] Capture criteria, connectives, definitions, exceptions, and section coverage with source spans.
+- [x] Represent unsupported predicates as explicit review issues.
 - [ ] Compare extracted trees against independently annotated expectations from two policy families.
 
 ## Acceptance criteria
@@ -34,4 +34,4 @@ Map governing text to a supported rule, contextual definition, or unresolved int
 
 ## Dependencies and references
 
-Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Use selected-request fixtures while applicability is integrated. Follow [policy structure](../architecture.md#policy-structure) and [validation boundaries](../architecture.md#validation-boundaries).
+Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Use selected-request fixtures while applicability is integrated. Follow [policy structure](../architecture.md#policy-structure) and [validation boundaries](../architecture.md#validation-boundaries). Controlled-interpreter evidence is in [results/stage-interpreter.md](../results/stage-interpreter.md); acceptance requires live semantic evidence, blocked by the deferred API quota.

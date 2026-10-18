@@ -1,23 +1,31 @@
-"""The rendered text a stage actually consumes, shared by limit and interpreter.
+"""Stage contracts and the rendered text a stage actually consumes.
 
-Provenance (hashes, source spans, block identifiers, geometry, and extraction
-revisions) stays in storage as the audit trail; the model reads page-ordered
-native block text plus the staff-supplied request context only. The evidence
-stage additionally receives the interpreted policy criteria.
+The StageInterpreter protocol is the workflow's model boundary: implementations
+return typed interpretations, never provider response envelopes. Provenance
+(hashes, source spans, block identifiers, geometry, and extraction revisions)
+stays in storage as the audit trail; the model reads page-ordered native block
+text plus the staff-supplied request context only. The evidence stage
+additionally receives the interpreted policy criteria.
 """
 
 import json
 from dataclasses import dataclass
 from datetime import date
-from typing import Literal
+from typing import Literal, Protocol
 
 from app.schemas import (
+    ApplicabilityResult,
+    ChartFact,
     Criterion,
     DocumentRecord,
     ExtractionRecord,
+    Finding,
     MetadataAnnotation,
+    OperationalError,
     Policy,
     RequestContext,
+    ReviewIssue,
+    StageUsage,
 )
 
 type StageName = Literal["scope", "policy", "evidence"]
@@ -31,6 +39,44 @@ class StageInputs:
     chart_extraction: ExtractionRecord
     request_context: RequestContext | None = None
     annotations: tuple[MetadataAnnotation, ...] = ()
+
+
+@dataclass(frozen=True)
+class ScopeInterpretation:
+    request: RequestContext
+    applicability: ApplicabilityResult
+    usage: StageUsage | None = None
+
+
+@dataclass(frozen=True)
+class PolicyInterpretation:
+    policy: Policy
+    usage: StageUsage | None = None
+
+
+@dataclass(frozen=True)
+class EvidenceInterpretation:
+    facts: tuple[ChartFact, ...]
+    findings: tuple[Finding, ...]
+    issues: tuple[ReviewIssue, ...] = ()
+    usage: StageUsage | None = None
+
+
+class StageInterpreter(Protocol):
+    async def scope(self, inputs: StageInputs) -> ScopeInterpretation: ...
+
+    async def policy(self, inputs: StageInputs) -> PolicyInterpretation: ...
+
+    async def evidence(self, inputs: StageInputs, policy: Policy) -> EvidenceInterpretation: ...
+
+
+class InterpretationFailure(Exception):
+    """Safe provider/conversion failure retaining reported usage, even on failure."""
+
+    def __init__(self, error: OperationalError, usage: StageUsage | None = None):
+        super().__init__(error.message)
+        self.error = error
+        self.usage = usage
 
 
 def _request(request: RequestContext) -> dict[str, object]:

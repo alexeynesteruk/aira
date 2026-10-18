@@ -34,6 +34,17 @@ uv run --project backend python -m app.llm.experiment --case venous_matched --st
 
 The output under ignored `data/model-experiments/` contains the prompt, schema, page-tagged inputs, and source hashes. After quota is restored, `python -m app.llm.preflight` (through `uv run --project backend`) explicitly tests access; add `--live` to the experiment command to make a billable stage call. No health endpoint or CI job invokes inference. See the [feasibility record](docs/results/model-feasibility.md) for observed failures, comparison commands, and validation limits.
 
+The workflow CLI runs a full assessment over real PDFs through the production interpreter:
+
+```bash
+uv run --project backend python -m app.cli assess \
+  --policy examples/guidelines/bcbs_fl_02-33000-31_2025-08-15.pdf \
+  --chart examples/charts/robert_mitchell_chart_final.pdf \
+  --data-dir data/cli
+```
+
+It makes billable model calls and remains blocked until quota is restored; run it with a development key only. `run.json`, `export.json`, and `checklist.md` land under `data/cli/exports/` (see the [stage interpreter record](docs/results/stage-interpreter.md)).
+
 ## CI and delivery
 
 [GitHub Actions](https://github.com/alexeynesteruk/aira/actions/workflows/ci.yml) runs on pull requests and pushes to `main`. Python and TypeScript checks gate a Docker build and browser tests against that exact image. Successful `main` runs deliver a checksummed Linux/amd64 image archive as an Actions artifact. Its included README explains how to load and run it. Workflow jobs have no model credentials and make no live inference calls.

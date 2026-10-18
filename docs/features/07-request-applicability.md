@@ -20,9 +20,9 @@ Return typed scope outcomes that WP-11 maps to `completed` with `applicability_m
 
 ## Implementation tasks
 
-- [ ] Implement scoped extraction and applicability functions using versioned prompts and contracts.
-- [ ] Add field-level source and annotation provenance, including conflict-resolution reasons.
-- [ ] Return typed mismatch, unresolved-scope, and annotation results for the workflow consumer.
+- [x] Implement scoped extraction and applicability functions using versioned prompts and contracts.
+- [x] Add field-level source and annotation provenance, including conflict-resolution reasons.
+- [x] Return typed mismatch, unresolved-scope, and annotation results for the workflow consumer.
 - [ ] Add matched, mismatched, ambiguous, and conflicting-annotation fixtures.
 
 ## Acceptance criteria
@@ -33,4 +33,4 @@ Return typed scope outcomes that WP-11 maps to `completed` with `applicability_m
 
 ## Dependencies and references
 
-Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Follow the [run lifecycle](../architecture.md#request-and-run-lifecycle) and [domain records](../architecture.md#domain-records). Persisted stopping and linked-run checks belong to [WP-11](11-assessment-workflow.md).
+Completion depends on [WP-04](../work-breakdown.md#wp-04-native-pdf-extraction), [WP-05](../work-breakdown.md#wp-05-model-experiment-and-adapter), and [WP-10](../work-breakdown.md#wp-10-validation-and-evaluation-core). Follow the [run lifecycle](../architecture.md#request-and-run-lifecycle) and [domain records](../architecture.md#domain-records). Persisted stopping and linked-run checks belong to [WP-11](11-assessment-workflow.md). Controlled-interpreter evidence is in [results/stage-interpreter.md](../results/stage-interpreter.md); acceptance requires live semantic evidence, blocked by the deferred API quota.

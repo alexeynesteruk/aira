@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from app.assessment.stage_input import StageInputs, render_stage_input
+from app.assessment.stages import StageInputs, render_stage_input
 from app.schemas import (
     AllNode,
     BoundingBox,
