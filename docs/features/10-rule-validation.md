@@ -16,22 +16,22 @@ Deterministic validation cannot prove that a real quotation supports an interpre
 
 Implement [TR-008](../requirements/technical-requirements.md#tr-008-citation-and-domain-validation) and [TR-009](../requirements/technical-requirements.md#tr-009-deterministic-aggregation-and-blockers) as pure functions. Validate types, IDs, source revisions/pages/spans, excerpts, numeric evidence, and graph invariants. Permit documented whitespace normalization, not fuzzy repair of invented quotations.
 
-Map `met` to true, `not_met` to false, and other finding states to unknown. Apply three-valued AND/OR, preserving child findings and reasons. Keep applicability, completeness, and unsupported-interpretation blockers independent of tree truth. Unsupported date/unit semantics require review. No HTTP, storage, model, or AWS dependency is needed to execute this core.
+Map `met` to true, `not_met` to false, and other finding states to unknown. Apply three-valued AND/OR, preserving child findings and reasons. Keep applicability, completeness, and unsupported-interpretation blockers independent of tree truth. Unsupported date/unit semantics require review. No HTTP, storage, model, or cloud dependency is needed to execute this core.
 
 ## Implementation tasks
 
-- [ ] Implement span resolution and typed domain/graph validation.
-- [ ] Implement bounded numeric/date predicates and three-valued aggregation.
-- [ ] Return evaluation traces and independent readiness blockers.
-- [ ] Add direct tests with deliberately broken citation, graph, and operator controls.
+- [x] Implement span resolution and typed domain/graph validation.
+- [x] Implement bounded numeric/date predicates and three-valued aggregation.
+- [x] Return evaluation traces and independent readiness blockers.
+- [x] Add direct tests with deliberately broken citation, graph, and operator controls.
 
 ## Acceptance criteria
 
-- [ ] AND/OR truth tables preserve unknown reasons and valid alternative paths. [A06, A07](../evaluation.md#required-scenarios)
-- [ ] Boundaries work only with supported units, contexts, and date semantics. [A08](../evaluation.md#required-scenarios)
-- [ ] Wrong pages/documents, invented excerpts, cycles, and unresolved references cannot produce valid findings. [A15](../evaluation.md#required-scenarios)
-- [ ] A true tree cannot override a known unresolved mandatory condition. [A20](../evaluation.md#required-scenarios)
+- [x] AND/OR truth tables preserve unknown reasons and valid alternative paths. [A06, A07](../evaluation.md#required-scenarios)
+- [x] Boundaries work only with supported units, contexts, and date semantics. [A08](../evaluation.md#required-scenarios)
+- [x] Wrong pages/documents, invented excerpts, cycles, and unresolved references cannot produce valid findings. [A15](../evaluation.md#required-scenarios)
+- [x] A true tree cannot override a known unresolved mandatory condition. [A20](../evaluation.md#required-scenarios)
 
 ## Dependencies and references
 
-Completion depends on [WP-02](../work-breakdown.md#wp-02-domain-and-interface-contracts) and [WP-03](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluation-expectations). Follow [finding and aggregation semantics](../architecture.md#finding-and-aggregation-semantics) and [validation boundaries](../architecture.md#validation-boundaries).
+Completion depends on [WP-02](../work-breakdown.md#wp-02-domain-and-interface-contracts) and [WP-03](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluation-expectations). Follow [finding and aggregation semantics](../architecture.md#finding-and-aggregation-semantics) and [validation boundaries](../architecture.md#validation-boundaries). The verified results are recorded in [results/rules.md](../results/rules.md); the remaining boundary is semantic evaluation in WP-16.
