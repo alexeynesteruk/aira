@@ -41,7 +41,7 @@ Unit tests cover the rule evaluator, state transitions, schema/domain validation
 
 Integration tests exercise actual parser output, SQLite/file persistence, API contracts, and the OpenAI adapter with recorded or deliberately malformed responses. Separate fixture execution from a tagged live provider smoke test. Provider response fixtures verify adapter behavior, not model quality.
 
-Saved browser tests cover the small number of user journeys that cross component boundaries: upload and successful review, mismatch, missing evidence, and actionable processing failure. Use explicit assertions on visible outcomes and source navigation. An exploratory agent session is useful feedback, but is not a repeatable release gate.
+Saved browser tests cover the small number of user journeys that cross component boundaries: upload and successful review, mismatch, missing evidence, and actionable processing failure. Use explicit assertions on visible outcomes and source navigation. Exploratory review is useful feedback, but is not a repeatable release gate.
 
 Live semantic evaluations run versioned prompts and the selected model against the annotated case set. Repeat representative success, uncertainty, and failure cases to expose variability; record the number of runs and every outcome. Report disagreement for human review instead of averaging it into a successful result. A second model may provide critique, but cannot establish ground truth.
 

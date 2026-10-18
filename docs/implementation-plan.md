@@ -25,7 +25,7 @@ The initial user journey is:
 5. Open either source at the cited page. Review missing documentation, conflicts, and unsupported interpretation. Suggested next steps request clarification or documentation without inventing clinical facts or treatment advice.
 6. Save or export the assessment as structured JSON and a readable checklist, including unresolved issues and the exact policy version. Re-running with a changed input creates a new result.
 
-Include source inspection, meaningful processing states, and useful failure messages in the first vertical slice. Defer chat, autonomous agents in the application, automatic appeals or submission letters, payer portals, EHR/FHIR connections, policy web crawling, vector databases, and production infrastructure. Research agents help review the design; the application executes an explicit staged workflow.
+Include source inspection, meaningful processing states, and useful failure messages in the first vertical slice. Defer chat, autonomous agents in the application, automatic appeals or submission letters, payer portals, EHR/FHIR connections, policy web crawling, vector databases, and production infrastructure. The application executes an explicit staged workflow.
 
 ## Decisions and remaining experiments
 
@@ -114,7 +114,7 @@ A credential-free fixture mode may support deterministic tests. It must be label
 
 ## Engineering practices
 
-Use one small set of repository instructions, typed contracts, and explicit acceptance cases. The vault's engineering notes consistently favor observable results over claims of completion: run the build, inspect the diff, verify the evidence, and test behavior rather than implementation details. Independent agent review supplements those checks.
+Use one small set of repository instructions, typed contracts, and explicit acceptance cases. The vault's engineering notes consistently favor observable results over claims of completion: run the build, inspect the diff, verify the evidence, and test behavior rather than implementation details.
 
 For this project that means:
 

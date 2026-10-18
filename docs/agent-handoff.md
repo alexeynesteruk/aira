@@ -1,4 +1,4 @@
-# Implementation handoff for coding agents
+# Implementation handoff
 
 Continue the existing implementation from the current work package. The product, stack, requirement IDs, and milestone sequence are established. Use this page to find the right contract and next executable task; use the work breakdown for current status.
 
@@ -7,7 +7,7 @@ Continue the existing implementation from the current work package. The product,
 1. Read repository `AGENTS.md`, then the [BRD](requirements/business-requirements.md), [TRD](requirements/technical-requirements.md), [TDD](architecture.md), and [evaluation contract](evaluation.md).
 2. Find the package in the [work breakdown](work-breakdown.md#work-packages-and-dependencies); its dependency table supplies order between packages. Read the package's feature file for its task and acceptance checklists, and any existing result record.
 3. Inspect the actual files and `git status --short`. A file present in an active working tree can still be unfinished. Check the recorded test result and implementing commit before treating it as a completed dependency.
-4. Select one bounded execution step. Confirm file ownership with the integration owner when another agent is active. Shared schemas, manifests, lockfiles, HTTP contracts, and status records have one integration owner.
+4. Select one bounded execution step. Confirm file ownership with the integration owner when other work is in progress. Shared schemas, manifests, lockfiles, HTTP contracts, and status records have one integration owner.
 5. Implement the step and its behavioral checks. Run the feature-specific command, inspect the diff, then run the required merged checks before completing a package.
 
 The feature files supply the task and acceptance checklists; the work-breakdown dependency table supplies order between packages. Choose one bounded change, name the feature-file tasks it satisfies, and do not introduce a second status ledger.

@@ -72,7 +72,7 @@ Statuses derive from the [work breakdown](work-breakdown.md): **implemented and 
 | [Input limits record](results/input-limits.md) | Declared native-text boundary, parser/API limit evidence, and the open token envelope. |
 | [Review UI record](results/review-ui.md) | Saved staff journeys and unit checks over the fixture interpreter. |
 | [WP-03 fixture review](reviews/wp03-fixtures.md) | Independent review of the annotated fixture corpus. |
-| [Agent handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules for coding agents. |
+| [Implementation handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules. |
 | [Model provider decision](model-provider.md) | OpenAI integration, server-side configuration, and native PDF boundary. |
 | [Model feasibility record](results/model-feasibility.md) | Implemented adapter/CLI, controlled checks, observed quota failure, and commands to resume live validation. |
 | [AWS research](aws.md) | Dated service findings and the superseded Bedrock proposal, retained as future options. |

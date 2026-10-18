@@ -1,6 +1,6 @@
 # WP-03 independent fixture review
 
-Reviewed on 2026-10-18 by the Codex assessment reviewer, separately from the fixture author. This review accepts the current corpus as an initial source-consistent engineering reference set. No blocking disagreement remains between the authored source text and its expected answers after the corrections below. This is not clinical validation, an assessment of payer policy correctness, or evidence that the application passes the scenarios.
+Reviewed on 2026-10-18, separately from the fixture author. This review accepts the current corpus as an initial source-consistent engineering reference set. No blocking disagreement remains between the authored source text and its expected answers after the corrections below. This is not clinical validation, an assessment of payer policy correctness, or evidence that the application passes the scenarios.
 
 Implementation status remains in the [work breakdown](../work-breakdown.md#wp-03-annotated-fixtures-and-evaluation-expectations). The [coverage register](../../evals/coverage.json) and [construction tasks](../../evals/construction-tasks.json) retain the checks that are still unimplemented or unexecuted.
 

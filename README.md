@@ -122,7 +122,7 @@ docs/
   model-provider.md          OpenAI selection and validation status
   results/                   Verification records for implemented packages
   reviews/                   Independent reviews of shared inputs
-  agent-handoff.md           Coding-agent entry point and current boundaries
+  agent-handoff.md           Implementation handoff and current boundaries
   aws.md                     Historical AWS research and future options
   exploration.md             Findings from the supplied documents
   research.md                Online research and proposed implementation

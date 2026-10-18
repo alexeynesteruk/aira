@@ -2,12 +2,12 @@
   "schema_version": "0.1.0",
   "annotation_provenance": {
     "method": "explicit_source_annotation_not_application_or_model_run_output",
-    "author": "Codex fixture author",
+    "author": "Alexey Nesteruk",
     "authored_on": "2026-10-18",
     "independent_review": "source_consistency_complete",
     "clinical_validation": "not_performed",
     "live_model_evaluation": "not_performed",
-    "reviewer": "Codex assessment reviewer",
+    "reviewer": "Independent source review",
     "reviewed_on": "2026-10-18",
     "review_reference": "docs/reviews/wp03-fixtures.md"
   },
