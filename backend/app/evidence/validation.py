@@ -497,6 +497,37 @@ def check_predicate(
     return PredicateCheck(LogicalValue.UNKNOWN, tuple(dict.fromkeys(reasons)))
 
 
+def require_saved_fact_mapping(
+    saved: Sequence[ChartFact],
+    findings: Sequence[Finding],
+    proposed: Sequence[ChartFact] | None = None,
+) -> tuple[ChartFact, ...]:
+    """Return the saved facts unchanged.
+
+    Assessment may cite those fact IDs. It cannot add, drop, or rewrite a fact.
+    The returned tuple is the saved facts, so a rejected proposal cannot replace them.
+    """
+    saved_facts = tuple(saved)
+    by_id = {fact.fact_id: fact for fact in saved_facts}
+    if len(by_id) != len(saved_facts):
+        raise EvidenceValidationError("Saved chart facts must have unique identifiers")
+    for finding in findings:
+        for reference in finding.evidence:
+            if reference.fact_id not in by_id:
+                raise EvidenceValidationError("Finding references an unknown fact")
+    if proposed is not None:
+        proposed_facts = tuple(proposed)
+        if {fact.fact_id for fact in proposed_facts} != set(by_id) or len(proposed_facts) != len(
+            saved_facts
+        ):
+            raise EvidenceValidationError("Assessment cannot add, remove, or rename chart facts")
+        for fact in proposed_facts:
+            original = by_id[fact.fact_id]
+            if fact.model_dump(mode="json") != original.model_dump(mode="json"):
+                raise EvidenceValidationError("Assessment cannot rewrite a saved chart fact")
+    return saved_facts
+
+
 def validate_findings(
     policy: Policy,
     facts: Sequence[ChartFact],

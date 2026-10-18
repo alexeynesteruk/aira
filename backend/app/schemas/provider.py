@@ -47,6 +47,7 @@ class ScopeCandidate(VersionedModel):
     citations: tuple[CandidateCitation, ...]
     unresolved_fields: tuple[str, ...]
     field_sources: tuple[CandidateFieldSources, ...] = ()
+    policy_path_id: str | None = None
 
 
 class CandidateCriterion(StrictModel):
@@ -78,6 +79,18 @@ class CandidatePolicySection(StrictModel):
     disposition: Literal["requirements", "context", "out_of_scope", "unresolved"]
     criterion_ids: tuple[str, ...]
     explanation: str
+
+
+class CandidatePageRole(StrictModel):
+    page: int
+    use: Literal["requirements", "definitions", "skip"]
+    reason: str
+
+
+class PagePlanCandidate(VersionedModel):
+    """Which guideline pages contain rules. An omitted page is still read."""
+
+    pages: tuple[CandidatePageRole, ...]
 
 
 class PolicyCandidate(VersionedModel):
@@ -126,4 +139,15 @@ class CandidateFinding(StrictModel):
 
 class EvidenceCandidate(VersionedModel):
     facts: tuple[CandidateFact, ...]
+    findings: tuple[CandidateFinding, ...]
+
+
+class ChartCandidate(VersionedModel):
+    facts: tuple[CandidateFact, ...]
+    interpretation_issues: tuple[str, ...] = ()
+
+
+class FindingsCandidate(VersionedModel):
+    """Assessment can refer to saved facts but cannot create new ones."""
+
     findings: tuple[CandidateFinding, ...]

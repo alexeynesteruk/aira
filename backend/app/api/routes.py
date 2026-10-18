@@ -5,6 +5,7 @@ with model_validate_json and form fields are read manually. Responses serialize
 with model_dump_json so the wire bytes are exactly the contract JSON.
 """
 
+import json
 import re
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -525,4 +526,57 @@ async def export_assessment(request: Request, run_id: str, format: str = "json")
         content=export.model_dump_json(indent=2),
         media_type="application/json",
         headers={"Content-Disposition": f'attachment; filename="aira-{_filename(run_id)}.json"'},
+    )
+
+
+@router.get(
+    "/policy-rule-sets",
+    responses={200: {"description": "Policy rule sets"}, 503: {"model": ErrorResponse}},
+)
+async def list_policy_rule_sets(request: Request, document_id: str | None = None) -> Response:
+    store = request.app.state.store
+    if store is None:
+        return _unavailable(request)
+    if document_id is not None:
+        try:
+            store.get_document(document_id)
+        except StorageNotFound:
+            return _failure(
+                request,
+                404,
+                ErrorCode.NOT_FOUND,
+                f"Document '{document_id}' does not exist.",
+                action="Check the document ID or upload the document first.",
+            )
+    return Response(
+        content=json.dumps(store.list_policy_rule_sets(document_id=document_id)),
+        media_type="application/json",
+    )
+
+
+@router.post(
+    "/policy-rule-sets/{rule_set_id}/approve",
+    responses={
+        200: {"description": "Approved policy rule set"},
+        404: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
+)
+async def approve_policy_rule_set(request: Request, rule_set_id: str) -> Response:
+    store = request.app.state.store
+    if store is None:
+        return _unavailable(request)
+    try:
+        store.approve_policy_rule_set(rule_set_id)
+    except StorageNotFound:
+        return _failure(
+            request,
+            404,
+            ErrorCode.NOT_FOUND,
+            f"Policy rule set '{rule_set_id}' does not exist.",
+            action="Check the rule set ID returned by the policy rule set list.",
+        )
+    return Response(
+        content=json.dumps({"rule_set_id": rule_set_id, "status": "approved"}),
+        media_type="application/json",
     )

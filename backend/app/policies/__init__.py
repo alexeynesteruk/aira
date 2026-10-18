@@ -4,7 +4,9 @@ from .conversion import (
     CandidateConversionError,
     EvidenceConversion,
     ScopeConversion,
+    convert_chart,
     convert_evidence,
+    convert_findings,
     convert_policy,
     convert_scope,
 )
@@ -14,6 +16,8 @@ __all__ = [
     "EvidenceConversion",
     "ScopeConversion",
     "convert_evidence",
+    "convert_chart",
+    "convert_findings",
     "convert_policy",
     "convert_scope",
 ]

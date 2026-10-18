@@ -15,6 +15,7 @@ from typing import Literal, Protocol
 
 from app.schemas import (
     ApplicabilityResult,
+    ChartData,
     ChartFact,
     Criterion,
     DocumentRecord,
@@ -28,7 +29,21 @@ from app.schemas import (
     StageUsage,
 )
 
-type StageName = Literal["scope", "policy", "evidence"]
+type StageName = Literal["scope", "policy", "policy_index", "policy_page", "chart", "evidence"]
+
+
+@dataclass(frozen=True)
+class DocumentInputs:
+    """An extraction process has access to exactly one original document."""
+
+    document: DocumentRecord
+    extraction: ExtractionRecord
+
+
+@dataclass(frozen=True)
+class ChartInterpretation:
+    chart: ChartData
+    usage: StageUsage | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +54,8 @@ class StageInputs:
     chart_extraction: ExtractionRecord
     request_context: RequestContext | None = None
     annotations: tuple[MetadataAnnotation, ...] = ()
+    policy: Policy | None = None
+    chart: ChartData | None = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +63,7 @@ class ScopeInterpretation:
     request: RequestContext
     applicability: ApplicabilityResult
     usage: StageUsage | None = None
+    policy_path_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,7 +83,9 @@ class EvidenceInterpretation:
 class StageInterpreter(Protocol):
     async def scope(self, inputs: StageInputs) -> ScopeInterpretation: ...
 
-    async def policy(self, inputs: StageInputs) -> PolicyInterpretation: ...
+    async def policy(self, inputs: DocumentInputs) -> PolicyInterpretation: ...
+
+    async def chart(self, inputs: DocumentInputs) -> ChartInterpretation: ...
 
     async def evidence(self, inputs: StageInputs, policy: Policy) -> EvidenceInterpretation: ...
 
@@ -134,32 +154,101 @@ def _criterion(criterion: Criterion) -> dict[str, object]:
     }
 
 
-def render_stage_input(inputs: StageInputs, stage: StageName, policy: Policy | None = None) -> str:
-    """Render one stage's model input as compact JSON text.
+def _sourced(value: object) -> object:
+    """Render saved interpretations with original quotes but no parser internals."""
+    if isinstance(value, dict):
+        result: dict[str, object] = {}
+        for key, item in value.items():
+            if key == "sources" and isinstance(item, list):
+                result["citations"] = [
+                    {
+                        "document_id": source["document_id"],
+                        "page": source["page"],
+                        "quote": source["excerpt"],
+                    }
+                    for source in item
+                ]
+            elif key not in {"document_sha256", "policy_id"}:
+                result[key] = _sourced(item)
+        return result
+    if isinstance(value, list):
+        return [_sourced(item) for item in value]
+    return value
 
-    Scope reads both documents (policy first), policy reads only the policy
-    document, and evidence reads only the chart plus the interpreted criteria.
-    A supplied policy is only valid for the evidence stage, which requires it.
-    """
+
+def render_document_input(inputs: DocumentInputs) -> str:
+    return json.dumps(
+        {
+            "input_kind": "pdf_text_blocks",
+            "documents": [_document(inputs.document, inputs.extraction)],
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
+def render_stage_input(
+    inputs: StageInputs | DocumentInputs, stage: StageName, policy: Policy | None = None
+) -> str:
+    """Document extraction is isolated; assessment consumes saved interpretations."""
+    if isinstance(inputs, DocumentInputs):
+        if stage not in ("policy", "chart") or policy is not None:
+            raise ValueError("Document inputs are only valid for policy or chart extraction")
+        return render_document_input(inputs)
+    # Kept for experiment/test callers; no request or annotations enter extraction.
+    if stage in ("policy", "chart"):
+        if policy is not None:
+            raise ValueError("Only the evidence stage accepts a policy argument")
+        own = (
+            DocumentInputs(inputs.policy_document, inputs.policy_extraction)
+            if stage == "policy"
+            else DocumentInputs(inputs.chart_document, inputs.chart_extraction)
+        )
+        return render_document_input(own)
+    if stage == "scope" and policy is not None:
+        raise ValueError("Only the evidence stage accepts a policy argument")
     if stage == "evidence" and policy is None:
         raise ValueError("The evidence stage requires the interpreted policy")
-    if stage != "evidence" and policy is not None:
-        raise ValueError("Only the evidence stage consumes an interpreted policy")
-    if stage == "policy":
-        documents = [_document(inputs.policy_document, inputs.policy_extraction)]
-    elif stage == "scope":
-        documents = [
-            _document(inputs.policy_document, inputs.policy_extraction),
-            _document(inputs.chart_document, inputs.chart_extraction),
-        ]
-    else:
+    selected_policy = policy if stage == "evidence" else inputs.policy
+    if stage == "scope" and inputs.chart is None:
         documents = [_document(inputs.chart_document, inputs.chart_extraction)]
-    packet: dict[str, object] = {
-        "input_kind": "native_pdf_text_blocks",
-        "selected_request": (_request(inputs.request_context) if inputs.request_context else None),
+        if selected_policy is None:
+            documents.insert(0, _document(inputs.policy_document, inputs.policy_extraction))
+        packet: dict[str, object] = {
+            "input_kind": "native_pdf_text_blocks",
+            "selected_request": _request(inputs.request_context)
+            if inputs.request_context
+            else None,
+            "staff_annotations": [_annotation(item) for item in inputs.annotations],
+            "documents": documents,
+        }
+        if selected_policy is not None:
+            packet["policy"] = _sourced(selected_policy.model_dump(mode="json"))
+        return json.dumps(packet, ensure_ascii=False, separators=(",", ":"))
+    if stage == "evidence" and inputs.chart is None and selected_policy is not None:
+        return json.dumps(
+            {
+                "input_kind": "native_pdf_text_blocks",
+                "selected_request": (
+                    _request(inputs.request_context) if inputs.request_context else None
+                ),
+                "staff_annotations": [_annotation(item) for item in inputs.annotations],
+                "documents": [_document(inputs.chart_document, inputs.chart_extraction)],
+                "criteria": [_criterion(item) for item in selected_policy.criteria],
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+    if selected_policy is None or inputs.chart is None:
+        raise ValueError("Assessment requires the saved policy and chart interpretations")
+    packet = {
+        "input_kind": "saved_document_interpretations",
+        "selected_request": _request(inputs.request_context) if inputs.request_context else None,
         "staff_annotations": [_annotation(item) for item in inputs.annotations],
-        "documents": documents,
+        "chart": _sourced(inputs.chart.model_dump(mode="json")),
     }
-    if policy is not None:
-        packet["criteria"] = [_criterion(item) for item in policy.criteria]
+    if stage == "scope":
+        packet["policy"] = _sourced(selected_policy.model_dump(mode="json"))
+    else:
+        packet["criteria"] = [_criterion(item) for item in selected_policy.criteria]
     return json.dumps(packet, ensure_ascii=False, separators=(",", ":"))

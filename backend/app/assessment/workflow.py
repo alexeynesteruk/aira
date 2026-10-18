@@ -23,6 +23,7 @@ from app.evidence import (
     CitationError,
     CitationResolver,
     EvidenceValidationError,
+    require_saved_fact_mapping,
     validate_findings,
 )
 from app.schemas import (
@@ -30,6 +31,7 @@ from app.schemas import (
     ApplicabilityStatus,
     AssessmentOutcome,
     AssessmentResult,
+    ChartData,
     ChartFact,
     ConfigurationProvenance,
     CreateAssessmentRequest,
@@ -38,6 +40,7 @@ from app.schemas import (
     ErrorCode,
     ExtractionRecord,
     Finding,
+    IssueCategory,
     OperationalError,
     Policy,
     RequestContext,
@@ -55,6 +58,8 @@ from app.storage.identity import canonical_bytes
 
 from .rules import EvaluationResult, evaluate_policy
 from .stages import (
+    ChartInterpretation,
+    DocumentInputs,
     EvidenceInterpretation,
     InterpretationFailure,
     PolicyInterpretation,
@@ -360,7 +365,7 @@ class WorkflowEngine:
         return extraction
 
     def _context_limit(
-        self, inputs: StageInputs, stage: StageName, policy: Policy | None = None
+        self, inputs: StageInputs | DocumentInputs, stage: StageName, policy: Policy | None = None
     ) -> None:
         if len(render_stage_input(inputs, stage, policy)) > self.limits.max_context_characters:
             raise InterpretationFailure(
@@ -383,9 +388,9 @@ class WorkflowEngine:
         for source in _spans(value):
             resolver.validate(source)
 
-    async def _invoke[T: ScopeInterpretation | PolicyInterpretation | EvidenceInterpretation](
-        self, run_id: str, phase: RunPhase, call: Callable[[], Awaitable[T]]
-    ) -> T:
+    async def _invoke[
+        T: ScopeInterpretation | PolicyInterpretation | ChartInterpretation | EvidenceInterpretation
+    ](self, run_id: str, phase: RunPhase, call: Callable[[], Awaitable[T]]) -> T:
         started = time.monotonic()
         try:
             async with asyncio.timeout(self.limits.stage_timeout_seconds):
@@ -431,6 +436,202 @@ class WorkflowEngine:
             StageUsage(phase=phase, attempts=0, duration_ms=0.0, input_tokens=0, output_tokens=0),
         )
 
+    async def _policy_by_page(self, run_id: str, phase: RunPhase, inputs: StageInputs) -> Policy:
+        """Select guideline pages, then fold one page at a time into the rule set."""
+        document_inputs = DocumentInputs(inputs.policy_document, inputs.policy_extraction)
+        selection = await self._invoke(
+            run_id, phase, lambda: self.interpreter.select_policy_pages(document_inputs)
+        )
+        # The index may suggest skips. Every page is still read so a section cannot be dropped.
+        page_numbers = tuple(page.page for page in inputs.policy_extraction.pages)
+        policy: Policy | None = None
+        failed_pages: list[int] = []
+        for index, page_number in enumerate(page_numbers, start=1):
+            current = self.store.get_run(run_id)
+            self._update(
+                run_id,
+                progress=current.progress.model_copy(
+                    update={
+                        "activity": (
+                            f"Building rules from guideline page {page_number} "
+                            f"({index} of {len(selection.pages)} selected pages)."
+                        )
+                    }
+                ),
+            )
+            try:
+                interpreted = await self._invoke(
+                    run_id,
+                    phase,
+                    lambda page_number=page_number, policy=policy: (
+                        self.interpreter.apply_policy_page(document_inputs, page_number, policy)
+                    ),
+                )
+            except InterpretationFailure:
+                if policy is None:
+                    raise
+                failed_pages.append(page_number)
+                continue
+            policy = _checked(Policy, interpreted.policy)
+        if policy is None:
+            raise InterpretationFailure(
+                _error(
+                    ErrorCode.INVALID_OUTPUT,
+                    "The guideline did not produce a rule set.",
+                    "Retry the assessment. This attempt is kept.",
+                    retryable=True,
+                )
+            )
+        extra: list[ReviewIssue] = []
+        del selection
+        for page_number in failed_pages:
+            extra.append(
+                ReviewIssue(
+                    issue_id=f"page-{page_number}-not-merged",
+                    category=IssueCategory.INTERPRETATION,
+                    message=(
+                        f"Guideline page {page_number} could not be merged into the rule set. "
+                        "The rules from earlier pages were kept."
+                    ),
+                    action="Review that page before relying on the checklist.",
+                    blocks_readiness=True,
+                )
+            )
+        if extra:
+            policy = policy.model_copy(update={"issues": (*policy.issues, *extra)})
+        return policy
+
+    async def _rule_set(
+        self,
+        run_id: str,
+        inputs: StageInputs,
+        resolver: CitationResolver,
+    ) -> tuple[Policy, str]:
+        """Build the guideline's rule set once, then reuse it for that policy.
+
+        The key is the policy bytes plus the parser, prompt, and model
+        configuration. The chart, the request, and staff annotations are not
+        part of the key.
+        """
+        phase = RunPhase.INTERPRETING_POLICY
+        self._phase(run_id, phase)
+        policy_extraction_id = (inputs.policy_extraction.extraction_id,)
+        saved = self.store.find_artifact(
+            run_id,
+            phase,
+            Policy,
+            extraction_ids=policy_extraction_id,
+            validation_version=_VALIDATION_VERSION,
+        )
+        if saved is not None:
+            resolver.validate_policy(saved.value)
+            self._cache_usage(run_id, phase)
+            self._complete_phase(run_id, phase)
+            return saved.value, saved.artifact_id
+        stored = self.store.get_policy_rule_set(
+            inputs.policy_document,
+            inputs.policy_extraction,
+            configuration=self.configuration,
+            approved_only=False,
+        )
+        if stored is not None:
+            policy = _checked(Policy, stored)
+            resolver.validate_policy(policy)
+            saved_policy = self.store.put_validated_artifact(
+                run_id,
+                phase,
+                policy,
+                extraction_ids=policy_extraction_id,
+                validation_version=_VALIDATION_VERSION,
+            )
+            self._cache_usage(run_id, phase)
+            self._complete_phase(run_id, phase)
+            return policy, saved_policy.artifact_id
+        document_inputs = DocumentInputs(inputs.policy_document, inputs.policy_extraction)
+        if hasattr(self.interpreter, "select_policy_pages"):
+            policy = await self._policy_by_page(run_id, phase, inputs)
+        else:
+            self._context_limit(document_inputs, "policy")
+            interpreted = await self._invoke(
+                run_id, phase, lambda: self.interpreter.policy(document_inputs)
+            )
+            policy = _checked(Policy, interpreted.policy)
+        resolver.validate_policy(policy)
+        saved = self.store.put_validated_artifact(
+            run_id,
+            phase,
+            policy,
+            extraction_ids=policy_extraction_id,
+            validation_version=_VALIDATION_VERSION,
+        )
+        self.store.put_policy_rule_set(
+            inputs.policy_document,
+            inputs.policy_extraction,
+            policy,
+            configuration=self.configuration,
+            status="draft",
+        )
+        self._complete_phase(run_id, phase)
+        return policy, saved.artifact_id
+
+    async def _chart_facts(
+        self,
+        run_id: str,
+        document: DocumentRecord,
+        extraction: ExtractionRecord,
+    ) -> tuple[ChartData, str]:
+        """Extract the chart once. The guideline, request, and annotations are not inputs."""
+        phase = RunPhase.EXTRACTING_CHART
+        self._phase(run_id, phase)
+        extraction_ids = (extraction.extraction_id,)
+        saved = self.store.find_artifact(
+            run_id,
+            phase,
+            ChartData,
+            extraction_ids=extraction_ids,
+            validation_version=_VALIDATION_VERSION,
+        )
+        if saved is not None:
+            self._cache_usage(run_id, phase)
+            self._complete_phase(run_id, phase)
+            return saved.value, saved.artifact_id
+        stored = self.store.get_chart_interpretation(
+            document, extraction, configuration=self.configuration
+        )
+        if stored is not None:
+            chart = _checked(ChartData, stored)
+            saved = self.store.put_validated_artifact(
+                run_id,
+                phase,
+                chart,
+                extraction_ids=extraction_ids,
+                validation_version=_VALIDATION_VERSION,
+            )
+            self._cache_usage(run_id, phase)
+            self._complete_phase(run_id, phase)
+            return chart, saved.artifact_id
+        document_inputs = DocumentInputs(document, extraction)
+        self._context_limit(document_inputs, "chart")
+        interpreted = await self._invoke(
+            run_id, phase, lambda: self.interpreter.chart(document_inputs)
+        )
+        chart = _checked(ChartData, interpreted.chart)
+        resolver = CitationResolver((document,), (extraction,))
+        for source in _spans(chart):
+            resolver.validate(source)
+        saved = self.store.put_validated_artifact(
+            run_id,
+            phase,
+            chart,
+            extraction_ids=extraction_ids,
+            validation_version=_VALIDATION_VERSION,
+        )
+        self.store.put_chart_interpretation(
+            document, extraction, chart, configuration=self.configuration
+        )
+        self._complete_phase(run_id, phase)
+        return chart, saved.artifact_id
+
     async def _execute(self, run_id: str) -> None:
         phase = RunPhase.EXTRACTING
         try:
@@ -469,6 +670,16 @@ class WorkflowEngine:
             self._validate_sources(resolver, inputs.request_context)
             self._validate_sources(resolver, inputs.annotations)
             extraction_ids = (policy_extraction.extraction_id, chart_extraction.extraction_id)
+
+            # Process 1: the guideline alone. The same policy bytes and the same
+            # configuration always resolve to the stored rule set.
+            phase = RunPhase.INTERPRETING_POLICY
+            policy, policy_artifact_id = await self._rule_set(run_id, inputs, resolver)
+            phase = RunPhase.EXTRACTING_CHART
+            chart, chart_artifact_id = await self._chart_facts(
+                run_id, chart_document, chart_extraction
+            )
+            inputs = replace(inputs, policy=policy, chart=chart)
 
             phase = RunPhase.CHECKING_APPLICABILITY
             self._phase(run_id, phase)
@@ -524,42 +735,10 @@ class WorkflowEngine:
                 raise EvidenceValidationError("Applicable scope requires a selected procedure")
             inputs = replace(inputs, request_context=scope.request)
 
-            phase = RunPhase.INTERPRETING_POLICY
-            self._phase(run_id, phase)
-            self._context_limit(inputs, "policy")
-            upstream: tuple[str, ...] = (saved_scope.artifact_id,)
-            saved_policy = self.store.find_artifact(
-                run_id,
-                phase,
-                Policy,
-                extraction_ids=extraction_ids,
-                upstream_artifact_ids=upstream,
-                validation_version=_VALIDATION_VERSION,
-            )
-            if saved_policy is None:
-                interpreted_policy = await self._invoke(
-                    run_id, phase, lambda: self.interpreter.policy(inputs)
-                )
-                policy = _checked(Policy, interpreted_policy.policy)
-                resolver.validate_policy(policy)
-                saved_policy = self.store.put_validated_artifact(
-                    run_id,
-                    phase,
-                    policy,
-                    extraction_ids=extraction_ids,
-                    upstream_artifact_ids=upstream,
-                    validation_version=_VALIDATION_VERSION,
-                )
-            else:
-                policy = saved_policy.value
-                resolver.validate_policy(policy)
-                self._cache_usage(run_id, phase)
-            self._complete_phase(run_id, phase)
-
             phase = RunPhase.MAPPING_EVIDENCE
             self._phase(run_id, phase)
             self._context_limit(inputs, "evidence", policy)
-            upstream = (*upstream, saved_policy.artifact_id)
+            upstream = (saved_scope.artifact_id, policy_artifact_id, chart_artifact_id)
             saved_evidence = self.store.find_artifact(
                 run_id,
                 phase,
@@ -572,10 +751,19 @@ class WorkflowEngine:
                 interpreted_evidence = await self._invoke(
                     run_id, phase, lambda: self.interpreter.evidence(inputs, policy)
                 )
+                saved_facts = require_saved_fact_mapping(
+                    chart.facts,
+                    interpreted_evidence.findings,
+                    interpreted_evidence.facts,
+                )
+                if canonical_bytes(chart) != canonical_bytes(
+                    chart.model_copy(update={"facts": saved_facts})
+                ):
+                    raise EvidenceValidationError("Assessment rewrote saved chart facts")
                 evidence = _checked(
                     EvidenceArtifact,
                     EvidenceArtifact(
-                        facts=interpreted_evidence.facts,
+                        facts=saved_facts,
                         findings=interpreted_evidence.findings,
                         issues=interpreted_evidence.issues,
                     ),
@@ -591,6 +779,20 @@ class WorkflowEngine:
                         }
                     ),
                 )
+                if not evidence.facts:
+                    must_have_issue = ReviewIssue(
+                        issue_id="missing-required-chart-evidence",
+                        category=IssueCategory.COMPLETENESS,
+                        message=(
+                            "No chart facts were extracted; required patient evidence is missing."
+                        ),
+                        action="Review the chart and supply the missing clinical documentation.",
+                        blocks_readiness=True,
+                    )
+                    evidence = _checked(
+                        EvidenceArtifact,
+                        evidence.model_copy(update={"issues": (*evidence.issues, must_have_issue)}),
+                    )
                 saved_evidence = self.store.put_validated_artifact(
                     run_id,
                     phase,

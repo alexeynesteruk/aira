@@ -12,6 +12,12 @@ Continue the existing implementation from the current work package. The product,
 
 The feature files supply the task and acceptance checklists; the work-breakdown dependency table supplies order between packages. Choose one bounded change, name the feature-file tasks it satisfies, and do not introduce a second status ledger.
 
+## Long-document feature entry point
+
+Implement [WP-19](features/19-long-document-rule-compilation.md) using its [execution plan](plans/long-document-rule-compilation.md); the [research log](research/long-document-rule-extraction.md) supplies dated primary-source rationale. BR-013/TR-019/A21 extend the baseline without renumbering it. Start with LD-01 source expectations and LD-02 contracts, then structural planning/extraction, reconciliation/coverage/compilation, durable builds, UI/provider integration, and evaluation. The working-tree page-index/serial-fold code is a prototype: do not treat skipped-page notices or repeated accumulated-graph rewrites as coverage evidence. Preserve other unfinished changes.
+
+Direct OpenAI using the reviewer's backend key/model is mandatory; LiteLLM is optional. All inventory/extraction/reconciliation/audit/repair/assessment calls must use the selected adapter. Respect the deferred quota and record fixture versus live evidence separately.
+
 ## Current boundaries
 
 | Boundary | Existing contract to consume | Next integration responsibility |
@@ -24,7 +30,7 @@ The feature files supply the task and acceptance checklists; the work-breakdown 
 | Rule evaluation | `app.assessment.evaluate_policy`; [aggregation semantics](results/rules.md#aggregation-and-independent-blockers). | Supply one validated finding per criterion, retain traces and independent blockers. |
 | Persistence | `app.storage.LocalStore`, `assessment_fingerprint`; [storage API](results/storage.md#integration-api). | Publish validated stages after files exist; preserve stopped runs and original input identity. |
 | Workflow | `app.assessment.workflow.StageInterpreter` and `WorkflowEngine` are implemented with controlled-interpreter checks; `app.llm.interpreter.OpenAIStageInterpreter` is the production implementation; the app lifespan starts the engine ([workflow record](results/workflow.md), [stage interpreter record](results/stage-interpreter.md), [HTTP API record](results/http-api.md)). | Live integrated evaluation remains open; the live run is quota-blocked. |
-| HTTP and browser | `backend/app/api/` implements the [TRD endpoint table](requirements/technical-requirements.md#http-interface-contracts); the lifespan in `app.main.create_app` wires store/engine/readiness; the staff workspace consumes the routes with 8 saved fixture journeys ([HTTP API record](results/http-api.md), [review UI record](results/review-ui.md)). | Update backend, UI, CI health assertions, and browser tests together; live-model journeys remain quota-blocked. |
+| HTTP and browser | `backend/app/api/` implements the [TRD endpoint table](requirements/technical-requirements.md#http-interface-contracts); the lifespan in `app.main.create_app` wires store/engine/readiness; the staff workspace consumes the routes with 9 saved fixture journeys ([HTTP API record](results/http-api.md), [review UI record](results/review-ui.md)). | Update backend, UI, CI health assertions, and browser tests together; live-model journeys remain quota-blocked. |
 
 Names for unfinished functions/files are agreed implementation targets, not a claim that their tests pass. Confirm the latest code before writing consumers.
 
@@ -34,17 +40,18 @@ The interpreter boundary is asynchronous and contains domain records, never SDK 
 
 ```python
 scope(StageInputs) -> ScopeInterpretation
-policy(StageInputs) -> PolicyInterpretation
+policy(DocumentInputs) -> PolicyInterpretation
+chart(DocumentInputs) -> ChartInterpretation
 evidence(StageInputs, Policy) -> EvidenceInterpretation
 ```
 
-`StageInputs` carries both document/extraction pairs, selected request context, and typed annotations. Scope returns a sourced request and applicability. Policy returns a structurally and source-validated policy. Evidence returns facts, validated findings, and issues. Each stage may include `StageUsage`. `InterpretationFailure` carries a safe `OperationalError` and any measured usage. The workflow independently checks stage results before persistence and consumption.
+`DocumentInputs` contains exactly one document/extraction pair. Policy and chart preparation cannot receive the other document, selected request, or annotations. Assessment `StageInputs` carries saved policy/chart artifacts, original identities for citation validation, selected request context, and typed annotations. Scope returns a sourced request and applicability; evidence mapping references existing saved facts and cannot introduce new facts. Policy/chart preparation produces persistent document artifacts. WP-19 must extend the one-call document preparation contract with durable bounded section/build orchestration; the table above is not proof that this refactor passes. Each stage may include `StageUsage`. `InterpretationFailure` carries a safe `OperationalError` and any measured usage. The workflow independently checks stage results before persistence and consumption.
 
 `ScopeCandidate.field_sources` is required on the strict provider wire schema. Its default only keeps older Python examples readable. Non-null extracted request fields without their own chart sources are rejected during conversion. Metadata supplied by staff remains an annotation; it does not become chart evidence. An annotation that changes the request assessed by an earlier scope judgment requires reassessment.
 
 ## Work that can continue without live quota
 
-Almost every non-live package is done: candidate conversion, workflow, API, source inspection, the review UI, exports, deterministic integration tests, and container packaging all have controlled evidence. Remaining no-live-call work: the WP-16 evaluation report structure (a versioned record with input/configuration/commit identities ready to fill from a live run), plus any still-open feature tasks that need no live calls. Use controlled interpreter/HTTP fixtures explicitly in tests. Production execution must continue to use the configured OpenAI adapter and surface its real errors.
+The original non-live packages have historical component evidence, but the working-tree refactor and WP-19 need integrated checks. New no-live-call work includes LD-01–LD-08 contracts, fixtures, structural processing, controlled provider/storage failures, coverage, and UI journeys. The WP-16 evaluation-report structure also remains available to prepare without paid calls. Use controlled interpreter/HTTP fixtures explicitly in tests. Production execution must use the configured adapter and surface its real errors; fixture execution stays confined to test support.
 
 The supplied key failed inference with `insufficient_quota`; the user deferred resolution. Do not repeat paid probes automatically, seek a new provider, select a model as validated, or close live acceptance gates. WP-05 model comparison, WP-15 measured model envelope, WP-16 live semantic trials, and WP-18 live clean-checkout acceptance remain open until access is restored. This does not pause independent implementation.
 
@@ -64,6 +71,6 @@ For each completed package, record the implementing commit, requirement/acceptan
 
 ## Stable decisions and change control
 
-BR-001–BR-012, TR-001–TR-018, A01–A20, WP-01–WP-18, and M0–M6 are stable. OpenAI is the initial inference provider; AWS hosting is a possible later option. One policy, one chart, one request, source inspection, clarification, saved results, and export remain the MVP scope. No retrieval service, agent framework, distributed queue, OCR service, or cloud deployment is required.
+Original BR-001–BR-012, TR-001–TR-018, A01–A20, WP-01–WP-18, and M0–M6 identifiers are stable. BR-013/TR-019/WP-19/A21 add the accepted long-document extension without renumbering them. OpenAI is the initial inference provider. One policy, one chart, one request, source inspection, clarification, saved results, and export remain the MVP scope. No retrieval service, agent framework, distributed queue, OCR service, or cloud deployment is required.
 
 When implementation reveals a necessary change, identify the concrete failure and update its owning requirement or contract, TDD, affected feature steps, and tests together. Preserve requirement IDs where meaning is only clarified. Record compatible contract amendments; version incompatible changes and migrate consumers deliberately. Never change independent expected patient findings merely to match an output. A failure in an unused OR alternative remains visible but does not make every alternative mandatory.

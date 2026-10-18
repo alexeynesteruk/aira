@@ -103,6 +103,14 @@ class PolicySection(StrictModel):
         return self
 
 
+class PolicyPath(StrictModel):
+    path_id: Identifier
+    title: NonEmptyText
+    scope: NonEmptyText
+    root_id: Identifier
+    sources: tuple[SourceSpan, ...] = Field(min_length=1)
+
+
 class Policy(VersionedModel):
     policy_id: Identifier
     document_id: Identifier
@@ -118,6 +126,7 @@ class Policy(VersionedModel):
     root_id: Identifier
     sections: tuple[PolicySection, ...] = Field(min_length=1)
     issues: tuple[ReviewIssue, ...] = ()
+    paths: tuple[PolicyPath, ...] = ()
 
     @model_validator(mode="after")
     def valid_references(self) -> Self:
@@ -129,6 +138,10 @@ class Policy(VersionedModel):
             raise ValueError("policy criterion and node identifiers must be unique")
         if self.root_id not in by_id:
             raise ValueError("policy root must identify a node")
+        if len({path.path_id for path in self.paths}) != len(self.paths):
+            raise ValueError("policy path identifiers must be unique")
+        if any(path.root_id not in by_id for path in self.paths):
+            raise ValueError("policy paths must identify existing roots")
         referenced_criteria: set[str] = set()
         for node in self.nodes:
             if isinstance(node, CriterionNode):
@@ -164,7 +177,7 @@ class Policy(VersionedModel):
     def _validate_reachable_graph(self, by_id: dict[str, PolicyNode]) -> None:
         visited: set[str] = set()
         active: set[str] = set()
-        pending = [(self.root_id, False)]
+        pending = [(root, False) for root in {self.root_id, *(p.root_id for p in self.paths)}]
         while pending:
             node_id, leaving = pending.pop()
             if leaving:
@@ -186,6 +199,6 @@ class Policy(VersionedModel):
     def _sources(self) -> tuple[SourceSpan, ...]:
         return tuple(
             source
-            for record in (*self.criteria, *self.nodes, *self.sections, *self.issues)
+            for record in (*self.criteria, *self.nodes, *self.sections, *self.issues, *self.paths)
             for source in record.sources
         )

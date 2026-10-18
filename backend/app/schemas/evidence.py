@@ -6,7 +6,7 @@ from typing import Self
 
 from pydantic import Field, model_validator
 
-from .base import FiniteNumber, Identifier, NonEmptyText, StrictModel
+from .base import FiniteNumber, Identifier, NonEmptyText, Sha256, StrictModel, VersionedModel
 from .documents import SourceSpan
 
 
@@ -43,6 +43,31 @@ class ChartFact(StrictModel):
             raise ValueError("a unit cannot exist without its documented numeric value")
         if self.fact_id in self.conflicting_fact_ids:
             raise ValueError("a fact cannot conflict with itself")
+        return self
+
+
+class ChartData(VersionedModel):
+    """Document-only extraction, reusable across guidelines and requests."""
+
+    document_id: Identifier
+    document_sha256: Sha256
+    facts: tuple[ChartFact, ...]
+    interpretation_issues: tuple[NonEmptyText, ...] = ()
+
+    @model_validator(mode="after")
+    def own_facts(self) -> Self:
+        ids = {fact.fact_id for fact in self.facts}
+        if len(ids) != len(self.facts):
+            raise ValueError("chart fact identifiers must be unique")
+        for fact in self.facts:
+            if not set(fact.conflicting_fact_ids) <= ids:
+                raise ValueError("chart conflict references an unknown fact")
+            for source in fact.sources:
+                if (source.document_id, source.document_sha256) != (
+                    self.document_id,
+                    self.document_sha256,
+                ):
+                    raise ValueError("chart facts must belong to their original document")
         return self
 
 

@@ -272,6 +272,7 @@ export interface RunProgress {
   completed_phases: string[]
   completed_pages: number
   total_pages?: number | null
+  activity?: string | null
 }
 
 export interface RunRecord {

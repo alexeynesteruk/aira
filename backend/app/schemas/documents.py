@@ -32,7 +32,7 @@ class PageQuality(StrEnum):
 
 class ExtractionMethod(StrEnum):
     NATIVE_TEXT = "native_text"
-    TEXTRACT = "textract"
+    OCR = "ocr"
 
 
 class BoundingBox(StrictModel):
@@ -97,6 +97,7 @@ class ExtractedPage(StrictModel):
     method: ExtractionMethod | None = None
     blocks: tuple[TextBlock, ...] = ()
     issues: tuple[NonEmptyText, ...] = ()
+    extraction_score: FiniteNumber | None = Field(default=None, ge=0, le=1)
 
     @model_validator(mode="after")
     def consistent_page(self) -> Self:

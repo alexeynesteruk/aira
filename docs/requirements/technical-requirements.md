@@ -2,21 +2,21 @@
 
 Implement a local application that assesses one selected procedure request against one uploaded policy and one chart PDF. The system must preserve source evidence, expose uncertainty, and produce a documentation checklist without issuing an insurer decision. These requirements translate the [business requirements](business-requirements.md) into implementation and acceptance contracts.
 
-Updated October 18, 2026. This technical requirements document (TRD) retains stable TR-001–TR-018 identifiers and the target MVP contract. M0–M6 in the [implementation plan](../implementation-plan.md) group delivery, and the [work breakdown](../work-breakdown.md) records actual dependencies and completion evidence. The [technical design document (TDD)](../architecture.md) defines architecture, domain semantics, and the current implementation snapshot. The [model provider decision](../model-provider.md) defines the OpenAI boundary, and the [evaluation matrix](../evaluation.md) identifies acceptance scenarios A01–A20. A deferred quota issue blocks live validation, not the requirements themselves.
+Updated October 18, 2026. This technical requirements document (TRD) retains TR-001–TR-018 identifiers and adds TR-019 for the user-authorized long-document compilation feature. M0–M6 in the [implementation plan](../implementation-plan.md) group delivery, and the [work breakdown](../work-breakdown.md) records actual dependencies and completion evidence. The [technical design document (TDD)](../architecture.md) defines architecture, domain semantics, and the current implementation snapshot. The [model provider decision](../model-provider.md) defines the OpenAI boundary, and the [evaluation matrix](../evaluation.md) identifies acceptance scenarios A01–A20. A deferred quota issue blocks live validation, not the requirements themselves.
 
 ## Implementation boundaries
 
 | Area | Required direction |
 | --- | --- |
 | Backend | Python, FastAPI, strict Pydantic contracts, and domain modules independent of HTTP, storage, and provider adapters. |
-| Frontend | React and TypeScript, with built assets served by the application container. |
+| Frontend | React and TypeScript, with built assets served by the application. |
 | Inference | A thin OpenAI Responses API adapter using an explicit model and structured-output mechanism verified in M1. |
 | Documents | Native page-aware text/layout extraction; scans and unusable image-only pages receive an explicit unsupported-input response in the initial MVP. |
-| Persistence | SQLite metadata and immutable input/stage artifacts in a mounted local data directory. |
+| Persistence | SQLite metadata and immutable input/stage artifacts in a local data directory. |
 | Execution | One application process with a bounded executor and persisted run state. No distributed queue is assumed. |
-| Delivery | A Docker Compose launch with documented OpenAI key/model prerequisites and no author-specific services. |
+| Delivery | A one-line local launch with documented OpenAI key/model prerequisites and no author-specific services. |
 
-All numbered requirements are MVP obligations. TR-003 requires a verified native-text input boundary and explicit scan rejection; adding OCR requires a justified scope change and its own verification. AWS credentials and services are not MVP dependencies. ECS Fargate, S3, Postgres, SQS, Step Functions, managed retrieval, EHR connections, and payer submission are possible extensions. Production compliance and infrastructure work remain outside the assessment scope.
+All numbered requirements are product obligations; TR-019 is the October 18 long-document extension and its release gates remain open. TR-003 requires a verified native-text input boundary and explicit scan rejection; adding OCR requires a justified scope change and its own verification. Hosted object storage, a shared database, queues, managed retrieval, EHR connections, and payer submission are possible extensions. Production compliance and infrastructure work remain outside the assessment scope.
 
 ## Technical requirements
 
@@ -44,6 +44,8 @@ M2 must establish native extraction quality and measured input limits. The initi
 
 The initial parser is conservative: any embedded raster image, including a decorative image on a text page, is unsupported because its relevance cannot be established without image interpretation. Rotated pages, interactive forms, and vector-only nontext pages are also outside the current native path. This boundary must be visible before an ordinary assessment can complete. Parser byte/page/character budgets are provisional until WP-15 combines extraction results with live model limits; the existence of parser limits does not establish an end-to-end supported envelope.
 
+TR-019 adds a 100/200-page native-guideline target. Measure and amend intake/parser limits and total model budgets together before claiming support; preserving an earlier 100-page limit cannot satisfy the 200-page acceptance case.
+
 **Acceptance:** A14 covers a full scan, a mixed PDF, and unusable extraction. Every page is either successfully represented, explicitly identified as blank, or reported unusable. An unusable page blocks ordinary assessment completion, and unsupported scans receive a clear response. Cross-page reconstruction is checked under A13. Any later OCR scope must add failure tests before claiming scan support. See the [PDF support boundary](../model-provider.md#pdf-support-and-future-options).
 
 ### TR-004 Request context and user annotations
@@ -66,7 +68,7 @@ Check payer/plan, procedure scope, relevant dates, and applicable restrictions b
 
 **Business mapping:** BR-004.
 
-Extract policy metadata, criteria, governing passages, exclusions, and flat logical nodes of kind `all`, `any`, or `criterion`, with child/criterion IDs and one root. Keep a relevant-section inventory mapping governing text to requirements, contextual definitions, or unresolved interpretation. Validate unique IDs, references, root, acyclicity, reachability, nonempty groups, and allowed operator arity. Unsupported predicates or conditional exceptions become review issues, not guessed executable rules.
+Process the complete guideline independently of charts, selected requests, and staff annotations. Extract policy metadata, criteria, governing passages, exclusions, and flat logical nodes of kind `all`, `any`, or `criterion`, with child/criterion IDs and one root per evaluated scope path. Version the existing single-root contract deliberately for whole-guideline paths. Inventory every section as requirements, context, or unresolved interpretation; do not exclude sections because of a particular patient or request. Preserve procedure-specific scope conditions in their branches. Validate unique IDs, references, root, acyclicity, reachability, nonempty groups, and allowed operator arity. Unsupported predicates or conditional exceptions become review issues, not guessed executable rules. Persist the validated rule set by guideline content and policy-extraction version and reuse it across patients, requests, duplicate uploads, and restarts. Human approval records review status separately from technical reuse. For long guidelines, use TR-019's section planning, dependency reconciliation, coverage audit, and compilation. Page excerpts may guide routing but cannot authorize omission. Multiple procedures require source-supported scoped paths; an unrelated satisfied branch cannot establish readiness.
 
 **Acceptance:** A06 preserves branch-specific compression language; A20 blocks favorable readiness when a governing condition is unresolved. Invalid node graphs fail domain validation. A11 handles a second policy family without procedure-specific production code. Annotated evaluation separately checks omitted criteria and incorrect logical edges that structural validation cannot discover.
 
@@ -74,7 +76,7 @@ Extract policy metadata, criteria, governing passages, exclusions, and flat logi
 
 **Business mapping:** BR-005.
 
-Map chart evidence to each criterion while preserving proposition, polarity, value/unit, event date, documentation date, anatomical context, and conflicting alternatives. Distinguish a clinician's summary from underlying measurements. Findings use `met`, `not_met`, `missing`, `conflicting`, or `needs_review`, with rationale and source references. `missing` means relevant documentation was not found in successfully processed input; it must not represent parser or provider failure.
+Extract chart facts in a separate model process receiving only the complete chart, without a guideline, selected request, or staff annotations. Preserve administrative/request facts, proposition, polarity, value/unit, event date, documentation date, anatomical context, and conflicting alternatives. Persist the sourced fact artifact by chart content and chart-extraction version. A later assessment maps only saved facts to the saved rule set; it cannot introduce or rewrite facts. Distinguish a clinician's summary from underlying measurements. Findings use `met`, `not_met`, `missing`, `conflicting`, or `needs_review`, with rationale and references to saved fact IDs. `missing` means relevant documentation was not found in successfully processed input; it must not represent parser or provider failure.
 
 **Acceptance:** A03–A05 and A08 distinguish missing facts, explicit negatives, temporal conflicts, and incompatible units. The chart's normal-CBC summary does not generate absent laboratory values. Opposite-side or post-cutoff evidence cannot silently satisfy the selected requirement. A18 tests evidence among distractors without converting document instructions into application instructions.
 
@@ -98,15 +100,15 @@ Map `met` to true, `not_met` to false, and the other finding states to unknown. 
 
 **Business mapping:** BR-001, BR-010.
 
-Use a thin OpenAI Responses API adapter with versioned prompts, transport schemas, explicit provider/model, inference settings, and SDK dependencies. M1 must verify the actual model/API/schema combination and select a tested configuration; no automatic model choice is considered validated before this experiment. Keep transport/schema checks separate from local domain validation, and use application source fields for citations. Read `OPENAI_API_KEY` only on the server and configure `AIRA_MODEL` explicitly. Never embed the key in frontend assets, prompts, exports, logs, or repository files. AWS credentials are not required.
+Use a thin OpenAI Responses API adapter with versioned prompts, transport schemas, explicit provider/model, inference settings, and SDK dependencies. M1 must verify the actual model/API/schema combination and select a tested configuration; no automatic model choice is considered validated before this experiment. Keep transport/schema checks separate from local domain validation, and use application source fields for citations. Read `OPENAI_API_KEY` only on the server and configure `AIRA_MODEL` explicitly. Never embed the key in frontend assets, prompts, exports, logs, or repository files. Direct OpenAI access using the reviewer's key is required and must work with no running local LiteLLM service. LiteLLM is an optional explicit endpoint configuration; no silent provider fallback is allowed. Inventory, section extraction, reconciliation, audit, repair/retry, assessment, and explicit preflight all follow the selected backend configuration.
 
-**Acceptance:** A16 exercises unsupported schema/model configuration, missing/invalid credentials, access denial, refusal, and incomplete output. A19 includes a real call from the documented server/container configuration path. Record candidate comparison or the single-model limitation. A fixture provider is labeled test execution and never silently replaces a failed live call. See the [model and configuration contracts](../model-provider.md).
+**Acceptance:** A16 exercises unsupported schema/model configuration, missing/invalid credentials, access denial, refusal, and incomplete output. A19 includes a real call from the documented server configuration path. Record candidate comparison or the single-model limitation. A fixture provider is labeled test execution and never silently replaces a failed live call. See the [model and configuration contracts](../model-provider.md).
 
 ### TR-011 Bounded execution and failure lifecycle
 
 **Business mapping:** BR-009.
 
-Persist status separately from phase using the contracts below. Bound queue size, concurrent runs, call attempts, and stage duration. Retry transient provider errors through one bounded policy; disable overlapping SDK retries when the adapter owns attempts and the total deadline. `needs_input` stops the current attempt. On restart, mark unfinished queued/running work `interrupted`. A user retry or clarification creates a new run with `parent_run_id`; reuse only compatible validated artifacts.
+Persist status separately from phase using the contracts below. Bound queue size, concurrent runs, call attempts, and stage duration. Retry transient provider errors through one bounded policy; disable overlapping SDK retries when the adapter owns attempts and the total deadline. `needs_input` stops the current attempt. On restart, mark unfinished queued/running work `interrupted`. A user retry or clarification creates a new run with `parent_run_id`; reuse only compatible validated artifacts. TR-019 build execution additionally bounds section fan-out, total calls/tokens/duration, repair/audit iterations, and waiters; failed sections remain operational failures and prevent complete final publication. Persist completed intermediate work for an explicitly linked retry after interruption.
 
 **Acceptance:** A16 verifies bounded timeout/throttling behavior, visible failure category and action, and interruption recovery. No failure is relabeled a clinical finding. A17 verifies that a retry retains the previous run and its diagnostics. Queue saturation is reported immediately, and an accepted job returns its run ID before long processing begins.
 
@@ -114,7 +116,7 @@ Persist status separately from phase using the contracts below. Bound queue size
 
 **Business mapping:** BR-008.
 
-Store documents, extractions, policies, annotations, runs, and stage artifacts with explicit relationships. A reusable artifact fingerprint includes its source bytes plus relevant parser, prompt, schema, provider/model, SDK, and inference settings; assessment identity also includes request context and annotations. Cache only completed validated artifacts. Keep policy and chart roles scoped to the run, and store actual outputs rather than assuming a fixed temperature reproduces them.
+Store documents, extractions, policies, annotations, runs, and stage artifacts with explicit relationships. A reusable artifact fingerprint includes its source bytes plus relevant parser, prompt, schema, provider/model, SDK, and inference settings; assessment identity also includes request context and annotations. Cache only completed validated artifacts. TR-019 adds immutable section/reconciliation/audit/build artifacts with stage-specific dependencies. Policy keys exclude chart/request/annotations and assessment-only settings; chart keys exclude policy/request/annotations and assessment-only settings. Changed definitions invalidate dependent artifacts. Preserve each reused artifact's actual generation provenance. Keep policy and chart roles scoped to the run, and store actual outputs rather than assuming a fixed temperature reproduces them.
 
 **Acceptance:** A09, A10, and A17 show correct reuse on identical inputs and invalidation after a relevant change. New policy versions never overwrite old results. Duplicate uploads may share immutable bytes while retaining correct document metadata and role relationships. Interrupted writes cannot make an incomplete artifact appear reusable.
 
@@ -130,7 +132,7 @@ Implement the endpoint and error contracts below with typed request/response sch
 
 **Business mapping:** BR-002, BR-003, BR-005, BR-006, BR-007, BR-009.
 
-Provide upload, request confirmation, progress, applicability, grouped findings, source inspection, issue details, and clarification/retry flows. Show workflow status separately from documentation readiness. Each finding links to policy and available chart spans; a missing finding shows the requirement and documentation needed without inventing a chart citation. Source navigation uses original page numbering. Staff annotations and unresolved conflicts remain visible after rerun.
+Provide upload, request confirmation, progress, applicability, grouped findings, source inspection, issue details, and clarification/retry flows. Show workflow status separately from documentation readiness. Each finding links to policy and available chart spans; a missing finding shows the requirement and documentation needed without inventing a chart citation. Source navigation uses original page numbering. Staff annotations and unresolved conflicts remain visible after rerun. TR-019 adds standalone guideline/chart preparation, real stage/section progress, source coverage and dependency review, explicit version selection, and linked retry/rebuild; preparation cannot require the other document.
 
 **Acceptance:** Saved browser tests cover a matched review, mismatch, missing evidence, `needs_input` followed by a linked new run, and actionable processing failure. A reviewer can inspect both source documents at cited pages and reopen a persisted run through its URL after restart. Conflicting metadata clarification shows the source, selected value, and resolution reason. A completed `review_required` outcome is never presented as satisfied merely because processing finished.
 
@@ -154,7 +156,7 @@ Record run/stage IDs, durations, attempts, provider request IDs when available, 
 
 **Business mapping:** BR-011.
 
-Implement unit checks for rules/provenance/state, integration checks for parser/storage/API/provider boundaries, saved browser journeys, and separately tagged live semantic evaluation. Freeze reviewed expectations before evaluating a case. Maintain development and held-out cases across two policy families; if a held-out failure becomes tuning data, replace it. Use all A01–A20 scenarios within the declared support scope and retain repeated-run disagreements.
+Implement unit checks for rules/provenance/state, integration checks for parser/storage/API/provider boundaries, saved browser journeys, and separately tagged live semantic evaluation. Freeze reviewed expectations before evaluating a case. Maintain development and held-out cases across two policy families; if a held-out failure becomes tuning data, replace it. Use all A01–A21 scenarios within the declared support scope and retain repeated-run disagreements.
 
 **Acceptance:** All mandatory deterministic checks pass. The release set has no known accepted mismatch, fabricated citation, unsupported satisfied finding, omitted mandatory condition/edge, or incorrect mandatory branch. Ambiguity appears as the intended review/input state. Publish configuration, inputs, counts, failures, and limitations. Fix or explicitly narrow/retest scope; do not silently change expectations to match output.
 
@@ -162,9 +164,23 @@ Implement unit checks for rules/provenance/state, integration checks for parser/
 
 **Business mapping:** BR-010, BR-012.
 
-Package locked application/parser dependencies and built UI assets for the target command `docker compose up --build`, with one documented application port and a persistent local data volume. Document Docker, the server-only OpenAI key, explicit model configuration, input limits, scan limitations, and first-run behavior. Supply examples, the verification record, and a short design note explaining judgment, data versus code, failure boundaries, and a future hosting extension. No AWS account or credentials are required for the initial MVP.
+Package locked application/parser dependencies and built UI assets for the target one-line launch (`./scripts/launch.sh`), with one documented application port and a persistent local data directory. Document the server-only OpenAI key, explicit model configuration, input limits, scan limitations, and first-run behavior. Supply examples, the verification record, and a short design note explaining judgment, data versus code, failure boundaries, and a future hosting extension.
 
 **Acceptance:** M6/A19 starts from a fresh checkout and completes a live unseen-input workflow, citation inspection, and export using only documented prerequisites. Record actual build/type/lint/test commands and results. The run command is not declared working before this check. Prepare the repo or zip for delivery at least one day before the 45-minute discussion; actual submission remains a separate user-authorized action.
+
+### TR-019 Long-document rule-set compilation
+
+**Business mapping:** BR-001, BR-004, BR-006, BR-008, BR-009, BR-010, BR-013.
+
+Compile the complete guideline through a durable staged process: layout/source inventory; token- and output-budgeted structural chunks with parent/table/reference context; source-validated local extraction; explicit definition/exception/reference reconciliation; coverage and omission audit; deterministic compilation; and immutable rule-set publication. Keep this entire flow independent of patient data and selected requests. Every source section needs a source-linked disposition. Retrieval and summaries can help context selection but cannot replace complete source accounting or the original passages behind rules.
+
+Persist intermediate contracts and dependency edges, not just a repeatedly rewritten global graph. Keep procedure/plan/time scope and source-defined AND/OR grouping. Validate the executable representation locally; unsupported operations and unresolved semantics remain explicit review blockers. Failed/unprocessed extraction or required audit work cannot be published as a completed reusable rule set. Technically complete drafts with unresolved interpretation retain their blockers; reuse does not imply human approval or semantic certainty.
+
+Handle dependency invalidation, identical concurrent builds, interruption, corruption/rejection, and explicit versioned rebuild without overwriting earlier artifacts. Separate per-call limits from whole-build limits and account for every inference operation. Prepare guidelines and charts independently through documented interfaces; pin exact completed versions in assessments and exports. Freeze route/schema amendments during LD-02 before implementation.
+
+**Acceptance:** A21 and [WP-19 LD-AC01–LD-AC12](../features/19-long-document-rule-compilation.md#acceptance-checks) verify 100/200-page native-text builds, remote definitions/exceptions, cross-page tables/lists, multiple procedures, omissions/injection, independent reuse, restart/concurrency/budget failures, useful UI/export behavior, and every-call direct-OpenAI routing. Record fixture and live evidence separately. No page count, token budget, correctness score, or completion claim is inferred from this specification.
+
+Design and task sequence: [WP-19 implementation plan](../plans/long-document-rule-compilation.md). Public rationale: [research log](../research/long-document-rule-extraction.md).
 
 ## HTTP interface contracts
 
@@ -179,6 +195,8 @@ The following routes are the MVP contract. M0 establishes the initial JSON schem
 | `POST /api/assessments` | `policy_document_id`, `chart_document_id`, request context/annotations, optional `parent_run_id`. | `202`: `run_id`, `status`, `phase`, and status URL; a `Location` header points to that URL. |
 | `GET /api/assessments/{run_id}` | Run ID. | `200`: identity/configuration, status/phase, progress, issues/errors, and available validated outcome. |
 | `GET /api/assessments/{run_id}/export` | `format=json` or `format=markdown`. | `200`: saved checklist for `completed` or `needs_input`; content type and download filename match the format. |
+| `GET /api/policy-rule-sets` | Optional `document_id`. | `200`: policy graphs previously generated for that document hash, with status (`draft`, `approved`, or `rejected`), configuration fingerprint, and review metadata. |
+| `POST /api/policy-rule-sets/{rule_set_id}/approve` | Rule set ID. | `200`: marks the reviewed policy graph approved for reuse on later assessments of the same document hash/configuration. |
 | `GET /health/live` | None. | `200` when the application process can serve requests; no dependency inference call. |
 | `GET /health/ready` | None. | `200` when local store, parser dependencies, and required configuration/credential resolution permit attempting live work; otherwise `503` with missing prerequisites. |
 
@@ -186,7 +204,7 @@ Readiness is not proof of remote model access or future provider availability. R
 
 ## Status and error contracts
 
-`status` is one of `queued`, `running`, `needs_input`, `completed`, `failed`, or `interrupted`. While running, `phase` is one of `extracting`, `checking_applicability`, `interpreting_policy`, `mapping_evidence`, `validating`, or `evaluating`. Retain the last phase on a stopped run for diagnosis. Progress names completed stages/pages; it must not invent a percentage of remaining model work.
+`status` is one of `queued`, `running`, `needs_input`, `completed`, `failed`, or `interrupted`. While running, `phase` is one of `extracting`, `interpreting_policy`, `extracting_chart`, `checking_applicability`, `mapping_evidence`, `validating`, or `evaluating`. Guideline interpretation and chart-fact extraction finish before applicability. Retain the last phase on a stopped run for diagnosis. Progress names completed stages/pages; it must not invent a percentage of remaining model work.
 
 `needs_input` is a stopped attempt with named unresolved scope/request fields. A correction creates a new run using `parent_run_id` and annotations. `completed` means a validated outcome was reached, which may be `applicability_mismatch`, `documented_requirements_satisfied`, `documentation_gaps_or_contrary_evidence`, or `review_required`. Only an applicable, validated evaluation with no governing blocker may produce the satisfied outcome. `failed` and `interrupted` carry operational diagnostics rather than a readiness conclusion.
 

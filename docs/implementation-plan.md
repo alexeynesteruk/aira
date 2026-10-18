@@ -2,13 +2,13 @@
 
 Build a provider-facing assistant that compares one selected procedure request with an uploaded insurer policy and returns a checklist of documented requirements, contrary evidence, and gaps. Staff must be able to open the supporting policy and chart passages for each finding. The product reports documentation readiness; it does not issue a payer decision.
 
-The chosen direction is Python, FastAPI, React, TypeScript, Pydantic, and a thin OpenAI Responses API adapter, with a local container launch for assessment reviewers. The user selected OpenAI for the initial MVP on October 18, superseding the earlier Bedrock proposal. No AWS credentials or deployment are required. The exact model configuration remains subject to M1 verification; native PDF text is the initial input path, with unsupported scans explicitly rejected. See the [provider decision](model-provider.md).
+The chosen direction is Python, FastAPI, React, TypeScript, Pydantic, and a thin OpenAI Responses API adapter, with a one-line local launch for assessment reviewers. The user selected OpenAI for the initial MVP on October 18. The exact model configuration remains subject to M1 verification; native PDF text is the initial input path, with unsupported scans explicitly rejected. See the [provider decision](model-provider.md).
 
-Status on October 18, 2026: the full non-live stack is implemented — contracts, PDF intake, storage, stage interpreter + adapter, workflow, HTTP source API, exports, and the staff review UI — with deterministic, controlled-interpreter, and fixture-interpreter evidence passing in GitHub Actions. The OpenAI access probe reached the provider but failed with insufficient quota; the user deferred quota resolution, so live semantic validation, the measured token envelope, and the live reviewer acceptance run remain open. The [BRD and TRD](requirements/README.md) define requirements and contracts; [architecture](architecture.md) defines the design; [evaluation](evaluation.md) defines the acceptance cases; [model provider decision](model-provider.md) records the active integration boundary; [AWS research](aws.md) preserves the earlier proposal and future options.
+Status on October 18, 2026: the full non-live stack is implemented — contracts, PDF intake, storage, stage interpreter + adapter, workflow, HTTP source API, exports, and the staff review UI — with deterministic, controlled-interpreter, and fixture-interpreter evidence passing in GitHub Actions. The OpenAI access probe reached the provider but failed with insufficient quota; the user deferred quota resolution, so live semantic validation, the measured token envelope, and the live reviewer acceptance run remain open. The [BRD and TRD](requirements/README.md) define requirements and contracts; [architecture](architecture.md) defines the design; [evaluation](evaluation.md) defines the acceptance cases; [model provider decision](model-provider.md) records the active integration boundary.
 
 ## Stable delivery baseline
 
-Keep M0–M6, WP-01–WP-18, and the linked BR/TR/acceptance IDs stable. The scope remains one policy, one chart, one selected request, an inspectable evidence checklist, saved results, and export. The October 18 provider change selects OpenAI and removes AWS credentials from MVP prerequisites; it does not add cloud deployment or change the staff journey. The quota deferral changes the live-validation schedule only.
+Keep M0–M6 and all existing requirement/package/acceptance IDs stable. The October 18 long-document extension adds BR-013, TR-019, WP-19, and A21 without renumbering earlier records. The scope remains one policy, one chart, one selected request, an inspectable evidence checklist, saved results, and export. The October 18 provider change selects OpenAI. It does not add cloud deployment or change the staff journey. The quota deferral changes the live-validation schedule only.
 
 Record new evidence and package completion in the work breakdown. Change scope, contracts, supported input behavior, or acceptance expectations only with an explicit rationale and coordinated requirement/design/test updates. Do not rebuild the sequence around each test result or mark a milestone complete while a required live gate is open.
 
@@ -18,9 +18,9 @@ The MVP handles one guideline PDF and one chart PDF per assessment, and one sele
 
 The initial user journey is:
 
-1. Upload the policy and chart. Enter or confirm the requested procedure, payer and plan, and service date when those are ambiguous or absent. Retain user corrections as annotations alongside the extracted source.
+1. Upload the policy and chart. Independently extract and save the whole-guideline rule set and chart facts, reusing compatible saved artifacts. Enter or confirm the requested procedure, payer and plan, and service date when those are ambiguous or absent. Retain user corrections as annotations alongside the extracted source.
 2. See extraction progress and any unreadable pages. Inspect the selected documents, policy revision, and request summary.
-3. Review applicability. A confirmed payer or procedure mismatch stops assessment. An uncertain plan, date, or policy scope requires clarification; an upload does not prove the policy applies.
+3. Review applicability using the saved artifacts. A confirmed payer or procedure mismatch stops assessment. An uncertain plan, date, or policy scope requires clarification; an upload does not prove the policy applies.
 4. Inspect requirements grouped according to the policy's AND/OR structure. Each finding displays the requirement, its policy citation, chart evidence, and the reason for its status.
 5. Open either source at the cited page. Review missing documentation, conflicts, and unsupported interpretation. Suggested next steps request clarification or documentation without inventing clinical facts or treatment advice.
 6. Save or export the assessment as structured JSON and a readable checklist, including unresolved issues and the exact policy version. Re-running with a changed input creates a new result.
@@ -33,13 +33,13 @@ The [decision record](decisions.md) consolidates these decisions, including impl
 
 | Decision | Direction | Evidence or condition |
 | --- | --- | --- |
-| Core workflow | Applicability, policy requirements, evidence, deterministic aggregation, staff review. | Matches the assessment and recurring public implementation pattern. |
+| Core workflow | Independent persisted guideline rule sets and chart facts, applicability, evidence mapping, deterministic aggregation, staff review. | Matches the assessment and recurring public implementation pattern. |
 | Platform | OpenAI Responses API for model inference; portable local application runtime. | Latest user provider selection plus the clean-checkout requirement. |
 | Application stack | FastAPI, React and TypeScript, Pydantic, Python tests and saved browser tests. | Fits Aira's stated stack and the domain contracts. |
 | Persistence | SQLite metadata and local document/artifact files in a mounted data directory. | A single local reviewer needs durable runs without extra services. |
 | PDF extraction | Native text and layout extraction first; page-level quality checks. | Supplied documents have text but include layout and chronology traps. |
 | OCR | Explicitly reject unsupported scans in the initial release; consider OCR later if representative inputs justify it. | M2 verifies native extraction, mixed-page accounting, and the supported input envelope. Never silently skip a page. |
-| Context | Full page-tagged documents when within measured limits. | Establish an evidence-recall baseline before adding retrieval. Reject oversized input visibly until a tested section strategy exists. |
+| Context | Structure-aware section extraction with explicit dependency reconciliation and coverage auditing for long guidelines. | [WP-19 plan](plans/long-document-rule-compilation.md). Whole-document calls remain a measured small-input baseline; current limits must fail explicitly until the section pipeline is verified. |
 | Model | Explicit OpenAI model configuration; select a tested configuration in M1. | Compare accessible candidates on quality, latency, access, and usage, or record the single-model limitation. No model quality claim yet. |
 | Policy logic | Flat logical nodes referencing criteria; local structural validation and evaluation. | Avoid recursive wire schemas and preserve nested policy conditions. |
 | Scope generality | Two policy families, new patient charts, and an unseen pair in the final evaluation. | Vein-only templates would not satisfy the assessment's generality requirement. |
@@ -55,10 +55,10 @@ Work in small changes with an executable exit check. A milestone is complete onl
 | M0 Contracts and expectations | Establish the minimal project foundation, request scope, rule states, initial schema baseline, annotated policy passages, fictional chart fixtures, and expected outcomes. Select a second policy family. Record input provenance and separate development from held-out cases. | A reviewer can explain expected branches and cited evidence without running a model. No unresolved requirement is hidden in a fixture. Feasibility findings can amend versioned schemas before integration. | Current research |
 | M1 Model feasibility | Add the smallest OpenAI Responses API adapter and a CLI experiment for policy and chart extraction. Compare two available candidates where access permits; otherwise document the single-model limitation. Pin the selected provider/model, SDK, prompt, schema, and inference settings. | A real call from a reviewer-like environment produces validated structured output and page citations. Missing access, unsupported schema, refusal, and timeout are visible errors. Record tokens, latency, and configuration. | M0 |
 | M2 PDF feasibility | Implement document hashing, page/block extraction, coordinates, and native-text quality checks. Inspect columns and tables against rendered pages. Identify unsupported scans and mixed-page failures explicitly; finalize the native-text support boundary and measured input envelope. | The supplied dates, units, negation, tables, and page-spanning passages survive extraction. Every page is accounted for; bad input produces an actionable state. | M0; final combined input limits use M1 results |
-| M3 End-to-end workflow | Implement scope checking, policy and chart extraction, evidence matching, provenance validation, rule aggregation, and persisted run artifacts. Add bounded stage execution and explicit failure states. | CLI completes a matched synthetic case, blocks the supplied mismatch, and exposes missing/conflicting evidence. No invalid citation can produce a successful finding. | M1 and M2 |
+| M3 End-to-end workflow | Implement independent document-only policy/chart interpretation and durable reuse, then scope checking, evidence matching over saved facts, provenance validation, rule aggregation, and persisted run artifacts. Add bounded stage execution and explicit failure states. | CLI completes a matched synthetic case, blocks the supplied mismatch, and exposes missing/conflicting evidence. No invalid citation can produce a successful finding. | M1 and M2 |
 | M4 Review interface | Build upload, request summary, applicability result, grouped checklist, source-page viewer, issue details, export, and retry of a failed run. | A saved browser test uploads documents, opens a citation, sees a gap, and exports a traceable result. A failed dependency is understandable without reading server logs. | M3 |
 | M5 Evaluation and hardening | Run the [evaluation matrix](evaluation.md). Test changed policy, second policy family, explicit scan rejection, long input, malformed model output, retries, and process interruption. Fix errors and rerun affected cases. | Mandatory deterministic checks pass; semantic cases have reviewed outcomes; critical unsupported findings are zero on the release set. Publish counts and failures as well as successes. | M3 and M4 |
-| M6 Reviewer delivery | Package the container, exact prerequisites, one-line command, known limits, example files, design note, and a short demonstration script. Test a fresh checkout and a separately held-out document pair. | A clean environment launches and processes live new inputs with documented credentials. Export identifies the model and source versions. Deliver the code at least one day before the call. | M5 |
+| M6 Reviewer delivery | Package the one-line command, exact prerequisites, known limits, example files, design note, and a short demonstration script. Test a fresh checkout and a separately held-out document pair. | A clean environment launches and processes live new inputs with documented credentials. Export identifies the model and source versions. Deliver the code at least one day before the call. | M5 |
 
 M1 and the native PDF experiments in M2 can proceed in parallel after M0. Final input limits combine parser and model findings before M3 completion. Assign ownership of shared schemas before parallel implementation. Integrate contracts first and run end-to-end checks after changes merge; individually passing branches do not prove a working combined product.
 
@@ -97,18 +97,22 @@ evals/
 scripts/                 Launch and evaluation entry points
 docs/                    Requirements, decisions, research, and design note
 examples/                Supplied and clearly labeled fictional documents
-Dockerfile
-compose.yaml
 .env.example
 ```
 
 Actual deviations from this plan: there is no separate `app/observability/` module — usage lives on `RunRecord.usage`/`StageUsage`; the frontend organizes review views under `src/components/` rather than `src/features/*`; and shared test/fixture support lives in `tests/support.py` and `tests/e2e/` rather than the sketched layout.
 
+## Long-document feature execution
+
+[WP-19](features/19-long-document-rule-compilation.md) is the user-authorized extension for complete 100–200-page guideline preparation and reuse. Its [detailed implementation plan](plans/long-document-rule-compilation.md) defines contracts, algorithms, dependencies, ownership, failure behavior, and execution slices. LD-01–LD-10 progress from independently annotated fixtures and versioned contracts through structural planning/extraction, cross-section reconciliation/compilation, durable build execution, staff/provider integration, evaluation, and delivery.
+
+Use M2 for the measured parser/token envelope, M3 for the build service and assessment integration, M5 for A21 evaluation, and M6 for direct-OpenAI clean-checkout delivery. Whole-document prompts, page-range helpers, or repeated page-to-global-graph folds do not complete this feature. The [work breakdown](work-breakdown.md#wp-19-long-document-rule-set-compilation) owns current status.
+
 ## Reviewer launch contract
 
-The target command is `docker compose up --build`, after the documented prerequisite setup. The container now serves the full UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured; the live path remains unverified under the deferred quota. Build the React assets into the application image, serve them from FastAPI on one documented port, and persist local data through a volume. Keep parser dependencies in the image and lock Python and JavaScript dependencies.
+The target command is `./scripts/launch.sh`, after the documented prerequisite setup: it installs locked dependencies, builds the React assets, and serves the API and UI from one documented port with a persistent local data directory. GitHub Actions runs the same browser checks against that local process. The app serves the full UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured; the live path remains unverified under the deferred quota. Lock Python and JavaScript dependencies.
 
-Live inference requires a server-side `OPENAI_API_KEY` with access to the explicitly configured `AIRA_MODEL`. Verify this configuration inside the backend container. Document nonsecret settings and input limitations in `.env.example`; do not put keys in the repository, frontend build variables, prompts, exports, or logs. Model access and configuration remain M1 verification outcomes. Do not depend on the author's laptop services, private registry, local LLM gateway, or personal browser session.
+Live inference requires a server-side `OPENAI_API_KEY` with access to the explicitly configured `AIRA_MODEL`. Verify this configuration with `python -m app.llm.preflight`. Document nonsecret settings and input limitations in `.env.example`; do not put keys in the repository, frontend build variables, prompts, exports, or logs. Model access and configuration remain M1 verification outcomes. Do not depend on the author's laptop services, private registry, local LLM gateway, or personal browser session.
 
 A credential-free fixture mode may support deterministic tests. It must be labeled as fixture execution and must not stand in for the required live upload workflow. The application should start far enough to explain missing configuration; live assessment must not silently fall back to canned answers.
 
@@ -126,7 +130,7 @@ For this project that means:
 - Use bounded calls and explicit timeouts. Persist useful completed artifacts and present interruption honestly. Do not report success from partial extraction.
 - Inspect changes and generated test expectations. A failed case cannot be fixed by silently changing its expected answer.
 
-The Obsidian review contained useful engineering experience, some older proposals, and a PDF testing stub. Its private source register remains in the vault. Project decisions use the transferable practices. The [model provider decision](model-provider.md) defines the active integration and required API verification; [AWS research](aws.md) retains dated findings for possible future use. Historical thresholds, costs, and infrastructure details are not defaults for Aira.
+The Obsidian review contained useful engineering experience, some older proposals, and a PDF testing stub. Its private source register remains in the vault. Project decisions use the transferable practices. The [model provider decision](model-provider.md) defines the active integration and required API verification. Historical thresholds, costs, and infrastructure details are not defaults for Aira.
 
 ## Risks and decision gates
 
@@ -145,3 +149,7 @@ Before release, resolve the exact model/API configuration, credential onboarding
 ## Interview preparation
 
 The final short design note should be written from the implementation and measured outcomes. Explain why the scope is one request against one policy, why applicability precedes evaluation, how policy data differs from code, where model and staff judgment remain, what the sample mismatch revealed, and what failed during evaluation. Demonstrate a successful case and a useful failure. Describe a later hosting option and the evidence that would justify adding retrieval or a more complex workflow.
+
+## October 18 clarification: independent extraction
+
+The user requires two independent model extraction flows through the configured LiteLLM-compatible transport: whole-guideline interpretation saved as a reusable rule set, and chart-only extraction saved as patient facts. Assessment consumes those artifacts. Changing patient/request/annotations must never rebuild the guideline; changing guideline must not repeat chart extraction. This replaces the earlier request-specific policy prompt and combined chart-extraction/evidence-mapping design. TR-006/TR-007/TR-012, WP-08/WP-09/WP-11, and A09/A17 own implementation and verification. Live quality gates remain open.

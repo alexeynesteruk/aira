@@ -300,16 +300,11 @@ def test_conflicting_metadata_annotation_requires_reason_and_keeps_sources() -> 
         TextAnnotation.model_validate_json(json.dumps(data))
 
 
-def test_openai_is_regionless_and_future_bedrock_requires_region() -> None:
+def test_openai_configuration_does_not_use_a_region() -> None:
     data = completed()["configuration"]
     assert ConfigurationProvenance.model_validate_json(json.dumps(data)).region is None
-    data["provider"] = "bedrock"
-    with pytest.raises(ValidationError, match="requires a region"):
-        ConfigurationProvenance.model_validate_json(json.dumps(data))
     data["region"] = "us-east-1"
-    assert ConfigurationProvenance.model_validate_json(json.dumps(data)).region == "us-east-1"
-    data["provider"] = "openai"
-    with pytest.raises(ValidationError, match="does not use an AWS region"):
+    with pytest.raises(ValidationError, match="does not use a region"):
         ConfigurationProvenance.model_validate_json(json.dumps(data))
 
 

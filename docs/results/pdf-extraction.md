@@ -74,4 +74,4 @@ uv run --python 3.13 ruff check app/documents ../tests/integration/test_document
 uv run --python 3.13 mypy --strict app/documents ../tests/integration/test_documents.py
 ```
 
-Observed result after the annotation regression: **34 tests passed**, Ruff passed, and strict mypy passed for the two application modules and test module. Repository-wide checks and UI/container verification are separate integration responsibilities. WP-15 still owns final support/limit verification; the OpenAI model envelope remains unverified while live inference is deferred for quota resolution.
+Observed result after the annotation regression: **34 tests passed**, Ruff passed, and strict mypy passed for the two application modules and test module. Repository-wide checks and UI verification are separate integration responsibilities. WP-15 still owns final support/limit verification; the OpenAI model envelope remains unverified while live inference is deferred for quota resolution.

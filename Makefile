@@ -1,4 +1,7 @@
-.PHONY: install check backend-check frontend-check browser-test dev-api dev-ui
+.PHONY: install check backend-check frontend-check browser-test dev-api dev-ui run
+
+run:
+	./scripts/launch.sh
 
 install:
 	uv sync --project backend --locked

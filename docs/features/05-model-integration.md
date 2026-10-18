@@ -25,9 +25,9 @@ The model-integration developer establishes a real, repeatable inference path fo
 
 - [ ] A02–A05 results can be inspected against independent expected evidence; schema conformity alone does not establish correctness.
 - [ ] Adapter checks reject transport/schema failures and keep retries bounded without clinical `missing` substitutions or silent fixture fallback. Fixture/manual comparison records citation discrepancies; production provenance rejection is verified in WP-10/WP-11. [A15–A18](../evaluation.md#required-scenarios)
-- [ ] The live-provider portion of A19 succeeds using documented server/container configuration; the chosen SDK recognizes the transport fields and the API key is absent from frontend assets and results.
+- [ ] The live-provider portion of A19 succeeds using the documented server configuration; the chosen SDK recognizes the transport fields and the API key is absent from frontend assets and results.
 
-Use the [evaluation matrix](../evaluation.md#required-scenarios). Model, API configuration, and timeout choices remain experiment outcomes until this evidence exists. AWS credentials are not prerequisites.
+Use the [evaluation matrix](../evaluation.md#required-scenarios). Model, API configuration, and timeout choices remain experiment outcomes until this evidence exists.
 
 ## Dependencies and references
 

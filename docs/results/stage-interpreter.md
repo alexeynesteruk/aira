@@ -38,4 +38,4 @@ Commands run from the repository root:
 
 - All evidence is scripted transport data. Semantic quality, model comparison, and the M3 live-run exit check remain unverified until the deferred API quota is restored.
 - The scripted candidates quote real text but do not demonstrate that a model produces source-valid candidates.
-- The CLI is a development instrument for one pair; the HTTP admission path remains WP-12 scope.
+- The CLI is a development instrument for one pair; the HTTP admission path is implemented and verified separately in the [HTTP API record](http-api.md).

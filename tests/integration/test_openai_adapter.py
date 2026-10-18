@@ -75,6 +75,23 @@ def adapter(handler, **overrides):
     return OpenAIAdapter(settings(**overrides), client=client)
 
 
+def wire_chat_response(*, text='{"result":"aira_access_verified"}', finish="stop", refusal=None):
+    return {
+        "id": "chatcmpl_test",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "test-model",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": text, "refusal": refusal},
+                "finish_reason": finish,
+            }
+        ],
+        "usage": {"prompt_tokens": 31, "completion_tokens": 9, "total_tokens": 40},
+    }
+
+
 async def interpret(instance):
     return await instance.interpret(
         phase=RunPhase.CHECKING_APPLICABILITY,
@@ -111,6 +128,108 @@ async def test_real_sdk_sends_strict_schema_and_records_response_identity():
     assert result.metrics.request_ids == ("req_test",)
     assert result.metrics.response_ids == ("resp_test",)
     assert result.metrics.duration_ms >= 0 and result.prompt_version == "test-v1"
+
+
+@pytest.mark.anyio
+async def test_chat_transport_sends_strict_schema_and_records_response_identity():
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json=wire_chat_response(), headers={"x-request-id": "req_chat"})
+
+    instance = adapter(respond, transport="chat_completions")
+    try:
+        result = await interpret(instance)
+    finally:
+        await instance.close()
+    body = json.loads(requests[0].content)
+    assert requests[0].url.path == "/v1/chat/completions"
+    assert body["model"] == "test-model"
+    assert body["messages"][0]["role"] == "system"
+    assert body["messages"][1] == {"role": "user", "content": "aira_access_verified"}
+    assert body["response_format"]["json_schema"]["strict"] is True
+    assert body["response_format"]["json_schema"]["schema"]["required"] == ["result"]
+    assert body["max_completion_tokens"] == 4096
+    assert "tools" not in body and "temperature" not in body
+    assert result.value.result == "aira_access_verified"
+    assert result.metrics.attempts == 1
+    assert (result.metrics.input_tokens, result.metrics.output_tokens) == (31, 9)
+    assert result.metrics.request_ids == ("req_chat",)
+    assert result.metrics.response_ids == ("chatcmpl_test",)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("kwargs", "code"),
+    [
+        ({"refusal": "declined"}, ErrorCode.REFUSED),
+        ({"finish": "length"}, ErrorCode.INVALID_OUTPUT),
+        ({"finish": "content_filter"}, ErrorCode.INVALID_OUTPUT),
+        ({"text": "{"}, ErrorCode.INVALID_OUTPUT),
+        ({"text": '{"result":"invented"}'}, ErrorCode.INVALID_OUTPUT),
+    ],
+)
+async def test_chat_transport_never_turns_bad_output_into_candidates(kwargs, code):
+    instance = adapter(
+        lambda request: httpx.Response(200, json=wire_chat_response(**kwargs)),
+        transport="chat_completions",
+    )
+    try:
+        with pytest.raises(ModelFailure) as error:
+            await interpret(instance)
+    finally:
+        await instance.close()
+    assert error.value.error.code == code and error.value.metrics.attempts == 1
+    assert error.value.metrics.input_tokens == 31
+
+
+@pytest.mark.anyio
+async def test_chat_transport_records_http_failures_with_the_same_boundaries():
+    instance = adapter(
+        lambda request: httpx.Response(
+            429, json={"error": {"message": "limited", "code": "rate_limit_exceeded"}}
+        ),
+        transport="chat_completions",
+    )
+    try:
+        with pytest.raises(ModelFailure) as error:
+            await interpret(instance)
+    finally:
+        await instance.close()
+    assert error.value.error.code == ErrorCode.THROTTLED
+    assert error.value.metrics.attempts == 2
+
+
+def test_configuration_reads_endpoint_transport_and_timeouts(tmp_path):
+    base = {"OPENAI_API_KEY": "local-test-key", "AIRA_MODEL": "test-model"}
+    default = OpenAISettings.from_environment(env_file=tmp_path / "missing", environ=base)
+    assert default.base_url == "https://api.openai.com/v1"
+    assert default.transport == "responses"
+    assert default.request_timeout_seconds == 30.0
+    assert default.stage_timeout_seconds == 65.0
+
+    configured = OpenAISettings.from_environment(
+        env_file=tmp_path / "missing",
+        environ={
+            **base,
+            "OPENAI_BASE_URL": "http://127.0.0.1:4000/v1",
+            "AIRA_LLM_TRANSPORT": "chat_completions",
+            "AIRA_REQUEST_TIMEOUT_SECONDS": "110",
+            "AIRA_STAGE_TIMEOUT_SECONDS": "280",
+        },
+    )
+    assert configured.base_url == "http://127.0.0.1:4000/v1"
+    assert configured.transport == "chat_completions"
+    assert configured.request_timeout_seconds == 110.0
+    assert configured.stage_timeout_seconds == 280.0
+
+    for bad_environ in (
+        {**base, "OPENAI_BASE_URL": "not-a-url"},
+        {**base, "AIRA_LLM_TRANSPORT": "xml"},
+    ):
+        with pytest.raises(ValidationError):
+            OpenAISettings.from_environment(env_file=tmp_path / "missing", environ=bad_environ)
 
 
 @pytest.mark.parametrize("model", [ScopeCandidate, PolicyCandidate, EvidenceCandidate])

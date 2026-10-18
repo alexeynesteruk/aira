@@ -2,7 +2,7 @@
 
 Build a provider-facing evidence checklist that helps clinic staff prepare a prior authorization request using an uploaded patient chart and insurer guideline. Staff should be able to identify the applicable requirements, inspect the supporting evidence, and resolve documentation gaps before submission.
 
-This is the business requirements document (BRD), updated October 18, 2026. BR-001–BR-012 remain the stable take-home scope. Foundation, contracts, reviewed test inputs, and the complete non-live staff workflow are implemented; live semantic evaluation and live release verification remain open. The [implementation plan](../implementation-plan.md), [technical design document](../architecture.md), and [evaluation cases](../evaluation.md) define delivery and technical detail. The [work breakdown](../work-breakdown.md) owns current package status.
+This is the business requirements document (BRD), updated October 18, 2026. BR-001–BR-012 retain their identifiers; the user-authorized long-document feature adds BR-013. Earlier foundation, contracts, fixtures, and staff workflow components have recorded evidence. The independent-extraction refactor and WP-19 long-document feature require integrated verification; live semantic evaluation and release remain open. The [implementation plan](../implementation-plan.md), [technical design document](../architecture.md), and [evaluation cases](../evaluation.md) define delivery and technical detail. The [work breakdown](../work-breakdown.md) owns current package status.
 
 ## Problem and requirement sources
 
@@ -10,7 +10,7 @@ The [assessment brief, page 1](../sources/Aira_FDE_Build_Case.pdf) describes a F
 
 The brief requires a working product that accepts new guideline PDFs and unseen patient charts, runs locally from one command, and includes a short design note. It leaves product scope and stack to the developer. The assessment email adds a 45-minute discussion with the interviewer and founding engineer; code is due one day before the call.
 
-Requirements below identify their origin as **brief**, **email**, or **MVP design**. The user selected OpenAI for the initial MVP, superseding the earlier AWS inference preference. The brief mandates neither provider, and cloud deployment is outside the assessment's required work. Source-specific risks come from the [document exploration](../exploration.md). In particular, the supplied UHC pacemaker chart and BCBS vein policy are an applicability mismatch, not a matched successful case.
+Requirements below identify their origin as **brief**, **email**, or **MVP design**. The user selected OpenAI for the initial MVP. The brief does not mandate a provider, and cloud deployment is outside the assessment's required work. Source-specific risks come from the [document exploration](../exploration.md). In particular, the supplied UHC pacemaker chart and BCBS vein policy are an applicability mismatch, not a matched successful case.
 
 ## Stakeholders and business outcomes
 
@@ -28,9 +28,11 @@ Observe staff effort through completion time for representative preparation task
 
 ## Scope and staff journey
 
-An assessment contains one uploaded guideline version, one patient chart PDF, and one selected procedure request. It produces an inspectable checklist, unresolved issues, saved results, and an export. A chart may contain several problems or proposed procedures; selecting one request limits the assessment without limiting the product to a hard-coded procedure family.
+An assessment contains one uploaded guideline version, one patient chart PDF, and one selected procedure request. Guideline processing and chart processing are independent document workflows: the guideline produces a complete, sourced rule set without receiving a patient or request; the chart produces sourced patient facts without receiving guideline criteria. Both artifacts are saved to disk and reused. Assessment then combines those artifacts with the selected request to check applicability, map evidence, and evaluate rules. A different patient or request must not rebuild the guideline rule set. A different guideline must not repeat chart extraction.
 
-1. Upload the guideline and chart and see whether all pages can be processed.
+The guideline inventory covers every page and section, including scope, definitions, alternatives, exclusions, exceptions, and unsupported conditions. Unsupported prose remains available for review rather than being omitted or turned into guessed executable logic. A chart may contain several problems or proposed procedures; selecting one request limits assessment, not either document extraction.
+
+1. Upload and prepare the guideline independently, inspect build progress and coverage, and retain its rule-set version. Upload and prepare a chart independently, then select both saved artifacts for assessment.
 2. Confirm the procedure, relevant anatomical target or side, payer, plan, and dates. Select a request if the chart contains several possibilities.
 3. Inspect policy applicability. Resolve uncertain scope or replace a mismatched guideline before proceeding.
 4. Review requirements and findings grouped by the applicable policy logic. Open policy and chart sources at their cited pages.
@@ -99,7 +101,7 @@ Acceptance: [A14](../evaluation.md#required-scenarios), [A16](../evaluation.md#r
 
 ### BR-010 One-command live reviewer workflow
 
-**Origin: brief; the initial OpenAI provider selection comes from the user and the implementation decision.** From a clean checkout, assessors can launch the local application with one documented command after explicitly documented prerequisites, then process new uploads through live inference, inspect citations, and export results. Server-side OpenAI key configuration and selected model access must be explained and verified before delivery. A fixture mode may support testing but cannot substitute for the live workflow. A hosted URL alone does not meet this requirement.
+**Origin: brief; the direct OpenAI requirement and optional LiteLLM configuration come from the user.** From a clean checkout, assessors can launch the local application with one documented command after explicitly documented prerequisites, then process new uploads through live inference, inspect citations, and export results. Server-side OpenAI key configuration and selected model access must be explained and verified before delivery. Reviewers must be able to supply a server-side OpenAI API key and explicit model and run every inference stage directly without the developer's LiteLLM service. A fixture mode may support testing but cannot substitute for the live workflow. A hosted URL alone does not meet this requirement.
 
 Acceptance: [A19](../evaluation.md#required-scenarios), with configuration and service failures covered by [A16](../evaluation.md#required-scenarios).
 
@@ -114,6 +116,14 @@ Acceptance: [A01–A20](../evaluation.md#required-scenarios), particularly [A11]
 **Origin: brief and email.** Provide the code as a repository or zip with the verified one-line command at least one day before the call. Include a short design note explaining where judgment lives, what is data versus code, and what breaks first with changed guidelines or messy charts. Be prepared for the 45-minute discussion with the interviewer and founding engineer about their independently observed results, tradeoffs, and the path beyond the MVP.
 
 Acceptance: [A19](../evaluation.md#required-scenarios), the [final verification record](../evaluation.md#final-verification-record), and a delivery check for the code, run instructions, design note, and submission timing. The calendar date is still to be established.
+
+### BR-013 Long guideline preparation and reuse
+
+**Origin: user clarification on October 18, 2026, informed by the [research log](../research/long-document-rule-extraction.md).** Staff can prepare a complete 100–200-page guideline without a chart using bounded, structure-aware extraction. Definitions, procedure-specific branches, distant exceptions, tables, and cross-references retain their meaning and sources. Staff can inspect coverage, unresolved interpretation, progress, and failures; partial processing cannot appear as a complete rule set. A prepared version is saved and reused across patients and restarts. Retrying or rebuilding preserves prior versions and assessments. Changing the guideline does not silently rewrite saved chart facts.
+
+This adds a measured long-document acceptance target to the original scope; it does not claim that current parser/model limits or the working-tree prototype satisfy it. Source ambiguity and absent referenced material require review. Direct OpenAI access remains required, with LiteLLM optional.
+
+Acceptance: [A21](../evaluation.md#required-scenarios), A09/A13–A20, and [WP-19's LD-AC01–LD-AC12](../features/19-long-document-rule-compilation.md#acceptance-checks).
 
 ## Release acceptance and assumptions
 

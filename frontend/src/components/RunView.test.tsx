@@ -68,8 +68,47 @@ describe('RunView', () => {
     render(<RunView runId="run-1" onOpenRun={vi.fn()} onNewRun={vi.fn()} />)
     expect(await screen.findByText('The chart has no extractable text.')).toBeVisible()
     expect(screen.getByText(/Upload a text-based PDF or a corrected scan/)).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Start a new run' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Choose different documents' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Retry assessment' })).not.toBeInTheDocument()
+  })
+
+  it('offers a linked retry when the failure is retryable', async () => {
+    stubRun(
+      run({
+        status: 'failed',
+        phase: 'checking_applicability',
+        error: {
+          code: 'timeout',
+          message: 'The model stage exceeded its deadline.',
+          retryable: true,
+          action: 'Retry the assessment after checking provider availability.',
+          stage: 'checking_applicability',
+        },
+      }),
+    )
+    render(<RunView runId="run-1" onOpenRun={vi.fn()} onNewRun={vi.fn()} />)
+    expect(await screen.findByRole('button', { name: 'Retry assessment' })).toBeVisible()
+    expect(screen.getByText(/Retry keeps this attempt/)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Start a new run' })).not.toBeInTheDocument()
     expect(screen.queryByText('Documentation readiness only — not an insurer decision.')).not.toBeInTheDocument()
+  })
+
+  it('shows the active model stage without inventing a percent', async () => {
+    stubRun(
+      run({
+        status: 'running',
+        phase: 'interpreting_policy',
+        progress: { completed_phases: ['extracting'], completed_pages: 21, total_pages: 21 },
+      }),
+    )
+    render(<RunView runId="run-1" onOpenRun={vi.fn()} onNewRun={vi.fn()} />)
+    expect(await screen.findByText(/Building the rule set from the whole guideline/)).toBeVisible()
+    expect(screen.getByText(/No percent is shown/)).toBeVisible()
+    const current = screen.getByRole('list').querySelector('[data-state="current"]')
+    expect(current).toHaveTextContent('Interpreting policy')
+    expect(screen.getByRole('list').querySelector('[data-state="done"]')).toHaveTextContent(
+      'Extracting documents',
+    )
   })
 
   it('never labels a review_required outcome as satisfied', async () => {

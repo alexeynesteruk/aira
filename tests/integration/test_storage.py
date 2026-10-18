@@ -22,7 +22,6 @@ from app.schemas import (
     ExtractionRecord,
     FieldSources,
     InferenceSettings,
-    ModelProvider,
     PageInventory,
     PageQuality,
     RequestContext,
@@ -377,7 +376,6 @@ def test_compatible_completed_stage_reuses_actual_saved_output_after_failed_atte
     "change",
     [
         "model",
-        "provider",
         "sdk",
         "parser",
         "parser_config",
@@ -396,8 +394,6 @@ def test_configuration_input_and_annotation_changes_do_not_reuse(prepared, chang
     config = CONFIG
     if change == "model":
         config = replace(config, model_id="different-model")
-    elif change == "provider":
-        config = replace(config, provider=ModelProvider.BEDROCK, region="us-east-1")
     elif change == "sdk":
         config = replace(config, sdk_version="fixture-2")
     elif change == "parser":

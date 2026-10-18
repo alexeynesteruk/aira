@@ -9,7 +9,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
@@ -62,6 +66,9 @@ class NativePdfConfig:
     x_tolerance: float = 3.0
     y_tolerance: float = 3.0
     column_gap: float = 30.0
+    ocr_enabled: bool = True
+    ocr_command: str = "tesseract"
+    ocr_languages: str = "eng"
 
     def __post_init__(self) -> None:
         for name in (
@@ -92,6 +99,9 @@ class NativePdfConfig:
             "expand_ligatures": False,
             "image_content": "reject",
             "annotations": "reject_except_noncontent_zero_border_uri_or_goto_links",
+            "ocr_enabled": self.ocr_enabled,
+            "ocr_command": self.ocr_command,
+            "ocr_languages": self.ocr_languages,
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
@@ -375,11 +385,14 @@ def _extract_blocks(page: Page, config: NativePdfConfig) -> tuple[TextBlock, ...
     )
 
 
-def _failed_page(number: int, issue: str, *, needs_ocr: bool = False) -> ExtractedPage:
+def _failed_page(
+    number: int, issue: str, *, needs_ocr: bool = False, extraction_score: float | None = None
+) -> ExtractedPage:
     return ExtractedPage(
         page=number,
         quality=PageQuality.NEEDS_OCR if needs_ocr else PageQuality.UNUSABLE,
         issues=(issue,),
+        extraction_score=extraction_score,
     )
 
 
@@ -440,6 +453,51 @@ def _noncontent_navigation_link(annotation: Mapping[str, object]) -> bool:
     return False
 
 
+def _ocr_page(page: Page, config: NativePdfConfig) -> str:
+    """Run the configured OCR command on a rendered page image."""
+    if not shutil.which(config.ocr_command):
+        return ""
+    temporary_directory = tempfile.mkdtemp(prefix="aira-ocr-")
+    image_path = os.path.join(temporary_directory, "page.png")
+    try:
+        rendered = page.to_image(resolution=200)
+        rendered.original.convert("RGB").save(image_path, format="PNG")
+        completed = subprocess.run(
+            [config.ocr_command, image_path, "stdout", "-l", config.ocr_languages, "--psm", "6"],
+            capture_output=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            return ""
+        return completed.stdout.decode("utf-8", errors="replace")
+    except (OSError, ValueError, RuntimeError):
+        return ""
+    finally:
+        for name in os.listdir(temporary_directory):
+            try:
+                os.unlink(os.path.join(temporary_directory, name))
+            except OSError:
+                pass
+        try:
+            os.rmdir(temporary_directory)
+        except OSError:
+            pass
+
+
+def _ocr_blocks(page: Page, text: str) -> tuple[TextBlock, ...]:
+    blocks: list[TextBlock] = []
+    for index, line in enumerate(line for line in text.splitlines() if line.strip()):
+        blocks.append(
+            TextBlock(
+                block_id=f"p{page.page_number:04d}.o{index:05d}",
+                text=" ".join(line.split()),
+                reading_order=index,
+                bbox=None,
+            )
+        )
+    return tuple(blocks)
+
+
 def _extract_page(
     page: Page, config: NativePdfConfig, remaining_characters: int
 ) -> tuple[ExtractedPage, int]:
@@ -449,6 +507,7 @@ def _extract_page(
             page.page_number,
             "unsupported_annotations: page annotations may alter visible source meaning; "
             "export a flattened native-text PDF that preserves all amendments.",
+            extraction_score=0.0,
         ), 0
     navigation_issues = (
         (
@@ -464,29 +523,64 @@ def _extract_page(
     count = sum(len(str(character.get("text", ""))) for character in characters)
     if count > config.max_characters_per_page or count > remaining_characters:
         return _failed_page(
-            page.page_number, "character_limit: native text exceeds the configured parser budget."
+            page.page_number,
+            "character_limit: native text exceeds the configured parser budget.",
+            extraction_score=0.0,
         ), count
     if page.rotation != 0:
         return _failed_page(
-            page.page_number, "rotated_page: export an upright native-text PDF."
+            page.page_number,
+            "rotated_page: export an upright native-text PDF.",
+            extraction_score=0.0,
         ), count
+    if not characters:
+        if config.ocr_enabled and page.images:
+            ocr_text = _ocr_page(page, config)
+            if ocr_text.strip():
+                blocks = _ocr_blocks(page, ocr_text)
+                return ExtractedPage(
+                    page=page.page_number,
+                    quality=PageQuality.USABLE,
+                    method=ExtractionMethod.OCR,
+                    blocks=blocks,
+                    issues=navigation_issues,
+                    extraction_score=1.0,
+                ), len(ocr_text)
+        if page.images:
+            issue = (
+                "unsupported_image_content: raster content requires unsupported OCR "
+                "or visual interpretation."
+            )
+            return _failed_page(
+                page.page_number, issue, needs_ocr=True, extraction_score=0.0
+            ), count
+        if page.lines or page.rects or page.curves:
+            return _failed_page(
+                page.page_number,
+                "unusable_vector_content: visible content has no native text.",
+                extraction_score=0.0,
+            ), count
+        return ExtractedPage(
+            page=page.page_number,
+            quality=PageQuality.BLANK,
+            issues=navigation_issues,
+            extraction_score=1.0,
+        ), count
+
     if page.images:
         issue = (
             "unsupported_image_content: raster content requires unsupported OCR "
             "or visual interpretation."
         )
-        return _failed_page(page.page_number, issue, needs_ocr=not characters), count
-    if not characters:
-        if page.lines or page.rects or page.curves:
-            return _failed_page(
-                page.page_number, "unusable_vector_content: visible content has no native text."
-            ), count
-        return ExtractedPage(
-            page=page.page_number, quality=PageQuality.BLANK, issues=navigation_issues
+        return _failed_page(
+            page.page_number, issue, needs_ocr=not characters, extraction_score=0.0
         ), count
     blocks = _extract_blocks(page, config)
     original_text = "".join(str(character.get("text", "")) for character in characters)
     extracted_text = "".join(block.text for block in blocks)
+    source_characters = len(_characters(original_text))
+    extracted_characters = len(_characters(extracted_text))
+    score = 1.0 if source_characters == 0 else min(1.0, extracted_characters / source_characters)
     issues: list[str] = []
     if not blocks:
         issues.append("unusable_text: native glyphs did not produce readable blocks.")
@@ -502,6 +596,7 @@ def _extract_page(
         method=ExtractionMethod.NATIVE_TEXT,
         blocks=blocks,
         issues=tuple(issues) + navigation_issues,
+        extraction_score=score,
     ), count
 
 
@@ -540,6 +635,7 @@ def extract_pdf(
                     result = _failed_page(
                         number,
                         "character_limit: parser budget exhausted; page was not extracted.",
+                        extraction_score=0.0,
                     )
                 else:
                     result, count = _extract_page(page, settings, remaining)
@@ -547,7 +643,11 @@ def extract_pdf(
                 pages.append(result)
             except _PageLimitExceeded:
                 pages.append(
-                    _failed_page(number, "table_cell_limit: page exceeds table-cell budget.")
+                    _failed_page(
+                        number,
+                        "table_cell_limit: page exceeds table-cell budget.",
+                        extraction_score=0.0,
+                    )
                 )
             except Exception:
                 # Retain the failed page and continue inventory, never a partial-success document.
@@ -556,6 +656,7 @@ def extract_pdf(
                         number,
                         "page_extraction_failed: native layout could not be read; "
                         "export a new native-text PDF.",
+                        extraction_score=0.0,
                     )
                 )
             finally:

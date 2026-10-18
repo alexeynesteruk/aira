@@ -12,9 +12,11 @@ import {
 } from '../api'
 import {
   APPLICABILITY_LABELS,
+  ASSESSMENT_PHASES,
   fieldLabel,
   outcomeLabel,
   pageQualityLabel,
+  PHASE_ACTIVITY,
   phaseLabel,
   READINESS_DISCLAIMER,
   runStatusLabel,
@@ -25,6 +27,44 @@ import { Clarification } from './Clarification'
 import { SourceViewer } from './SourceViewer'
 
 const TERMINAL = new Set(['completed', 'needs_input', 'failed', 'interrupted'])
+
+function workingFor(updatedAt: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - Date.parse(updatedAt)) / 1000))
+  const minutes = Math.floor(seconds / 60)
+  const rest = seconds % 60
+  return minutes === 0 ? `${rest}s` : `${minutes}m ${rest}s`
+}
+
+function StageProgress({ run }: { run: RunRecord }) {
+  const active = run.status === 'queued' || run.status === 'running'
+  if (!active) return null
+  const completed = new Set(run.progress.completed_phases)
+  const message =
+    run.status === 'queued'
+      ? 'Waiting for the assessment already running to finish. This one has not started.'
+      : (PHASE_ACTIVITY[run.phase ?? ''] ?? 'Working on the current step.')
+  return (
+    <div className="activity" role="status" aria-live="polite">
+      <div className="activity-track" aria-hidden="true">
+        <span />
+      </div>
+      <p>{run.progress.activity || message}</p>
+      {run.status === 'running' && (
+        <p className="note">Working for {workingFor(run.updated_at)}. No percent is shown, because a model call has no measured fraction left.</p>
+      )}
+      <ol className="stage-list">
+        {ASSESSMENT_PHASES.map((stage) => {
+          const state = completed.has(stage) ? 'done' : run.phase === stage ? 'current' : 'waiting'
+          return (
+            <li key={stage} data-state={state}>
+              {phaseLabel(stage)}
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
 
 export function ErrorNotice({ error }: { error: OperationalError }) {
   const [document, setDocument] = useState<DocumentResponse | null>(null)
@@ -248,6 +288,7 @@ export function RunView({
 }) {
   const [run, setRun] = useState<RunRecord | null>(null)
   const [error, setError] = useState<ApiRequestError | null>(null)
+  const [retryError, setRetryError] = useState<string | null>(null)
   const [source, setSource] = useState<{ span: SourceSpan; documentName: string } | null>(
     null,
   )
@@ -312,6 +353,7 @@ export function RunView({
 
   async function startNewRun() {
     if (!run) return
+    setRetryError(null)
     try {
       const accepted = await submitAssessment({
         policy_document_id: run.policy_document_id,
@@ -321,10 +363,10 @@ export function RunView({
       })
       onOpenRun(accepted.run_id)
     } catch (cause) {
-      setError(
+      setRetryError(
         cause instanceof ApiRequestError
-          ? cause
-          : new ApiRequestError(0, 'network', 'The new run could not be started.'),
+          ? `${cause.message}${cause.action ? ` ${cause.action}` : ''}`
+          : 'The new run could not be started.',
       )
     }
   }
@@ -376,14 +418,29 @@ export function RunView({
             Completed: {run.progress.completed_phases.map(phaseLabel).join(' · ')}
           </p>
         )}
+        <StageProgress run={run} />
       </header>
 
       {(run.status === 'failed' || run.status === 'interrupted') && (
         <>
           {run.error && <ErrorNotice error={run.error} />}
-          <button type="button" className="primary" onClick={() => void startNewRun()}>
-            Start a new run
-          </button>
+          {run.status === 'interrupted' || run.error?.retryable ? (
+            <>
+              <p className="note">Retry keeps this attempt and starts a linked run.</p>
+              <button type="button" className="primary" onClick={() => void startNewRun()}>
+                Retry assessment
+              </button>
+            </>
+          ) : (
+            <button type="button" className="primary" onClick={onNewRun}>
+              Choose different documents
+            </button>
+          )}
+          {retryError && (
+            <p className="error-note" role="alert">
+              {retryError}
+            </p>
+          )}
         </>
       )}
 

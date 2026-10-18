@@ -280,17 +280,43 @@ def test_scope_does_not_substitute_policy_text_for_chart_field_evidence(
     "invalid_date",
     ["20261028", "2026-W43-3", "2026-02-30", "today", "2026-10-28T00:00:00Z", " 2026-10-28 "],
 )
-def test_scope_dates_require_exact_valid_iso_calendar_dates(
+def test_unreadable_request_dates_ask_staff_instead_of_failing(
     resolver: CitationResolver, invalid_date: str
 ) -> None:
     candidate = scope_candidate()
-    with pytest.raises(CandidateConversionError) as error:
-        convert_scope(
-            changed(candidate, request=changed(candidate.request, service_date=invalid_date)),
-            resolver,
-        )
-    assert_invalid(error, RunPhase.CHECKING_APPLICABILITY)
-    assert invalid_date not in error.value.error.message
+    converted = convert_scope(
+        changed(candidate, request=changed(candidate.request, service_date=invalid_date)),
+        resolver,
+    )
+    assert converted.request.service_date is None
+    assert converted.applicability.status == ApplicabilityStatus.UNRESOLVED
+    assert RequestField.SERVICE_DATE in converted.applicability.unresolved_fields
+    assert "YYYY-MM-DD" in converted.applicability.rationale
+    assert "service date" in converted.applicability.rationale
+    assert invalid_date not in converted.applicability.rationale
+
+
+def test_staff_date_replaces_an_unreadable_model_date(resolver: CitationResolver) -> None:
+    candidate = scope_candidate()
+    original = resolver.resolve(citation("Service date: 2026-10-28.", "chart"))
+    annotation = DateAnnotation(
+        annotation_id="service-date",
+        field="service_date",
+        value=date(2026, 10, 28),
+        created_at=NOW,
+        resolves_conflict=True,
+        resolution_reason="The chart date was not returned as YYYY-MM-DD.",
+        original_sources=(original,),
+    )
+    converted = convert_scope(
+        changed(candidate, request=changed(candidate.request, service_date="October 28, 2026")),
+        resolver,
+        (annotation,),
+    )
+    assert converted.request.service_date == date(2026, 10, 28)
+    assert converted.extracted_request.service_date is None
+    assert converted.applicability.status == ApplicabilityStatus.APPLICABLE
+    assert RequestField.SERVICE_DATE not in converted.applicability.unresolved_fields
 
 
 def test_unresolved_and_mismatch_scope_are_distinct(resolver: CitationResolver) -> None:

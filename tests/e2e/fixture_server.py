@@ -37,10 +37,13 @@ from support import (  # noqa: E402
     CHART_FACT_QUOTE,
     CHART_SCOPE_QUOTE,
     POLICY_SCOPE_QUOTE,
+    document_quote,
     quote,
 )
 
 from app.assessment.stages import (  # noqa: E402
+    ChartInterpretation,
+    DocumentInputs,
     EvidenceInterpretation,
     PolicyInterpretation,
     ScopeInterpretation,
@@ -57,6 +60,7 @@ from app.schemas import (  # noqa: E402
     AnyNode,
     ApplicabilityResult,
     ApplicabilityStatus,
+    ChartData,
     ChartFact,
     ConfigurationProvenance,
     Criterion,
@@ -118,7 +122,7 @@ class E2EInterpreter:
     """StageInterpreter producing source-valid records from real extraction quotes."""
 
     def __init__(self) -> None:
-        self.calls = {"scope": 0, "policy": 0, "evidence": 0}
+        self.calls = {"scope": 0, "policy": 0, "chart": 0, "evidence": 0}
 
     async def scope(self, inputs: StageInputs) -> ScopeInterpretation:
         self.calls["scope"] += 1
@@ -170,11 +174,11 @@ class E2EInterpreter:
             ),
         )
 
-    async def policy(self, inputs: StageInputs) -> PolicyInterpretation:
+    async def policy(self, inputs: DocumentInputs) -> PolicyInterpretation:
         self.calls["policy"] += 1
-        first = quote(inputs, inputs.policy_document, *POLICY_CRITERION_QUOTE)
-        second = quote(inputs, inputs.policy_document, *POLICY_SECOND_QUOTE)
-        heading = quote(inputs, inputs.policy_document, *POLICY_SECTION_QUOTE)
+        first = document_quote(inputs.document, inputs.extraction, *POLICY_CRITERION_QUOTE)
+        second = document_quote(inputs.document, inputs.extraction, *POLICY_SECOND_QUOTE)
+        heading = document_quote(inputs.document, inputs.extraction, *POLICY_SECTION_QUOTE)
         criterion_a = Criterion(
             criterion_id="criterion-telangiectasia",
             wording="Treatment of telangiectasia is considered cosmetic.",
@@ -193,12 +197,17 @@ class E2EInterpreter:
                 question="Does the chart document demonstrated perforator reflux?"
             ),
         )
-        if _annotation_value(inputs, "procedure") == "E2E alternative":
+        revised_2026 = any(
+            "Revised: 01/01/26" in block.text
+            for page in inputs.extraction.pages
+            for block in page.blocks
+        )
+        if revised_2026:
             return PolicyInterpretation(
                 policy=Policy(
                     policy_id="e2e-fixture-policy",
-                    document_id=inputs.policy_document.document_id,
-                    document_sha256=inputs.policy_document.sha256,
+                    document_id=inputs.document.document_id,
+                    document_sha256=inputs.document.sha256,
                     title="Fixture venous requirements",
                     scope_summary="Scripted alternatives for the OR-path browser journey.",
                     criteria=(criterion_a, criterion_b),
@@ -235,40 +244,11 @@ class E2EInterpreter:
                     ),
                 )
             )
-        if _annotation_value(inputs, "procedure") == "E2E satisfied":
-            return PolicyInterpretation(
-                policy=Policy(
-                    policy_id="e2e-fixture-policy",
-                    document_id=inputs.policy_document.document_id,
-                    document_sha256=inputs.policy_document.sha256,
-                    title="Fixture venous requirements",
-                    scope_summary="Scripted requirement for the satisfied browser journey.",
-                    criteria=(criterion_a,),
-                    nodes=(
-                        CriterionNode(
-                            node_id="node-a",
-                            criterion_id="criterion-telangiectasia",
-                            sources=(first,),
-                        ),
-                    ),
-                    root_id="node-a",
-                    sections=(
-                        PolicySection(
-                            section_id="requirements",
-                            heading="Requirements",
-                            sources=(heading,),
-                            disposition="requirements",
-                            criterion_ids=("criterion-telangiectasia",),
-                            explanation="The single scripted criterion is a requirement.",
-                        ),
-                    ),
-                )
-            )
         return PolicyInterpretation(
             policy=Policy(
                 policy_id="e2e-fixture-policy",
-                document_id=inputs.policy_document.document_id,
-                document_sha256=inputs.policy_document.sha256,
+                document_id=inputs.document.document_id,
+                document_sha256=inputs.document.sha256,
                 title="Fixture venous requirements",
                 scope_summary="Scripted requirements for the controlled browser journey.",
                 criteria=(criterion_a, criterion_b),
@@ -306,36 +286,58 @@ class E2EInterpreter:
             )
         )
 
+    async def chart(self, inputs: DocumentInputs) -> ChartInterpretation:
+        self.calls["chart"] += 1
+
+        def fact(
+            fact_id: str, proposition: str, page: int, text: str, conflicts: tuple[str, ...] = ()
+        ) -> ChartFact:
+            return ChartFact(
+                fact_id=fact_id,
+                proposition=proposition,
+                sources=(document_quote(inputs.document, inputs.extraction, page, text),),
+                polarity=FactPolarity.AFFIRMED,
+                conflicting_fact_ids=conflicts,
+            )
+
+        return ChartInterpretation(
+            chart=ChartData(
+                document_id=inputs.document.document_id,
+                document_sha256=inputs.document.sha256,
+                facts=(
+                    fact(
+                        "fact-heart-rate",
+                        "The chart documents a resting heart rate of 44 bpm.",
+                        *CHART_FACT_QUOTE,
+                    ),
+                    fact(
+                        "fact-ekg-brady",
+                        "The chart documents sinus bradycardia at 44 bpm.",
+                        *CHART_CONTRARY_QUOTE,
+                    ),
+                    fact(
+                        "fact-pauses",
+                        "The chart documents 12 pauses over 2.5 seconds.",
+                        *CHART_CONFLICT_SUPPORT_QUOTE,
+                        ("fact-symptoms",),
+                    ),
+                    fact(
+                        "fact-symptoms",
+                        "The chart records no patient-triggered symptom events.",
+                        *CHART_CONFLICT_AGAINST_QUOTE,
+                        ("fact-pauses",),
+                    ),
+                ),
+            )
+        )
+
     async def evidence(self, inputs: StageInputs, policy: Policy) -> EvidenceInterpretation:
         self.calls["evidence"] += 1
-        span = quote(inputs, inputs.chart_document, *CHART_FACT_QUOTE)
-        fact = ChartFact(
-            fact_id="fact-heart-rate",
-            proposition="The chart documents a resting heart rate of 44 bpm.",
-            sources=(span,),
-            polarity=FactPolarity.AFFIRMED,
-        )
-        if _annotation_value(inputs, "procedure") == "E2E contrary":
-            contrary = ChartFact(
-                fact_id="fact-ekg-brady",
-                proposition="The chart documents sinus bradycardia at 44 bpm.",
-                sources=(quote(inputs, inputs.chart_document, *CHART_CONTRARY_QUOTE),),
-                polarity=FactPolarity.AFFIRMED,
-            )
-            conflict_support = ChartFact(
-                fact_id="fact-pauses",
-                proposition="The chart documents 12 pauses over 2.5 seconds.",
-                sources=(quote(inputs, inputs.chart_document, *CHART_CONFLICT_SUPPORT_QUOTE),),
-                polarity=FactPolarity.AFFIRMED,
-                conflicting_fact_ids=("fact-symptoms",),
-            )
-            conflict_against = ChartFact(
-                fact_id="fact-symptoms",
-                proposition="The chart records no patient-triggered symptom events.",
-                sources=(quote(inputs, inputs.chart_document, *CHART_CONFLICT_AGAINST_QUOTE),),
-                polarity=FactPolarity.AFFIRMED,
-                conflicting_fact_ids=("fact-pauses",),
-            )
+        if inputs.chart is None:
+            raise ValueError("Evidence mapping requires saved chart facts")
+        saved = inputs.chart.facts
+        procedure = _annotation_value(inputs, "procedure")
+        if procedure == "E2E contrary":
             findings = tuple(
                 Finding(
                     criterion_id=criterion.criterion_id,
@@ -352,18 +354,18 @@ class E2EInterpreter:
                     evidence=(
                         (
                             EvidenceReference(
-                                fact_id=contrary.fact_id,
+                                fact_id="fact-ekg-brady",
                                 relation=EvidenceRelation.CONTRADICTING,
                             ),
                         )
                         if criterion.criterion_id == "criterion-telangiectasia"
                         else (
                             EvidenceReference(
-                                fact_id=conflict_support.fact_id,
+                                fact_id="fact-pauses",
                                 relation=EvidenceRelation.SUPPORTING,
                             ),
                             EvidenceReference(
-                                fact_id=conflict_against.fact_id,
+                                fact_id="fact-symptoms",
                                 relation=EvidenceRelation.CONTRADICTING,
                             ),
                         )
@@ -378,15 +380,14 @@ class E2EInterpreter:
                 )
                 for criterion in policy.criteria
             )
-            return EvidenceInterpretation(
-                facts=(contrary, conflict_support, conflict_against), findings=findings
-            )
+            return EvidenceInterpretation(facts=saved, findings=findings)
+        satisfied = procedure == "E2E satisfied"
         findings = tuple(
             Finding(
                 criterion_id=criterion.criterion_id,
                 status=(
                     EvidenceStatus.MET
-                    if criterion.criterion_id == "criterion-telangiectasia"
+                    if satisfied or criterion.criterion_id == "criterion-telangiectasia"
                     else EvidenceStatus.MISSING
                 ),
                 rationale=(
@@ -395,19 +396,23 @@ class E2EInterpreter:
                     else "The chart does not document demonstrated perforator reflux."
                 ),
                 evidence=(
-                    (EvidenceReference(fact_id=fact.fact_id, relation=EvidenceRelation.SUPPORTING),)
-                    if criterion.criterion_id == "criterion-telangiectasia"
+                    (
+                        EvidenceReference(
+                            fact_id="fact-heart-rate", relation=EvidenceRelation.SUPPORTING
+                        ),
+                    )
+                    if satisfied or criterion.criterion_id == "criterion-telangiectasia"
                     else ()
                 ),
                 unresolved_reasons=(
                     ()
-                    if criterion.criterion_id == "criterion-telangiectasia"
+                    if satisfied or criterion.criterion_id == "criterion-telangiectasia"
                     else ("The chart does not document demonstrated perforator reflux.",)
                 ),
             )
             for criterion in policy.criteria
         )
-        return EvidenceInterpretation(facts=(fact,), findings=findings)
+        return EvidenceInterpretation(facts=saved, findings=findings)
 
 
 def main() -> None:

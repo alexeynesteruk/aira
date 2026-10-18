@@ -2,7 +2,7 @@
 
 Take-home project for Aira's Forward Deployed Engineer assessment. The intended product helps clinic staff compare patient chart evidence with an uploaded insurer guideline and identify gaps before submitting a prior authorization request.
 
-The FastAPI/React workspace, strict domain contracts, independently reviewed fixtures, and GitHub Actions container delivery are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, the OpenAI stage interpreter, the HTTP source API, exports, and the staff review UI are implemented and tested, tracked in the [work breakdown](docs/work-breakdown.md). Live inference is currently blocked by API project quota; the user deferred quota resolution.
+The FastAPI/React workspace, strict domain contracts, independently reviewed fixtures, and GitHub Actions checks are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, the OpenAI stage interpreter, the HTTP source API, exports, and the staff review UI are implemented and tested, tracked in the [work breakdown](docs/work-breakdown.md). Live inference is currently blocked by API project quota; the user deferred quota resolution.
 
 ## Development
 
@@ -26,16 +26,16 @@ make browser-test
 
 ## Reviewer quick start
 
-Prerequisite: Docker. No OpenAI key is needed to boot the application, but real assessment work requires it.
+Prerequisites: uv and Node 24/npm. No OpenAI key is needed to boot the application, but real assessment work requires it.
 
 1. `cp .env.example .env` and set `OPENAI_API_KEY` and `AIRA_MODEL` (server-side only — the key never reaches the browser).
-2. `docker compose up --build` and open http://localhost:8000.
-3. Optionally verify model access once: `docker compose run --rm aira python -m app.llm.preflight` — it writes the verification record into the shared `aira-data` volume, so readiness reports it.
+2. `./scripts/launch.sh` — installs locked dependencies, builds the UI, and serves everything at http://localhost:8000.
+3. Optionally verify model access once: `uv run --project backend python -m app.llm.preflight` — it writes the verification record into the data directory, so readiness reports it.
 4. Upload a policy PDF and a chart PDF, fill optional request metadata, and start the assessment. Runs poll, show the saved outcome with source-level citations, and export JSON or Markdown.
 
 Synthetic fictional PDFs for development cases live in [examples/synthetic](examples/synthetic/README.md).
 
-Application data persists in the `aira-data` volume (`/app/data`, overridable with `AIRA_DATA_DIR`). Inputs must be native-text PDFs (10 MiB / 100 pages maximum); raster, password-protected, annotated, rotated, or fillable-form pages are rejected with an explicit message rather than silently degraded — OCR is a possible future adapter, not part of the MVP. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
+Application data persists under `data/app` (overridable with `AIRA_DATA_DIR`). Inputs are native-text PDFs by default (10 MiB / 100 pages maximum); image-only pages are OCR-processed with Tesseract when it is available, while password-protected, annotated, rotated, or fillable-form pages are rejected with an explicit message rather than silently degraded. OCR requires the `tesseract` executable in the runtime environment. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
 
 To exercise the review journeys without credentials, `npm --prefix frontend run build` then `make browser-test` starts the local app plus a labeled fixture server and replays the nine saved staff journeys.
 
@@ -60,11 +60,15 @@ uv run --project backend python -m app.cli assess \
 
 It makes billable model calls and remains blocked until quota is restored; run it with a development key only. `run.json`, `export.json`, and `checklist.md` land under `data/cli/exports/` (see the [stage interpreter record](docs/results/stage-interpreter.md)).
 
-## CI and delivery
+## CI
 
-[GitHub Actions](https://github.com/alexeynesteruk/aira/actions/workflows/ci.yml) runs on pull requests and pushes to `main`. Python and TypeScript checks gate a Docker build and browser tests against that exact image. Successful `main` runs deliver a checksummed Linux/amd64 image archive as an Actions artifact. Its included README explains how to load and run it. Workflow jobs have no model credentials and make no live inference calls.
+[GitHub Actions](https://github.com/alexeynesteruk/aira/actions/workflows/ci.yml) runs on pull requests and pushes to `main`. Python checks, TypeScript checks, and browser tests run with no model credentials and make no live inference calls.
 
-The local container command is `docker compose up --build`. Docker is required. The container serves the full review UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured; the live A19 upload-to-export workflow remains unverified under the deferred quota. Container build verification is performed in GitHub Actions because Docker is not installed on the current development machine.
+The local command is `./scripts/launch.sh`. It serves the review UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured. The live A19 upload-to-export workflow remains unverified under the deferred quota.
+
+## Long-document feature plan
+
+The user-authorized [WP-19 feature](docs/features/19-long-document-rule-compilation.md) adds complete 100–200-page guideline preparation through structural section extraction, cross-section reconciliation, coverage auditing, deterministic compilation, and durable reuse independent of patient charts. Its [implementation plan](docs/plans/long-document-rule-compilation.md) breaks the work into LD-01–LD-10; the [research log](docs/research/long-document-rule-extraction.md) records the primary sources. BR-013/TR-019/A21 define acceptance. The working-tree prototype is unfinished; this documentation does not establish long-document or live accuracy. Final reviewer delivery requires direct OpenAI with a backend API key/model and no local LiteLLM dependency.
 
 ## Project documentation
 
@@ -81,7 +85,6 @@ The local container command is `docker compose up --build`. Docker is required. 
 - [HTTP API, stage interpreter, workflow, and input-limit records](docs/README.md#documentation-guide)
 - [Review UI journeys record](docs/results/review-ui.md)
 - [OpenAI integration and feasibility record](docs/results/model-feasibility.md)
-- [Historical AWS research and future options](docs/aws.md)
 - [Initial document exploration](docs/exploration.md)
 - [Implementation research and recommendation](docs/research.md)
 - [Assessment brief](docs/sources/Aira_FDE_Build_Case.pdf)
@@ -99,12 +102,12 @@ backend/                     FastAPI application and locked Python dependencies
   app/llm/                   OpenAI adapter, stage interpreter, prompts, preflight, experiment CLI
   app/policies/              Provider-candidate conversion to validated domain records
   app/schemas/               Versioned domain, request, provider, and API contracts
-  app/storage/               SQLite metadata, immutable objects, artifact reuse
+  app/storage/               SQLite metadata, immutable objects, artifact reuse, policy rule sets
 frontend/                    React/TypeScript UI, unit tests, and saved browser tests
 tests/                       Backend unit/integration tests and fixture contracts
 evals/                       Development/reserved case inputs and expected outcomes
-.github/workflows/ci.yml      Required checks and tested container delivery
-Dockerfile, compose.yaml     Single-origin API/UI container
+scripts/                     One-line launch script and development entry points
+.github/workflows/ci.yml      Required checks and browser tests
 docs/
   README.md                  Requirements and documentation guide
   requirements/
@@ -123,7 +126,6 @@ docs/
   results/                   Verification records for implemented packages
   reviews/                   Independent reviews of shared inputs
   agent-handoff.md           Implementation handoff and current boundaries
-  aws.md                     Historical AWS research and future options
   exploration.md             Findings from the supplied documents
   research.md                Online research and proposed implementation
   sources/                   Original assessment materials

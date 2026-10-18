@@ -22,7 +22,14 @@ from app.documents import (
     require_usable_extraction,
     source_span,
 )
-from app.schemas import DocumentRecord, DocumentRole, ExtractionRecord, PageQuality, TextBlock
+from app.schemas import (
+    DocumentRecord,
+    DocumentRole,
+    ExtractionMethod,
+    ExtractionRecord,
+    PageQuality,
+    TextBlock,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests/fixtures/pdf"
@@ -193,7 +200,6 @@ def test_policy_snapshots_keep_versions_and_unchanged_clinical_pages_separate() 
 @pytest.mark.parametrize(
     ("filename", "quality", "issue"),
     [
-        ("image-only.pdf", PageQuality.NEEDS_OCR, "unsupported_image_content"),
         ("mixed-page.pdf", PageQuality.UNUSABLE, "unsupported_image_content"),
         ("vector-only.pdf", PageQuality.UNUSABLE, "unusable_vector_content"),
         ("blank.pdf", PageQuality.BLANK, None),
@@ -216,14 +222,17 @@ def test_mixed_document_keeps_failed_and_blank_pages_in_original_order() -> None
     assert [page.page for page in extraction.pages] == [1, 2, 3]
     assert [page.quality for page in extraction.pages] == [
         PageQuality.USABLE,
-        PageQuality.NEEDS_OCR,
+        PageQuality.USABLE,
         PageQuality.BLANK,
     ]
+    assert [page.method for page in extraction.pages] == [
+        ExtractionMethod.NATIVE_TEXT,
+        ExtractionMethod.OCR,
+        None,
+    ]
     assert document.page_count == 3
-    with pytest.raises(PdfInputError) as failure:
-        require_usable_extraction(document, extraction)
-    assert failure.value.error.page == 2
-    with pytest.raises(ValueError, match="unusable or blank"):
+    require_usable_extraction(document, extraction)
+    with pytest.raises(ValueError, match="Source block does not exist"):
         source_span(extraction, page=2, block_id="p0002.b00000")
 
 

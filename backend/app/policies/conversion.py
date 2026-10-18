@@ -25,7 +25,10 @@ from app.schemas import (
     ApplicabilityStatus,
     CandidateCitation,
     CandidateCriterion,
+    CandidateFact,
     CandidateRequest,
+    ChartCandidate,
+    ChartData,
     ChartFact,
     ClarificationField,
     Criterion,
@@ -41,6 +44,7 @@ from app.schemas import (
     FactProvenance,
     FieldSources,
     Finding,
+    FindingsCandidate,
     IssueCategory,
     MetadataAnnotation,
     NarrativePredicate,
@@ -72,7 +76,7 @@ class CandidateConversionError(ValueError):
             stage=phase,
             message=reason,
             retryable=False,
-            action="Correct the invalid stage output within the workflow's bounded repair policy.",
+            action="Retry the assessment. This attempt is kept.",
         )
 
 
@@ -147,13 +151,44 @@ class EvidenceConversion(StrictModel):
     candidate_findings: tuple[Finding, ...]
 
 
-def _request_values(request: CandidateRequest) -> dict[str, object]:
-    return {
-        field.value: _date(getattr(request, field.value), field.value)
-        if field in (RequestField.SERVICE_DATE, RequestField.ASSESSMENT_CUTOFF)
-        else getattr(request, field.value)
-        for field in RequestField
+def _request_values(
+    request: CandidateRequest,
+) -> tuple[dict[str, object], tuple[RequestField, ...]]:
+    """Parse request fields. An unreadable date becomes an unresolved field.
+
+    Service date and assessment cutoff must be literal YYYY-MM-DD values. A
+    missing date stays null. A present value that is not that form is not a
+    failed run: staff can read the chart and enter the date.
+    """
+    values: dict[str, object] = {}
+    unreadable: list[RequestField] = []
+    for field in RequestField:
+        raw = getattr(request, field.value)
+        if field in (RequestField.SERVICE_DATE, RequestField.ASSESSMENT_CUTOFF):
+            try:
+                values[field.value] = _date(raw, field.value)
+            except ValueError:
+                values[field.value] = None
+                unreadable.append(field)
+        else:
+            values[field.value] = raw
+    return values, tuple(unreadable)
+
+
+def _unreadable_date_message(fields: Sequence[ClarificationField]) -> str:
+    labels = {
+        RequestField.SERVICE_DATE: "service date",
+        RequestField.ASSESSMENT_CUTOFF: "assessment cutoff",
     }
+    names = [labels[field] for field in fields]
+    if len(names) == 1:
+        subject, verb = f"The {names[0]}", "was"
+    else:
+        subject, verb = "The " + " and ".join(names), "were"
+    return (
+        f"{subject} {verb} not a calendar date in YYYY-MM-DD form. "
+        "Enter the date from the chart to continue."
+    )
 
 
 def _same_value(left: object, right: object) -> bool:
@@ -177,11 +212,14 @@ def convert_scope(
     with _guard(RunPhase.CHECKING_APPLICABILITY):
         chart_id = resolver.document_id_for_role(DocumentRole.CHART)
         policy_id = resolver.document_id_for_role(DocumentRole.POLICY)
-        selected = _request_values(candidate.request)
+        selected, unreadable_dates = _request_values(candidate.request)
         original = dict(selected)
-        unresolved = tuple(_clarification(field) for field in candidate.unresolved_fields)
-        if len(set(unresolved)) != len(unresolved):
+        named = tuple(_clarification(field) for field in candidate.unresolved_fields)
+        if len(set(named)) != len(named):
             raise ValueError("Scope clarification fields must be unique")
+        if candidate.status != "unresolved" and named:
+            raise ValueError("A resolved scope cannot list unresolved fields")
+        unresolved = tuple(dict.fromkeys((*named, *unreadable_dates)))
         annotation_by_field = {annotation.field: annotation for annotation in annotations}
         if len(annotation_by_field) != len(annotations):
             raise ValueError("Submit one selected annotation per metadata field")
@@ -230,7 +268,11 @@ def convert_scope(
                 }
                 if any(source.model_dump_json() not in preserved for source in field_sources):
                     raise ValueError("Metadata conflict resolution must preserve all field sources")
-            if not _same_value(selected[field.value], annotation.value):
+            # A staff date replaces an unreadable model value. That is the
+            # clarification itself, not a new scope conflict.
+            if field not in unreadable_dates and not _same_value(
+                selected[field.value], annotation.value
+            ):
                 changed_fields.append(field)
             selected[field.value] = annotation.value
         source_request = RequestContext.model_validate(
@@ -256,20 +298,31 @@ def convert_scope(
                 raise ValueError("A resolved scope judgment requires cited policy scope")
             if not annotations and chart_id not in {source.document_id for source in scope_sources}:
                 raise ValueError("A resolved scope judgment requires cited request evidence")
+        open_unresolved = tuple(
+            field for field in unresolved if field.value not in annotation_by_field
+        )
+        pending_dates = tuple(field for field in open_unresolved if field in unreadable_dates)
         applicability = ApplicabilityResult(
             status=ApplicabilityStatus(candidate.status),
             rationale=candidate.rationale,
             sources=scope_sources,
-            unresolved_fields=unresolved,
+            unresolved_fields=open_unresolved if candidate.status == "unresolved" else (),
         )
-        if changed_fields:
+        if pending_dates:
+            applicability = ApplicabilityResult(
+                status=ApplicabilityStatus.UNRESOLVED,
+                rationale=_unreadable_date_message(pending_dates),
+                sources=scope_sources,
+                unresolved_fields=open_unresolved,
+            )
+        elif changed_fields:
             applicability = ApplicabilityResult(
                 status=ApplicabilityStatus.UNRESOLVED,
                 rationale=(
                     "Selected metadata changed after the candidate scope judgment; reassess scope."
                 ),
                 sources=scope_sources,
-                unresolved_fields=tuple(dict.fromkeys((*unresolved, *changed_fields))),
+                unresolved_fields=tuple(dict.fromkeys((*open_unresolved, *changed_fields))),
             )
         if applicability.status == ApplicabilityStatus.APPLICABLE and request.procedure is None:
             raise ValueError("Applicable scope requires one selected procedure")
@@ -438,6 +491,31 @@ def convert_policy(
         return policy
 
 
+def _facts(
+    candidates: Sequence[CandidateFact], resolver: CitationResolver
+) -> tuple[ChartFact, ...]:
+    chart_id = resolver.document_id_for_role(DocumentRole.CHART)
+    return tuple(
+        ChartFact(
+            fact_id=item.fact_id,
+            proposition=item.proposition,
+            sources=_citations(item.citations, resolver, chart_id),
+            polarity=FactPolarity(item.polarity),
+            provenance=FactProvenance(item.provenance),
+            value=item.value,
+            unit=item.unit,
+            event_date=_date(item.event_date, "event_date"),
+            documentation_date=_date(item.documentation_date, "documentation_date"),
+            anatomical_target=item.anatomical_target,
+            laterality=item.laterality,
+            context=item.context,
+            uncertainty=item.uncertainty,
+            conflicting_fact_ids=item.conflicting_fact_ids,
+        )
+        for item in candidates
+    )
+
+
 def convert_evidence(
     candidate: EvidenceCandidate,
     policy: Policy,
@@ -446,26 +524,7 @@ def convert_evidence(
 ) -> EvidenceConversion:
     """Convert source-grounded facts and validate findings without staff clinical edits."""
     with _guard(RunPhase.MAPPING_EVIDENCE):
-        chart_id = resolver.document_id_for_role(DocumentRole.CHART)
-        facts = tuple(
-            ChartFact(
-                fact_id=item.fact_id,
-                proposition=item.proposition,
-                sources=_citations(item.citations, resolver, chart_id),
-                polarity=FactPolarity(item.polarity),
-                provenance=FactProvenance(item.provenance),
-                value=item.value,
-                unit=item.unit,
-                event_date=_date(item.event_date, "event_date"),
-                documentation_date=_date(item.documentation_date, "documentation_date"),
-                anatomical_target=item.anatomical_target,
-                laterality=item.laterality,
-                context=item.context,
-                uncertainty=item.uncertainty,
-                conflicting_fact_ids=item.conflicting_fact_ids,
-            )
-            for item in candidate.facts
-        )
+        facts = _facts(candidate.facts, resolver)
         findings = tuple(
             Finding(
                 criterion_id=item.criterion_id,
@@ -476,6 +535,46 @@ def convert_evidence(
                         fact_id=reference.fact_id, relation=EvidenceRelation(reference.relation)
                     )
                     for reference in item.evidence
+                ),
+                unresolved_reasons=item.unresolved_reasons,
+            )
+            for item in candidate.findings
+        )
+        validated = validate_findings(policy, facts, findings, resolver, request)
+        return EvidenceConversion(facts=facts, findings=validated, candidate_findings=findings)
+
+
+def convert_chart(
+    candidate: ChartCandidate, resolver: CitationResolver, *, document_sha256: str
+) -> ChartData:
+    with _guard(RunPhase.EXTRACTING_CHART):
+        facts = _facts(candidate.facts, resolver)
+        document = resolver.document_id_for_role(DocumentRole.CHART)
+        # Resolve the original hash even when the chart contains no facts.
+        return ChartData(
+            document_id=document,
+            document_sha256=document_sha256,
+            facts=facts,
+            interpretation_issues=candidate.interpretation_issues,
+        )
+
+
+def convert_findings(
+    candidate: FindingsCandidate,
+    policy: Policy,
+    facts: tuple[ChartFact, ...],
+    resolver: CitationResolver,
+    request: RequestContext | None = None,
+) -> EvidenceConversion:
+    with _guard(RunPhase.MAPPING_EVIDENCE):
+        findings = tuple(
+            Finding(
+                criterion_id=item.criterion_id,
+                status=EvidenceStatus(item.status),
+                rationale=item.rationale,
+                evidence=tuple(
+                    EvidenceReference(fact_id=ref.fact_id, relation=EvidenceRelation(ref.relation))
+                    for ref in item.evidence
                 ),
                 unresolved_reasons=item.unresolved_reasons,
             )

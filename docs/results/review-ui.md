@@ -8,7 +8,7 @@ Verified October 18, 2026 against the working-tree application. [WP-13](../work-
 - **Readiness** (`components/Readiness.tsx`): prerequisites, `provider.detail`, and the persisted verification state shown ("Model access verified for <model>…", "Last model access check failed…", or the preflight hint); starting an assessment stays disabled until ready.
 - **Run view** (`components/RunView.tsx`): 1 s polling while queued/running with phase, completed phases, and "X of Y" pages (never a percentage); document filenames; `parent_run_id` link; outcome banner with the four saved-outcome labels plus the fixed disclaimer; failed/interrupted runs show the stored error plus the bound document's failing pages (quality and issues from the latest extraction) and a linked retry; `needs_input` runs show the rationale and the clarification form (sourced fields require a resolution reason and produce `resolves_conflict` annotations with `original_sources`); completed runs show applicability with citations, the request summary with annotations, the node-tree checklist (all/any grouping, finding cards with five distinct status labels, policy and chart citations, "Documentation needed" for missing findings), issues with `blocks_readiness`, a provenance block (model/prompts/parser/sdk/per-stage usage), and the two export links. The UI never evaluates rules itself.
 - **Source viewer** (`components/SourceViewer.tsx`): side panel per citation — document filename, page, extraction ID, the block list with the cited `[start, end)` span marked, and an "Open original PDF" link to the byte-preserving file route.
-- **Routing**: `?run=<id>` via `history.pushState`; a fresh visit or reload of `?run=<id>` reopens the persisted run (journey 6 proves it).
+- **Routing**: `?run=<id>` via `history.pushState`; a fresh visit or reload of `?run=<id>` reopens the persisted run (the persistence journey proves it).
 
 ## Journeys (fixture interpreter, saved in `frontend/e2e/journeys.spec.ts`)
 
@@ -39,4 +39,4 @@ Unit coverage: outcome/finding label maps (five distinct finding labels and an u
 ## Limitations
 
 - Fixture interpreter: outcomes are scripted records over real citations; semantic quality and live A19 remain unverified behind the deferred quota.
-- No Docker locally — the container path is verified in CI; locally the same static mount serves the built assets.
+- Saved journeys run against the fixture server. The built assets are served the same way by the local application.

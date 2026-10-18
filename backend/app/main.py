@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, cast
 
+from dotenv import dotenv_values
 from fastapi import FastAPI, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -103,7 +104,12 @@ def create_app(
     if parser_config is None:
         parser_config = NativePdfConfig()
     if limits is None:
-        limits = WorkflowLimits()
+        values = dotenv_values(env_file) if env_file.is_file() else {}
+        raw_timeout = os.environ.get(
+            "AIRA_WORKFLOW_STAGE_TIMEOUT_SECONDS",
+            values.get("AIRA_WORKFLOW_STAGE_TIMEOUT_SECONDS") or "90",
+        ).strip()
+        limits = WorkflowLimits(stage_timeout_seconds=float(raw_timeout))
     if interpreter is not None and configuration is None:
         raise ValueError("An injected interpreter requires explicit configuration")
 

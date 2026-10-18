@@ -23,6 +23,8 @@ Work package: [WP-16](../work-breakdown.md#wp-16-integrated-regression-and-evalu
 - [x] Download both export formats through the real UI and compare findings, citations, unresolved issues, and input/version identities with the displayed and saved assessment (fixture interpreter).
 - [ ] Publish a versioned evaluation report with input/configuration/commit identities, case counts, outcomes, timings, and usage.
 
+- [ ] Execute [A21/WP-19 LD-AC01–LD-AC12](19-long-document-rule-compilation.md#acceptance-checks), including independently annotated 100/200-page inputs and separate direct-OpenAI live evidence.
+
 ## Acceptance criteria
 
 - [x] Mandatory deterministic checks pass and meaningful negative controls fail as expected.

@@ -91,12 +91,10 @@ class ProviderVerification(StrictModel):
         if self.status != VerificationStatus.UNVERIFIED:
             if self.checked_at is None or self.model_id is None:
                 raise ValueError("provider verification requires time and model context")
-            if self.provider == ModelProvider.BEDROCK and self.region is None:
-                raise ValueError("verified Bedrock context requires a region")
         elif self.checked_at is not None:
             raise ValueError("unverified provider cannot have a completed check timestamp")
         if self.provider == ModelProvider.OPENAI and self.region is not None:
-            raise ValueError("OpenAI verification does not use an AWS region")
+            raise ValueError("OpenAI verification does not use a region")
         return self
 
 

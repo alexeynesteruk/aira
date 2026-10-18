@@ -14,7 +14,7 @@ This feature extracts documented propositions; it does not create new clinical f
 
 ## Technical requirements
 
-Implement [TR-007](../requirements/technical-requirements.md#tr-007-evidence-facts-and-uncertainty) using validated request and criterion inputs. Facts preserve polarity, values/units, anatomy, event/documentation dates, assessment cutoff, repeated claims, and conflicting alternatives. Findings use `met`, `not_met`, `missing`, `conflicting`, or `needs_review` with rationale and evidence references.
+Implement [TR-007](../requirements/technical-requirements.md#tr-007-evidence-facts-and-uncertainty) as chart-only extraction followed by separate assessment. The first model process receives no policy, criteria, request selection, or annotations and saves source-bound administrative and clinical facts. The assessment process receives saved facts, validated request metadata, and the saved rule set and returns findings referencing existing fact IDs. It cannot create new facts. Facts preserve polarity, values/units, anatomy, event/documentation dates, repeated claims, and conflicting alternatives. Findings use `met`, `not_met`, `missing`, `conflicting`, or `needs_review` with rationale and evidence references.
 
 Summary assertions retain their summary provenance; a normal-CBC statement cannot generate absent laboratory values. Route candidate citations and predicate inputs through [TR-008 validation](../requirements/technical-requirements.md#tr-008-citation-and-domain-validation). A missing finding has no fabricated evidence span. Document instructions remain source content.
 
@@ -22,8 +22,11 @@ Summary assertions retain their summary provenance; a normal-CBC statement canno
 
 - [x] Implement fact extraction and criterion evidence mapping through the model interpreter plus `app.policies.convert_evidence`, with citation/predicate validation in `backend/app/evidence/`.
 - [x] Add versioned prompts, source-bound fact records, and uncertainty handling.
+- [x] Add a must-have chart-evidence completeness check: an assessment with no extracted chart facts receives a blocking review issue and cannot be marked satisfied.
 - [ ] Preserve chronological and anatomical constraints across page-spanning passages.
 - [ ] Add paired evidence-removal, negation, conflict, and distractor cases.
+
+- [ ] Verify independent chart-artifact reuse and saved-fact-only mapping under WP-19 LD-AC05/LD-AC09; an assessment cannot add facts missing from the saved extraction.
 
 ## Acceptance criteria
 

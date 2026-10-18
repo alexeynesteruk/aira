@@ -6,6 +6,7 @@ import {
   submitAssessment,
 } from '../api'
 import {
+  annotationKind,
   buildClarificationAnnotations,
   fieldSources,
   isRequestField,
@@ -106,10 +107,13 @@ export function Clarification({
                 <Citations sources={sources} label="Source" onOpen={onCite} />
               </>
             )}
+            {annotationKind(field) === 'date' && (
+              <p className="note">Enter a calendar date (YYYY-MM-DD).</p>
+            )}
             <label>
               Value
               <input
-                type="text"
+                type={annotationKind(field) === 'date' ? 'date' : 'text'}
                 value={values[field] ?? ''}
                 onChange={(event) =>
                   setValues((current) => ({ ...current, [field]: event.target.value }))

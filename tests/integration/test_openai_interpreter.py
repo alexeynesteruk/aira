@@ -20,7 +20,12 @@ from openai import AsyncOpenAI
 from pydantic import SecretStr
 
 import app.cli as cli
-from app.assessment.stages import InterpretationFailure, StageInputs, render_stage_input
+from app.assessment.stages import (
+    DocumentInputs,
+    InterpretationFailure,
+    StageInputs,
+    render_stage_input,
+)
 from app.assessment.workflow import (
     WorkflowEngine,
     WorkflowLimits,
@@ -28,6 +33,7 @@ from app.assessment.workflow import (
 )
 from app.cli import run_assessment, write_outputs
 from app.documents import NativePdfConfig, extract_pdf, inspect_pdf
+from app.evidence import CitationResolver
 from app.llm.config import OpenAISettings
 from app.llm.interpreter import (
     OpenAIStageInterpreter,
@@ -36,10 +42,12 @@ from app.llm.interpreter import (
 )
 from app.llm.openai_adapter import OpenAIAdapter
 from app.llm.prompts import PROMPTS
+from app.policies import convert_chart, convert_policy
 from app.schemas import (
     ApplicabilityStatus,
     AssessmentExport,
     AssessmentOutcome,
+    ChartCandidate,
     ConfigurationProvenance,
     CreateAssessmentRequest,
     DocumentRecord,
@@ -47,6 +55,7 @@ from app.schemas import (
     ErrorCode,
     ExtractionRecord,
     ModelProvider,
+    PolicyCandidate,
     RunPhase,
     RunStatus,
 )
@@ -101,9 +110,29 @@ def sources() -> dict[str, tuple[DocumentRecord, ExtractionRecord, bytes]]:
 def inputs(
     sources: dict[str, tuple[DocumentRecord, ExtractionRecord, bytes]],
 ) -> StageInputs:
-    return StageInputs(
+    base = StageInputs(
         sources["policy"][0], sources["chart"][0], sources["policy"][1], sources["chart"][1]
     )
+    policy = convert_policy(
+        PolicyCandidate.model_validate_json(json.dumps(_policy_candidate(POLICY_ID))),
+        CitationResolver((base.policy_document,), (base.policy_extraction,)),
+        policy_id="saved-policy",
+    )
+    chart_candidate = _evidence_candidate(CHART_ID)
+    chart = convert_chart(
+        ChartCandidate.model_validate_json(
+            json.dumps(
+                {
+                    "schema_version": "0.1.0",
+                    "facts": chart_candidate["facts"],
+                    "interpretation_issues": [],
+                }
+            )
+        ),
+        CitationResolver((base.chart_document,), (base.chart_extraction,)),
+        document_sha256=base.chart_document.sha256,
+    )
+    return replace(base, policy=policy, chart=chart)
 
 
 @pytest.fixture
@@ -159,8 +188,28 @@ def _adapter(bodies: dict[str, _Body], requests: list[httpx.Request]) -> OpenAIA
 
     def respond(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        name = json.loads(request.content)["text"]["format"]["name"]
-        body = bodies[name]
+        payload = json.loads(request.content)
+        name = payload["text"]["format"]["name"]
+        packet = json.loads(payload["input"]) if name not in bodies else None
+        if name in bodies:
+            body = bodies[name]
+        elif name == "PagePlanCandidate":
+            body = {"schema_version": "0.1.0", "pages": []}
+        elif name == "ChartCandidate":
+            document_id = packet["documents"][0]["document_id"]
+            evidence = _evidence_candidate(str(document_id))
+            body = {
+                "schema_version": "0.1.0",
+                "facts": evidence["facts"],
+                "interpretation_issues": [],
+            }
+        elif name == "FindingsCandidate":
+            body = {
+                "schema_version": "0.1.0",
+                "findings": _evidence_candidate(CHART_ID)["findings"],
+            }
+        else:
+            body = bodies[name]
         if isinstance(body, httpx.Response):
             return body
         if callable(body):
@@ -375,7 +424,13 @@ async def test_policy_and_evidence_stages_convert_candidates(
     interpreter = OpenAIStageInterpreter(adapter)
     try:
         interpreted_policy = await interpreter.policy(inputs)
-        interpreted_evidence = await interpreter.evidence(inputs, interpreted_policy.policy)
+        chart = await interpreter.chart(
+            DocumentInputs(inputs.chart_document, inputs.chart_extraction)
+        )
+        interpreted_evidence = await interpreter.evidence(
+            replace(inputs, policy=interpreted_policy.policy, chart=chart.chart),
+            interpreted_policy.policy,
+        )
     finally:
         await adapter.close()
 
@@ -394,15 +449,46 @@ async def test_policy_and_evidence_stages_convert_candidates(
             for source in record.sources
         )
 
-    evidence_input = json.loads(requests[1].content)["input"]
-    packet = json.loads(evidence_input)
-    assert [item["document_id"] for item in packet["documents"]] == [CHART_ID]
+    evidence_request = next(
+        item
+        for item in requests
+        if json.loads(item.content)["text"]["format"]["name"] == "FindingsCandidate"
+    )
+    packet = json.loads(json.loads(evidence_request.content)["input"])
     assert [item["criterion_id"] for item in packet["criteria"]] == ["telangiectasia-cosmetic"]
     facts = interpreted_evidence.facts
     findings = interpreted_evidence.findings
     assert len(facts) == 1 and facts[0].sources[0].page == CHART_FACT_QUOTE[0]
     assert [finding.status.value for finding in findings] == ["met"]
     assert findings[0].evidence[0].fact_id == facts[0].fact_id
+
+
+@pytest.mark.anyio
+async def test_one_invalid_scope_candidate_is_repaired_once(inputs: StageInputs) -> None:
+    calls = {"n": 0}
+    valid = _scope_candidate(POLICY_ID, CHART_ID, "mismatch")
+    invalid = _scope_candidate(POLICY_ID, CHART_ID, "mismatch", corrupt=True)
+
+    def sequenced(_packet: dict[str, object]) -> dict[str, object]:
+        calls["n"] += 1
+        return invalid if calls["n"] == 1 else valid
+
+    requests: list[httpx.Request] = []
+    adapter = _adapter({"ScopeCandidate": sequenced}, requests)
+    interpreter = OpenAIStageInterpreter(adapter)
+    try:
+        interpreted = await interpreter.scope(inputs)
+    finally:
+        await adapter.close()
+
+    assert interpreted.applicability.status == ApplicabilityStatus.MISMATCH
+    assert interpreted.usage is not None and interpreted.usage.attempts == 2
+    assert len(requests) == 2
+    first = json.loads(requests[0].content)
+    second = json.loads(requests[1].content)
+    assert "Validation failure" not in first["instructions"]
+    assert "Validation failure" in second["instructions"]
+    assert "citation_invalid" in second["instructions"]
 
 
 @pytest.mark.anyio
@@ -424,7 +510,8 @@ async def test_an_invented_scope_quote_fails_as_citation_invalid(
     assert error.value.error.stage == RunPhase.CHECKING_APPLICABILITY
     usage = error.value.usage
     assert usage is not None
-    assert usage.attempts == 1 and usage.input_tokens == 31
+    assert usage.attempts == 2 and usage.input_tokens == 62
+    assert error.value.error.retryable is True
 
 
 @pytest.mark.anyio
@@ -443,6 +530,8 @@ async def test_an_uncited_request_field_fails_as_invalid_output(
 
     assert error.value.error.code == ErrorCode.INVALID_OUTPUT
     assert error.value.error.stage == RunPhase.CHECKING_APPLICABILITY
+    assert error.value.error.retryable is True
+    assert error.value.usage is not None and error.value.usage.attempts == 2
 
 
 @pytest.mark.anyio
@@ -491,6 +580,9 @@ def test_prompt_identity_tracks_text_and_configuration_names_the_real_parser(
     assert [item.name for item in configuration.prompts] == [
         "scope",
         "policy",
+        "policy_index",
+        "policy_page",
+        "chart",
         "evidence",
     ]
     engine = WorkflowEngine(
@@ -511,7 +603,11 @@ async def test_workflow_completes_mismatch_through_the_mocked_transport(
 ) -> None:
     requests: list[httpx.Request] = []
     adapter = _adapter(
-        {"ScopeCandidate": _scope_candidate(POLICY_ID, CHART_ID, "mismatch")}, requests
+        {
+            "ScopeCandidate": _scope_candidate(POLICY_ID, CHART_ID, "mismatch"),
+            "PolicyCandidate": _policy_candidate(POLICY_ID),
+        },
+        requests,
     )
     configuration, limits = _configuration()
     engine = WorkflowEngine(store, OpenAIStageInterpreter(adapter), configuration, limits=limits)
@@ -529,7 +625,10 @@ async def test_workflow_completes_mismatch_through_the_mocked_transport(
     assert len(scope_usage) == 1
     assert scope_usage[0].model_id == "test-model"
     assert scope_usage[0].input_tokens == 31
-    assert len(requests) == 1
+    names = [json.loads(item.content)["text"]["format"]["name"] for item in requests]
+    assert names[0] == "PagePlanCandidate"
+    assert names.count("PolicyCandidate") >= 1
+    assert "ScopeCandidate" in names
 
 
 @pytest.mark.anyio
@@ -555,28 +654,38 @@ async def test_workflow_runs_the_full_applicable_path(store: LocalStore) -> None
     assert run.status == RunStatus.COMPLETED
     assert run.result is not None
     assert run.result.outcome == AssessmentOutcome.DOCUMENTED_REQUIREMENTS_SATISFIED
-    assert len(requests) == 3
+    names = [json.loads(item.content)["text"]["format"]["name"] for item in requests]
+    assert "PagePlanCandidate" in names
+    assert names.count("PolicyCandidate") >= 1
+    assert "ChartCandidate" in names
+    assert "FindingsCandidate" in names
     interpreted = {
         usage.phase for usage in run.usage if usage.model_id == "test-model" and usage.attempts >= 1
     }
-    assert interpreted == {
+    assert {
         RunPhase.CHECKING_APPLICABILITY,
         RunPhase.INTERPRETING_POLICY,
+        RunPhase.EXTRACTING_CHART,
         RunPhase.MAPPING_EVIDENCE,
-    }
+    } <= interpreted
 
 
 @pytest.mark.anyio
 async def test_an_invented_evidence_quote_fails_after_policy_was_saved(
     store: LocalStore,
 ) -> None:
+    requests: list[httpx.Request] = []
     adapter = _adapter(
         {
             "ScopeCandidate": _scope_candidate(POLICY_ID, CHART_ID, "applicable"),
             "PolicyCandidate": _policy_candidate(POLICY_ID),
-            "EvidenceCandidate": _evidence_candidate(CHART_ID, corrupt=True),
+            "ChartCandidate": {
+                "schema_version": "0.1.0",
+                "facts": _evidence_candidate(CHART_ID, corrupt=True)["facts"],
+                "interpretation_issues": [],
+            },
         },
-        [],
+        requests,
     )
     configuration, limits = _configuration()
     engine = WorkflowEngine(store, OpenAIStageInterpreter(adapter), configuration, limits=limits)
@@ -590,7 +699,7 @@ async def test_an_invented_evidence_quote_fails_after_policy_was_saved(
     assert run.status == RunStatus.FAILED
     assert run.error is not None
     assert run.error.code == ErrorCode.CITATION_INVALID
-    assert run.error.stage == RunPhase.MAPPING_EVIDENCE
+    assert run.error.stage == RunPhase.EXTRACTING_CHART
     connection = sqlite3.connect(store.database_path)
     try:
         saved = connection.execute(
@@ -598,10 +707,8 @@ async def test_an_invented_evidence_quote_fails_after_policy_was_saved(
         ).fetchall()
     finally:
         connection.close()
-    assert {str(phase) for (phase,) in saved} == {
-        RunPhase.CHECKING_APPLICABILITY.value,
-        RunPhase.INTERPRETING_POLICY.value,
-    }
+    assert RunPhase.INTERPRETING_POLICY.value in {str(phase) for (phase,) in saved}
+    assert RunPhase.EXTRACTING_CHART.value not in {str(phase) for (phase,) in saved}
 
 
 @pytest.mark.anyio
@@ -609,10 +716,24 @@ async def test_cli_run_writes_run_export_and_checklist(tmp_path: Path) -> None:
     requests: list[httpx.Request] = []
 
     def scope_body(packet: dict[str, object]) -> dict[str, object]:
-        ids = {item["role"]: item["document_id"] for item in packet["documents"]}
-        return _scope_candidate(ids["policy"], ids["chart"], "mismatch")
+        if "documents" in packet:
+            ids = {item["role"]: item["document_id"] for item in packet["documents"]}
+        else:
+            ids = {
+                "policy": packet["policy"]["document_id"],
+                "chart": packet["chart"]["document_id"],
+            }
+        return _scope_candidate(str(ids["policy"]), str(ids["chart"]), "mismatch")
 
-    adapter = _adapter({"ScopeCandidate": scope_body}, requests)
+    def policy_body(packet: dict[str, object]) -> dict[str, object]:
+        document_id = packet.get("document_id")
+        documents = packet.get("documents")
+        if not document_id and isinstance(documents, list) and documents:
+            first = documents[0]
+            document_id = first.get("document_id") if isinstance(first, dict) else None
+        return _policy_candidate(str(document_id))
+
+    adapter = _adapter({"ScopeCandidate": scope_body, "PolicyCandidate": policy_body}, requests)
     store = LocalStore(tmp_path / "store")
     configuration, _ = _configuration()
     try:
@@ -636,12 +757,18 @@ async def test_cli_run_writes_run_export_and_checklist(tmp_path: Path) -> None:
 
 @pytest.mark.anyio
 async def test_cli_writes_only_the_run_record_for_a_failed_run(tmp_path: Path) -> None:
+    def policy_body(packet: dict[str, object]) -> dict[str, object]:
+        documents = packet["documents"]
+        policy_id = documents[0]["document_id"] if isinstance(documents, list) else ""
+        return _policy_candidate(str(policy_id))
+
     adapter = _adapter(
         {
+            "PolicyCandidate": policy_body,
             "ScopeCandidate": httpx.Response(
                 429,
                 json={"error": {"type": "insufficient_quota", "code": None, "message": "x"}},
-            )
+            ),
         },
         [],
     )
@@ -686,3 +813,109 @@ def test_main_requires_configuration_before_any_provider_contact(
     assert exit_code == 2
     assert constructed == []
     assert "Configure OPENAI_API_KEY and AIRA_MODEL" in capsys.readouterr().err
+
+
+@pytest.mark.anyio
+async def test_chat_transport_keeps_extraction_inputs_and_credentials_isolated(
+    tmp_path: Path, inputs: StageInputs
+) -> None:
+    secret = "sk-isolation-test-key"
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        body = json.loads(request.content)
+        name = body["response_format"]["json_schema"]["name"]
+        if name == "PolicyCandidate":
+            text = json.dumps(_policy_candidate(POLICY_ID))
+        else:
+            chart = _evidence_candidate(CHART_ID)
+            text = json.dumps(
+                {
+                    "schema_version": "0.1.0",
+                    "facts": chart["facts"],
+                    "interpretation_issues": [],
+                }
+            )
+        return httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl_isolation",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "test-model",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": text, "refusal": None},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 31, "completion_tokens": 9, "total_tokens": 40},
+            },
+        )
+
+    client = AsyncOpenAI(
+        api_key=secret,
+        base_url="https://api.openai.com/v1",
+        max_retries=0,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(respond)),
+    )
+    adapter = OpenAIAdapter(
+        OpenAISettings(api_key=SecretStr(secret), model="test-model", transport="chat_completions"),
+        client=client,
+    )
+    interpreter = OpenAIStageInterpreter(adapter)
+    try:
+        policy = await interpreter.policy(
+            DocumentInputs(inputs.policy_document, inputs.policy_extraction)
+        )
+        chart = await interpreter.chart(DocumentInputs(inputs.chart_document, inputs.chart_extraction))
+    finally:
+        await adapter.close()
+
+    assert [json.loads(item.content)["response_format"]["json_schema"]["name"] for item in requests] == [
+        "PolicyCandidate",
+        "ChartCandidate",
+    ]
+    for request in requests:
+        raw = request.content.decode()
+        assert secret not in raw
+        assert request.headers["authorization"] == f"Bearer {secret}"
+        packet = json.loads(json.loads(raw)["messages"][1]["content"])
+        assert packet["input_kind"] == "pdf_text_blocks"
+        assert len(packet["documents"]) == 1
+        assert "selected_request" not in packet
+        assert "staff_annotations" not in packet
+    policy_packet = json.loads(json.loads(requests[0].content)["messages"][1]["content"])
+    chart_packet = json.loads(json.loads(requests[1].content)["messages"][1]["content"])
+    assert policy_packet["documents"][0]["document_id"] == POLICY_ID
+    assert chart_packet["documents"][0]["document_id"] == CHART_ID
+    assert CHART_ID not in requests[0].content.decode()
+    assert POLICY_ID not in requests[1].content.decode()
+
+    store = LocalStore(tmp_path / "store")
+    store.put_document(inputs.policy_document, POLICY_PDF.read_bytes())
+    store.put_extraction(inputs.policy_extraction)
+    store.put_document(inputs.chart_document, CHART_PDF.read_bytes())
+    store.put_extraction(inputs.chart_extraction)
+    configuration, _ = _configuration()
+    store.put_policy_rule_set(
+        inputs.policy_document,
+        inputs.policy_extraction,
+        policy.policy,
+        configuration=configuration,
+    )
+    store.put_chart_interpretation(
+        inputs.chart_document,
+        inputs.chart_extraction,
+        chart.chart,
+        configuration=configuration,
+    )
+    saved = "\n".join(
+        path.read_text(errors="ignore")
+        for path in store.root.rglob("*")
+        if path.is_file()
+    )
+    assert secret not in saved
+

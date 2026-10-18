@@ -6,6 +6,7 @@ and semantic validation; storage guards identity, references and durable writes.
 """
 
 import hashlib
+import json
 import os
 import re
 import sqlite3
@@ -20,20 +21,30 @@ from uuid import uuid4
 from pydantic import BaseModel, ValidationError
 
 from app.schemas import (
+    ChartData,
+    ConfigurationProvenance,
     DocumentRecord,
     DocumentRole,
     ErrorCode,
     ExtractionRecord,
     OperationalError,
+    Policy,
     RunPhase,
     RunRecord,
     RunStatus,
     SourceSpan,
 )
 
-from .identity import assessment_fingerprint, canonical_bytes, fingerprint
+from .identity import (
+    assessment_fingerprint,
+    canonical_bytes,
+    document_interpretation_fingerprint,
+    fingerprint,
+)
 
 _SCHEMA_VERSION = 1
+_POLICY_REUSE = frozenset({"draft", "approved"})
+_CHART_REUSE = frozenset({"draft"})
 _ACTIVE = frozenset({RunStatus.QUEUED, RunStatus.RUNNING})
 _FIXED_RUN_FIELDS = (
     "schema_version",
@@ -158,12 +169,119 @@ class LocalStore:
                     validated INTEGER NOT NULL CHECK (validated = 1)
                 );
                 CREATE INDEX IF NOT EXISTS artifacts_lookup ON artifacts(fingerprint);
+                CREATE TABLE IF NOT EXISTS policy_rule_sets (
+                    rule_set_id TEXT PRIMARY KEY,
+                    policy_document_sha256 TEXT NOT NULL,
+                    configuration_sha256 TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (
+                        status IN ('draft', 'approved', 'rejected', 'failed', 'incomplete')
+                    ),
+                    payload_sha256 TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    reviewed_at TEXT,
+                    reviewer TEXT
+                );
+                CREATE INDEX IF NOT EXISTS policy_rule_sets_lookup
+                    ON policy_rule_sets(policy_document_sha256, configuration_sha256);
+                CREATE TABLE IF NOT EXISTS chart_interpretations (
+                    interpretation_id TEXT PRIMARY KEY,
+                    chart_sha256 TEXT NOT NULL,
+                    configuration_sha256 TEXT NOT NULL,
+                    payload_sha256 TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'draft' CHECK (
+                        status IN ('draft', 'rejected', 'failed', 'incomplete')
+                    )
+                );
+                CREATE INDEX IF NOT EXISTS chart_interpretations_lookup
+                    ON chart_interpretations(chart_sha256, configuration_sha256);
                 PRAGMA user_version=1;
                 COMMIT;
                 """
             )
+            self._migrate_document_artifacts(connection)
         finally:
             connection.close()
+
+    def _migrate_document_artifacts(self, connection: sqlite3.Connection) -> None:
+        """Keep older document artifacts while allowing a later valid version.
+
+        The first schema used one row per content and configuration. A rejected,
+        failed, incomplete, or corrupt row must not block a later validated one,
+        and it must not be returned as reusable work.
+        """
+        policy = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='policy_rule_sets'"
+        ).fetchone()
+        policy_sql = "" if policy is None else str(policy[0])
+        if "UNIQUE" in policy_sql or "'failed'" not in policy_sql:
+            connection.executescript(
+                """
+                BEGIN IMMEDIATE;
+                CREATE TABLE policy_rule_sets_v2 (
+                    rule_set_id TEXT PRIMARY KEY,
+                    policy_document_sha256 TEXT NOT NULL,
+                    configuration_sha256 TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (
+                        status IN ('draft', 'approved', 'rejected', 'failed', 'incomplete')
+                    ),
+                    payload_sha256 TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    reviewed_at TEXT,
+                    reviewer TEXT
+                );
+                INSERT INTO policy_rule_sets_v2
+                    SELECT rule_set_id, policy_document_sha256, configuration_sha256, status,
+                           payload_sha256, created_at, reviewed_at, reviewer
+                    FROM policy_rule_sets;
+                DROP TABLE policy_rule_sets;
+                ALTER TABLE policy_rule_sets_v2 RENAME TO policy_rule_sets;
+                CREATE INDEX IF NOT EXISTS policy_rule_sets_lookup
+                    ON policy_rule_sets(policy_document_sha256, configuration_sha256);
+                COMMIT;
+                """
+            )
+        else:
+            connection.execute(
+                """CREATE INDEX IF NOT EXISTS policy_rule_sets_lookup
+                   ON policy_rule_sets(policy_document_sha256, configuration_sha256)"""
+            )
+        columns = {
+            str(row[1]) for row in connection.execute("PRAGMA table_info(chart_interpretations)")
+        }
+        if "status" not in columns:
+            connection.executescript(
+                """
+                BEGIN IMMEDIATE;
+                CREATE TABLE chart_interpretations_v2 (
+                    interpretation_id TEXT PRIMARY KEY,
+                    chart_sha256 TEXT NOT NULL,
+                    configuration_sha256 TEXT NOT NULL,
+                    payload_sha256 TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'draft' CHECK (
+                        status IN ('draft', 'rejected', 'failed', 'incomplete')
+                    )
+                );
+                INSERT INTO chart_interpretations_v2 (
+                    interpretation_id, chart_sha256, configuration_sha256, payload_sha256,
+                    created_at, status
+                )
+                    SELECT interpretation_id, chart_sha256, configuration_sha256, payload_sha256,
+                           created_at, 'draft'
+                    FROM chart_interpretations;
+                DROP TABLE chart_interpretations;
+                ALTER TABLE chart_interpretations_v2 RENAME TO chart_interpretations;
+                CREATE INDEX IF NOT EXISTS chart_interpretations_lookup
+                    ON chart_interpretations(chart_sha256, configuration_sha256);
+                COMMIT;
+                """
+            )
+        else:
+            connection.execute(
+                """CREATE INDEX IF NOT EXISTS chart_interpretations_lookup
+                   ON chart_interpretations(chart_sha256, configuration_sha256)"""
+            )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=5, isolation_level=None)
@@ -693,3 +811,288 @@ class LocalStore:
                     # Corrupt/missing files cannot masquerade as reusable completed work.
                     continue
             return None
+
+    def _remap_document_payload[T: BaseModel](
+        self,
+        payload: bytes,
+        document: DocumentRecord,
+        extraction: ExtractionRecord,
+        output_type: type[T],
+    ) -> T:
+        data = json.loads(payload)
+        if not isinstance(data, dict):
+            raise StorageIntegrityError("Stored policy rule set is invalid")
+
+        def remap(value: object) -> object:
+            if isinstance(value, dict):
+                result: dict[str, object] = {}
+                for key, item in value.items():
+                    if key == "document_id":
+                        result[key] = document.document_id
+                    elif key == "document_sha256":
+                        result[key] = document.sha256
+                    elif key == "extraction_id":
+                        result[key] = extraction.extraction_id
+                    else:
+                        result[key] = remap(item)
+                return result
+            if isinstance(value, list):
+                return [remap(item) for item in value]
+            return value
+
+        remapped = remap(data)
+        try:
+            value = output_type.model_validate_json(json.dumps(remapped))
+        except ValidationError as exc:
+            raise StorageIntegrityError("Stored policy rule set violates its schema") from exc
+        from app.evidence import CitationResolver
+
+        resolver = CitationResolver((document,), (extraction,))
+        if isinstance(value, Policy):
+            resolver.validate_policy(value)
+        else:
+            for source in _source_spans(value):
+                resolver.validate(source)
+        return value
+
+    def _reusable_payload[T: BaseModel](
+        self,
+        row: sqlite3.Row,
+        document: DocumentRecord,
+        extraction: ExtractionRecord,
+        output_type: type[T],
+        reusable: frozenset[str],
+    ) -> T | None:
+        if str(row["status"]) not in reusable:
+            return None
+        try:
+            payload = self._read_object(str(row["payload_sha256"]))
+            return self._remap_document_payload(payload, document, extraction, output_type)
+        except StorageIntegrityError:
+            return None
+
+    def put_policy_rule_set(
+        self,
+        policy_document: DocumentRecord,
+        extraction: ExtractionRecord,
+        policy: Policy,
+        *,
+        configuration: ConfigurationProvenance,
+        status: str = "draft",
+        reviewer: str | None = None,
+    ) -> str:
+        policy = _checked(Policy, policy)
+        if status not in {"draft", "approved"}:
+            raise ValueError("Only a validated draft or approved rule set can be stored for reuse")
+        if policy.document_sha256 != policy_document.sha256:
+            raise StorageReferenceError("Policy rule set does not belong to the supplied document")
+        config_sha = document_interpretation_fingerprint(
+            configuration, extraction, "policy", Policy
+        )
+        payload_digest = self._write_object(canonical_bytes(policy))
+        now = datetime.now(UTC).isoformat()
+        with self._transaction(write=True) as connection:
+            self._document(connection, policy_document.document_id)
+            self._extraction(connection, extraction.extraction_id, policy_document.document_id)
+            rows = connection.execute(
+                """SELECT rule_set_id, status, payload_sha256 FROM policy_rule_sets
+                   WHERE policy_document_sha256=? AND configuration_sha256=?
+                   ORDER BY created_at DESC, rule_set_id DESC""",
+                (policy_document.sha256, config_sha),
+            ).fetchall()
+            for row in rows:
+                if self._reusable_payload(row, policy_document, extraction, Policy, _POLICY_REUSE):
+                    # A later chart or a later model response does not replace a good tree.
+                    return str(row["rule_set_id"])
+            rule_set_id = f"policy-rules-{uuid4().hex}"
+            connection.execute(
+                """INSERT INTO policy_rule_sets VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    rule_set_id,
+                    policy_document.sha256,
+                    config_sha,
+                    status,
+                    payload_digest,
+                    now,
+                    now if status == "approved" else None,
+                    reviewer,
+                ),
+            )
+            return rule_set_id
+
+    def get_policy_rule_set(
+        self,
+        policy_document: DocumentRecord,
+        extraction: ExtractionRecord,
+        *,
+        configuration: ConfigurationProvenance,
+        approved_only: bool = True,
+    ) -> Policy | None:
+        config_sha = document_interpretation_fingerprint(
+            configuration, extraction, "policy", Policy
+        )
+        allowed = frozenset({"approved"}) if approved_only else _POLICY_REUSE
+        with self._transaction() as connection:
+            self._document(connection, policy_document.document_id)
+            self._extraction(connection, extraction.extraction_id, policy_document.document_id)
+            rows = connection.execute(
+                """SELECT rule_set_id, status, payload_sha256 FROM policy_rule_sets
+                   WHERE policy_document_sha256=? AND configuration_sha256=?
+                   ORDER BY created_at DESC, rule_set_id DESC""",
+                (policy_document.sha256, config_sha),
+            ).fetchall()
+            for row in rows:
+                loaded = self._reusable_payload(row, policy_document, extraction, Policy, allowed)
+                if loaded is not None:
+                    return loaded
+            return None
+
+    def put_chart_interpretation(
+        self,
+        document: DocumentRecord,
+        extraction: ExtractionRecord,
+        chart: ChartData,
+        *,
+        configuration: ConfigurationProvenance,
+    ) -> str:
+        chart = _checked(ChartData, chart)
+        if document.role != DocumentRole.CHART or (chart.document_id, chart.document_sha256) != (
+            document.document_id,
+            document.sha256,
+        ):
+            raise StorageReferenceError("Chart interpretation belongs to another input")
+        config_sha = document_interpretation_fingerprint(
+            configuration, extraction, "chart", ChartData
+        )
+        from app.evidence import CitationResolver
+
+        resolver = CitationResolver((document,), (extraction,))
+        for source in _source_spans(chart):
+            resolver.validate(source)
+        payload_digest = self._write_object(canonical_bytes(chart))
+        with self._transaction(write=True) as connection:
+            self._document(connection, document.document_id)
+            self._extraction(connection, extraction.extraction_id, document.document_id)
+            rows = connection.execute(
+                """SELECT interpretation_id, status, payload_sha256 FROM chart_interpretations
+                   WHERE chart_sha256=? AND configuration_sha256=?
+                   ORDER BY created_at DESC, interpretation_id DESC""",
+                (document.sha256, config_sha),
+            ).fetchall()
+            for row in rows:
+                if self._reusable_payload(row, document, extraction, ChartData, _CHART_REUSE):
+                    return str(row["interpretation_id"])
+            identity = f"chart-data-{uuid4().hex}"
+            connection.execute(
+                "INSERT INTO chart_interpretations VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    identity,
+                    document.sha256,
+                    config_sha,
+                    payload_digest,
+                    datetime.now(UTC).isoformat(),
+                    "draft",
+                ),
+            )
+            return identity
+
+    def get_chart_interpretation(
+        self,
+        document: DocumentRecord,
+        extraction: ExtractionRecord,
+        *,
+        configuration: ConfigurationProvenance,
+    ) -> ChartData | None:
+        config_sha = document_interpretation_fingerprint(
+            configuration, extraction, "chart", ChartData
+        )
+        with self._transaction() as connection:
+            self._document(connection, document.document_id)
+            self._extraction(connection, extraction.extraction_id, document.document_id)
+            rows = connection.execute(
+                """SELECT interpretation_id, status, payload_sha256 FROM chart_interpretations
+                   WHERE chart_sha256=? AND configuration_sha256=?
+                   ORDER BY created_at DESC, interpretation_id DESC""",
+                (document.sha256, config_sha),
+            ).fetchall()
+            for row in rows:
+                loaded = self._reusable_payload(row, document, extraction, ChartData, _CHART_REUSE)
+                if loaded is not None:
+                    return loaded
+            return None
+
+    def reject_policy_rule_set(self, rule_set_id: str) -> None:
+        self._set_document_artifact_status(
+            "policy_rule_sets", "rule_set_id", rule_set_id, "rejected"
+        )
+
+    def reject_chart_interpretation(self, interpretation_id: str) -> None:
+        self._set_document_artifact_status(
+            "chart_interpretations", "interpretation_id", interpretation_id, "rejected"
+        )
+
+    def _set_document_artifact_status(
+        self, table: str, key: str, identity: str, status: str
+    ) -> None:
+        if table not in {"policy_rule_sets", "chart_interpretations"} or key not in {
+            "rule_set_id",
+            "interpretation_id",
+        }:
+            raise ValueError("Unknown document artifact table")
+        with self._transaction(write=True) as connection:
+            row = connection.execute(
+                f"SELECT {key} FROM {table} WHERE {key}=?", (identity,)
+            ).fetchone()
+            if row is None:
+                raise StorageNotFound("Document artifact not found")
+            connection.execute(
+                f"UPDATE {table} SET status=? WHERE {key}=?",
+                (status, identity),
+            )
+
+    def list_policy_rule_sets(self, *, document_id: str | None = None) -> list[dict[str, object]]:
+        with self._transaction() as connection:
+            if document_id is None:
+                rows = connection.execute(
+                    """SELECT rule_set_id, policy_document_sha256, configuration_sha256, status,
+                              created_at, reviewed_at, reviewer
+                       FROM policy_rule_sets ORDER BY created_at DESC"""
+                ).fetchall()
+            else:
+                document = self._document(connection, document_id)
+                rows = connection.execute(
+                    """SELECT rule_set_id, policy_document_sha256, configuration_sha256, status,
+                              created_at, reviewed_at, reviewer
+                       FROM policy_rule_sets
+                       WHERE policy_document_sha256=?
+                       ORDER BY created_at DESC""",
+                    (document.sha256,),
+                ).fetchall()
+            return [
+                {
+                    "rule_set_id": str(row["rule_set_id"]),
+                    "policy_document_sha256": str(row["policy_document_sha256"]),
+                    "configuration_sha256": str(row["configuration_sha256"]),
+                    "status": str(row["status"]),
+                    "created_at": str(row["created_at"]),
+                    "reviewed_at": (
+                        str(row["reviewed_at"]) if row["reviewed_at"] is not None else None
+                    ),
+                    "reviewer": (str(row["reviewer"]) if row["reviewer"] is not None else None),
+                }
+                for row in rows
+            ]
+
+    def approve_policy_rule_set(self, rule_set_id: str, *, reviewer: str | None = None) -> None:
+        with self._transaction(write=True) as connection:
+            row = connection.execute(
+                "SELECT rule_set_id FROM policy_rule_sets WHERE rule_set_id=?", (rule_set_id,)
+            ).fetchone()
+            if row is None:
+                raise StorageNotFound("Policy rule set not found")
+            connection.execute(
+                """UPDATE policy_rule_sets
+                   SET status='approved', reviewed_at=?, reviewer=COALESCE(?, reviewer)
+                   WHERE rule_set_id=?""",
+                (datetime.now(UTC).isoformat(), reviewer, rule_set_id),
+            )

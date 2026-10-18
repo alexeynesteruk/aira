@@ -10,6 +10,7 @@ import path from 'node:path'
 
 const ROOT = path.resolve(import.meta.dirname, '../..')
 const POLICY = path.join(ROOT, 'examples/guidelines/bcbs_fl_02-33000-31_2025-08-15.pdf')
+const POLICY_2026 = path.join(ROOT, 'examples/guidelines/bcbs_fl_02-33000-31_2026-01-01.pdf')
 const CHART = path.join(ROOT, 'examples/charts/robert_mitchell_chart_final.pdf')
 const IMAGE_ONLY = path.join(ROOT, 'tests/fixtures/pdf/image-only.pdf')
 const ENCRYPTED = path.join(ROOT, 'tests/fixtures/pdf/encrypted.pdf')
@@ -122,7 +123,12 @@ test('satisfied journey labels the satisfied outcome', async ({ page }) => {
 })
 
 test('alternative journey marks the unused OR branch without a documentation need', async ({ page }) => {
-  await uploadBoth(page)
+  await page.goto('/')
+  await expect(page.getByText(FIXTURE_NOTE)).toBeVisible()
+  await page.getByLabel('Policy PDF').setInputFiles(POLICY_2026)
+  await expect(page.getByText(/bcbs_fl_02-33000-31.*pages/)).toBeVisible()
+  await page.getByLabel('Chart PDF').setInputFiles(CHART)
+  await expect(page.getByText(/robert_mitchell_chart_final.*pages/)).toBeVisible()
   await page.getByLabel('Procedure', { exact: true }).fill('E2E alternative')
   await submitAndWait(page)
   await expect(
@@ -190,7 +196,7 @@ test('a failed extraction explains the failure without an outcome banner', async
   await expect(page.getByRole('alert')).toContainText(/Page 1 — Needs OCR/)
   await expect(page.getByRole('heading', { name: /does not apply|satisfied|gaps|Review required/ })).not.toBeVisible()
   await expect(page.getByText('Documentation readiness only — not an insurer decision.')).not.toBeVisible()
-  await expect(page.getByRole('button', { name: 'Start a new run' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Choose different documents' })).toBeVisible()
 })
 
 test('an encrypted chart is rejected at upload and start stays disabled', async ({ page }) => {
@@ -200,6 +206,27 @@ test('an encrypted chart is rejected at upload and start stays disabled', async 
   await page.getByLabel('Chart PDF').setInputFiles(ENCRYPTED)
   await expect(page.getByRole('alert')).toContainText(/password|encrypt/i)
   await expect(page.getByRole('button', { name: 'Start assessment' })).toBeDisabled()
+})
+
+test('a repeated request still cites the uploaded chart page', async ({ page }) => {
+  await uploadBoth(page)
+  await page.getByLabel('Procedure', { exact: true }).fill('E2E gaps')
+  await submitAndWait(page)
+  await expect(page.getByRole('heading', { name: 'Documentation gaps or contrary evidence' })).toBeVisible({ timeout: 20_000 })
+  const metCard = page.getByLabel('Finding: criterion-telangiectasia')
+  await metCard.getByRole('button', { name: /Chart, page 3/ }).click()
+  const viewer = page.getByRole('complementary', { name: 'Source viewer' })
+  await expect(viewer.locator('mark').first()).toHaveText('HR: 44 bpm, regular')
+
+  await page.goto('/')
+  await uploadBoth(page)
+  await page.getByLabel('Procedure', { exact: true }).fill('E2E satisfied')
+  await submitAndWait(page)
+  await expect(page.getByRole('heading', { name: 'Documented requirements satisfied' })).toBeVisible({ timeout: 20_000 })
+  const again = page.getByLabel('Finding: criterion-telangiectasia')
+  await again.getByRole('button', { name: /Chart, page 3/ }).click()
+  await expect(viewer.locator('mark').first()).toHaveText('HR: 44 bpm, regular')
+  await expect(viewer.getByRole('heading', { name: /Page 3/ })).toBeVisible()
 })
 
 test('a reloaded run URL renders the same persisted outcome and findings', async ({ page }) => {

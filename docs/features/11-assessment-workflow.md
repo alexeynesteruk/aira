@@ -21,6 +21,8 @@ Staff receive a traceable outcome or a useful stopped state from the complete as
 - [x] Implement bounded scheduling and provider failure handling without multiplying retry layers.
 - [x] Mark unfinished work interrupted on restart; create a new `parent_run_id` attempt for retry/clarification using only compatible artifacts.
 
+- [ ] Integrate standalone durable document builds, whole-build budgets, compatible section retry, and exact artifact pinning through [WP-19 LD-07–LD-08](19-long-document-rule-compilation.md); independent preparation precedes assessment scope/evidence mapping.
+
 ## Acceptance criteria
 
 - [ ] A01 completes with cited `applicability_mismatch` and no necessity aggregate; uncertain scope stops in `needs_input`.

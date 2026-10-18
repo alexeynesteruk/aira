@@ -14,6 +14,7 @@ from openai import (
     APITimeoutError,
     AsyncOpenAI,
 )
+from openai.types.chat import ChatCompletion
 from openai.types.responses import Response
 from pydantic import BaseModel, ValidationError
 
@@ -75,7 +76,7 @@ class OpenAIAdapter:
         # One retry owner. Never inherit an author's gateway or SDK retry multiplier.
         self._client = client or AsyncOpenAI(
             api_key=settings.api_key.get_secret_value(),
-            base_url="https://api.openai.com/v1",
+            base_url=settings.base_url,
             max_retries=0,
             timeout=settings.request_timeout_seconds,
         )
@@ -135,23 +136,44 @@ class OpenAIAdapter:
                 for attempt in range(1, self.settings.max_attempts + 1):
                     attempts = attempt
                     try:
-                        response = await self._client.responses.create(
-                            model=self.settings.model,
-                            instructions=instructions,
-                            input=source_text,
-                            text={
-                                "format": {
+                        if self.settings.transport == "chat_completions":
+                            response = await self._client.chat.completions.create(
+                                model=self.settings.model,
+                                messages=[
+                                    {"role": "system", "content": instructions},
+                                    {"role": "user", "content": source_text},
+                                ],
+                                response_format={
                                     "type": "json_schema",
-                                    "name": output_type.__name__,
-                                    "schema": strict_output_schema(output_type),
-                                    "strict": True,
-                                }
-                            },
-                            max_output_tokens=self.settings.max_output_tokens,
-                            store=False,
-                            truncation="disabled",
-                            timeout=self.settings.request_timeout_seconds,
-                        )
+                                    "json_schema": {
+                                        "name": output_type.__name__,
+                                        "schema": strict_output_schema(output_type),
+                                        "strict": True,
+                                    },
+                                },
+                                max_completion_tokens=self.settings.max_output_tokens,
+                                timeout=self.settings.request_timeout_seconds,
+                                # LiteLLM-style gateways bound upstream calls per request.
+                                extra_body={"timeout": self.settings.request_timeout_seconds},
+                            )
+                        else:
+                            response = await self._client.responses.create(  # type: ignore[assignment]
+                                model=self.settings.model,
+                                instructions=instructions,
+                                input=source_text,
+                                text={
+                                    "format": {
+                                        "type": "json_schema",
+                                        "name": output_type.__name__,
+                                        "schema": strict_output_schema(output_type),
+                                        "strict": True,
+                                    }
+                                },
+                                max_output_tokens=self.settings.max_output_tokens,
+                                store=False,
+                                truncation="disabled",
+                                timeout=self.settings.request_timeout_seconds,
+                            )
                     except (APIConnectionError, APIStatusError) as exc:
                         code, message, action, retryable = _classify_error(exc)
                         request_id = getattr(exc, "request_id", None)
@@ -170,51 +192,94 @@ class OpenAIAdapter:
                             "Check the provider response before retrying.",
                         ) from None
 
-                    if not isinstance(response, Response):
-                        raise failure(
-                            ErrorCode.INVALID_OUTPUT,
-                            "The provider returned an invalid response envelope.",
-                            "Check the provider response before retrying.",
-                        )
-
-                    request_id = response._request_id
-                    if request_id:
-                        request_ids.append(request_id)
-                    try:
-                        response = Response.model_validate(response.to_dict())
-                    except ValidationError:
-                        raise failure(
-                            ErrorCode.INVALID_OUTPUT,
-                            "The provider returned an invalid response envelope.",
-                            "Check the provider response before retrying.",
-                        ) from None
-                    response_ids.append(response.id)
-                    if response.usage is not None:
-                        input_tokens = response.usage.input_tokens
-                        output_tokens = response.usage.output_tokens
-                    if response.status != "completed" or response.error is not None:
-                        raise failure(
-                            ErrorCode.INVALID_OUTPUT,
-                            "The model did not finish a complete response.",
-                            "Review the output budget and retry the assessment.",
-                        )
-                    for item in response.output:
-                        if item.type == "message" and item.status != "completed":
+                    if self.settings.transport == "chat_completions":
+                        if not isinstance(response, ChatCompletion):
                             raise failure(
                                 ErrorCode.INVALID_OUTPUT,
-                                "The model returned an incomplete output message.",
+                                "The provider returned an invalid response envelope.",
+                                "Check the provider response before retrying.",
+                            )
+                        request_id = response._request_id
+                        if request_id:
+                            request_ids.append(request_id)
+                        try:
+                            response = ChatCompletion.model_validate(response.to_dict())
+                        except ValidationError:
+                            raise failure(
+                                ErrorCode.INVALID_OUTPUT,
+                                "The provider returned an invalid response envelope.",
+                                "Check the provider response before retrying.",
+                            ) from None
+                        response_ids.append(response.id)
+                        if response.usage is not None:
+                            input_tokens = response.usage.prompt_tokens
+                            output_tokens = response.usage.completion_tokens
+                        choice = response.choices[0] if response.choices else None
+                        if choice is None or choice.finish_reason != "stop":
+                            raise failure(
+                                ErrorCode.INVALID_OUTPUT,
+                                "The model did not finish a complete response.",
                                 "Review the output budget and retry the assessment.",
                             )
-                        if item.type == "message" and any(
-                            part.type == "refusal" for part in item.content
-                        ):
+                        if choice.message.refusal is not None:
                             raise failure(
                                 ErrorCode.REFUSED,
                                 "The model declined this request.",
                                 "Review the source content and request scope.",
                             )
+                        if not isinstance(choice.message.content, str):
+                            raise failure(
+                                ErrorCode.INVALID_OUTPUT,
+                                "The model did not finish a complete response.",
+                                "Review the output budget and retry the assessment.",
+                            )
+                        output_text = choice.message.content
+                    else:
+                        if not isinstance(response, Response):
+                            raise failure(
+                                ErrorCode.INVALID_OUTPUT,
+                                "The provider returned an invalid response envelope.",
+                                "Check the provider response before retrying.",
+                            )
+                        request_id = response._request_id
+                        if request_id:
+                            request_ids.append(request_id)
+                        try:
+                            response = Response.model_validate(response.to_dict())
+                        except ValidationError:
+                            raise failure(
+                                ErrorCode.INVALID_OUTPUT,
+                                "The provider returned an invalid response envelope.",
+                                "Check the provider response before retrying.",
+                            ) from None
+                        response_ids.append(response.id)
+                        if response.usage is not None:
+                            input_tokens = response.usage.input_tokens
+                            output_tokens = response.usage.output_tokens
+                        if response.status != "completed" or response.error is not None:
+                            raise failure(
+                                ErrorCode.INVALID_OUTPUT,
+                                "The model did not finish a complete response.",
+                                "Review the output budget and retry the assessment.",
+                            )
+                        for item in response.output:
+                            if item.type == "message" and item.status != "completed":
+                                raise failure(
+                                    ErrorCode.INVALID_OUTPUT,
+                                    "The model returned an incomplete output message.",
+                                    "Review the output budget and retry the assessment.",
+                                )
+                            if item.type == "message" and any(
+                                part.type == "refusal" for part in item.content
+                            ):
+                                raise failure(
+                                    ErrorCode.REFUSED,
+                                    "The model declined this request.",
+                                    "Review the source content and request scope.",
+                                )
+                        output_text = response.output_text
                     try:
-                        candidate = output_type.model_validate_json(response.output_text)
+                        candidate = output_type.model_validate_json(output_text)
                     except (ValidationError, ValueError):
                         raise failure(
                             ErrorCode.INVALID_OUTPUT,

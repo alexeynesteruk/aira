@@ -28,9 +28,9 @@ Commands run from the repository root:
 
 | Command | Result |
 | --- | --- |
-| `uv run --project backend --locked pytest -c backend/pyproject.toml tests/integration/test_api.py tests/integration/test_health.py tests/integration/test_workflow.py -q` | 32 passed in about 11 seconds. |
+| `uv run --project backend --locked pytest -c backend/pyproject.toml tests/integration/test_api.py tests/integration/test_health.py tests/integration/test_workflow.py -q` | 37 passed in about 13 seconds. |
 | `make check` | Ruff lint/format, strict mypy, all pytest checks, backend build, and frontend lint/typecheck/Vitest/build pass. |
-| `make browser-test` | 2 Playwright checks pass: the built UI shows the readiness state the API reports, and a severed connection stays visible. |
+| `make browser-test` | 11 Playwright checks pass across both projects; the 2 shell checks prove the built UI shows the readiness state the API reports and that a severed connection stays visible. |
 
 [`test_api.py`](../../tests/integration/test_api.py) covers the matrix at API level: A14 intake rejects a non-PDF (415), a truncated PDF (422), an encrypted PDF (422), an oversized file (413 naming the limit), a bad role (422), and a missing file (422); A12/A15 cover role-swapped submissions (422), unknown documents/parent runs (404), unknown/other-document extractions and out-of-inventory pages (404), and the missing `extraction_id` (422); A16 covers `queue_full` (429), `configuration_missing` (503 with the named prerequisites), and a known failed run polling `failed` with its error while exports conflict (409); A19 covers page/file source inspection, repeated readiness without outbound HTTP (a patched `httpx.AsyncClient.send` fails the test on any attempt), and the built UI surviving missing configuration; A09/A17 cover export byte-stability across a later run on the January 2026 policy snapshot and a linked child run exporting `parent_run_id` and the staff annotation while the parent's export stays unchanged. Restart evidence: an in-flight run is `interrupted` with its last phase after a new app opens the same store. A secrets check confirms no response exposes the fake API key. Error-taxonomy checks cover malformed JSON (400), schema violations (422), and a simulated internal store failure (500 `internal_error` with `X-Request-ID` and no exception text).
 
@@ -40,4 +40,4 @@ Commands run from the repository root:
 - OpenAPI: the spec documents typed request bodies (multipart upload, `CreateAssessmentRequest`), response models for every route status (`ErrorResponse`, `DocumentResponse`, `PageResponse`, `RunRecord`, `AssessmentExport`, `LivenessResponse`, `ReadinessResponse`), and every `$ref` resolves within components.
 - Provider verification: readiness reports the last explicit `python -m app.llm.preflight` record persisted to `<data_dir>/provider-verification.json` when its model matches `AIRA_MODEL`; a stale or absent record stays `unverified`. Readiness never calls the provider.
 - The staff review UI (WP-13) consumes these routes; fixture-interpreter parity evidence is in [review-ui.md](review-ui.md).
-- `TestClient` exercises the same lifespan/worker path as uvicorn but not container networking or process signals.
+- `TestClient` exercises the same lifespan/worker path as uvicorn but not a separate process or its signals.

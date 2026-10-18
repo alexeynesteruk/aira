@@ -13,7 +13,7 @@ Work package: [WP-01](../work-breakdown.md#wp-01-repository-foundation). Kind: e
 ## Technical requirements
 
 - [TR-017](../requirements/technical-requirements.md#tr-017-evaluation-and-release-gates): configure actual lint, type, test, and build entry points; ordinary CI must run without live provider credentials.
-- [TR-018](../requirements/technical-requirements.md#tr-018-packaging-and-reviewer-delivery): create the application/toolchain baseline and lock dependencies. Final Docker packaging and live launch evidence belong to WP-17 and WP-18.
+- [TR-018](../requirements/technical-requirements.md#tr-018-packaging-and-reviewer-delivery): create the application/toolchain baseline and lock dependencies. Final launch evidence belongs to WP-17 and WP-18.
 
 ## Implementation tasks
 

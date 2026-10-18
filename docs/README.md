@@ -2,7 +2,7 @@
 
 Build a small, working assistant that helps clinic staff assess prior authorization readiness using a patient chart PDF and an insurer guideline PDF. It must work on new documents supplied by reviewers. The implementation direction is a cited evidence checklist using FastAPI, React/TypeScript, and the OpenAI Responses API, with a local one-command launch.
 
-Requirements, architecture, and task decomposition are documented. The full non-live stack — PDF intake, storage, stage interpreter, workflow, HTTP API, exports, and the review UI — is implemented and passes deterministic, controlled-interpreter, and fixture-interpreter checks in CI. Live inference remains blocked by API project quota and was deferred by the user. Start with the [business and technical requirements](requirements/README.md), then use the [work breakdown](work-breakdown.md) to execute the plan.
+Requirements, architecture, and task decomposition are documented. Earlier PDF intake, storage, workflow, API, exports, and review UI components have recorded deterministic/fixture evidence. The current independent-extraction refactor and new WP-19 long-document feature still need integrated verification; historical CI results do not establish that the present working tree passes. Live inference remains blocked by API project quota and was deferred by the user. Start with the [business and technical requirements](requirements/README.md), then use the [work breakdown](work-breakdown.md) to execute the plan.
 
 ## Confirmed requirements
 
@@ -39,7 +39,7 @@ Statuses derive from the [work breakdown](work-breakdown.md): **implemented and 
 | BR-001 | New guideline and chart uploads drive results | implemented and deterministically verified |
 | BR-002 | One selected request with relevant side and dates | implemented and deterministically verified |
 | BR-003 | Policy applicability gate stops/clarifies mismatches | implemented and deterministically verified |
-| BR-004 | Faithful, complete policy requirements (AND/OR, blockers) | implemented and deterministically verified |
+| BR-004 | Faithful, complete policy requirements (AND/OR, blockers) | deterministic foundations verified; source fidelity and long-document compilation remain open |
 | BR-005 | Distinct evidence states, never conflated with failure | implemented and deterministically verified |
 | BR-006 | Inspectable exact policy and chart citations | implemented and deterministically verified |
 | BR-007 | Actionable gaps and provenance-preserving clarification | implemented and deterministically verified |
@@ -48,6 +48,7 @@ Statuses derive from the [work breakdown](work-breakdown.md): **implemented and 
 | BR-010 | One-command live reviewer workflow | implemented, live-unverified (quota deferred) |
 | BR-011 | Generality and independent evaluation | open — corpus built; live semantic evaluation not run |
 | BR-012 | Submission and design discussion | open — [design-note draft](design-note.md) exists |
+| BR-013 | Complete 100–200-page guideline preparation and durable independent reuse | specified in WP-19; implementation/live acceptance open |
 
 ## Documentation guide
 
@@ -75,13 +76,18 @@ Statuses derive from the [work breakdown](work-breakdown.md): **implemented and 
 | [Implementation handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules. |
 | [Model provider decision](model-provider.md) | OpenAI integration, server-side configuration, and native PDF boundary. |
 | [Model feasibility record](results/model-feasibility.md) | Implemented adapter/CLI, controlled checks, observed quota failure, and commands to resume live validation. |
-| [AWS research](aws.md) | Dated service findings and the superseded Bedrock proposal, retained as future options. |
+| [Long-document feature](features/19-long-document-rule-compilation.md) | BR-013/TR-019/WP-19/A21, LD-01–LD-10 tasks, and LD-AC01–LD-AC12 acceptance. |
+| [Long-document implementation plan](plans/long-document-rule-compilation.md) | Target contracts, structural extraction/reconciliation algorithm, failure/reuse semantics, execution slices, and delivery checks. |
+| [WP-19 specification record](results/wp19-specification.md) | Documentation delivery and actual working-tree check results; runtime acceptance remains open. |
+| [Long-document research log](research/long-document-rule-extraction.md) | Dated primary-source findings, Aira-specific decisions, limitations, and next experiments. |
 | [Online implementation research](research.md) | Reddit workflow observations, public implementations, PDF tooling, and design tradeoffs. |
 | [Document exploration](exploration.md) | Sample mismatch, source evidence, chronology conflicts, and extraction risks. |
 | [Guideline provenance](../examples/guidelines/README.md) | Two exact policy snapshots, hashes, and observed differences. |
 
-The Obsidian review informs engineering practices such as versioned prompts, independent test expectations, source verification, and honest failure reporting. Its detailed private source register stays in the vault. The active provider boundary is recorded in the model decision; the AWS research retains the dates and sources of its earlier verification.
+The Obsidian review informs engineering practices such as versioned prompts, independent test expectations, source verification, and honest failure reporting. Its detailed private source register stays in the vault. The active provider boundary is recorded in the model decision.
 
 ## Next implementation gate
 
-WP-01–WP-15's non-live work and WP-16/WP-17's deterministic halves are done; their [completion evidence](work-breakdown.md#implementation-evidence) identifies commits and result records. The [feature index](features/README.md) links each implementation brief. The remaining work is live-gated: WP-05 model selection, WP-07–WP-09 semantic acceptance, the WP-11 live CLI run, the WP-15 measured token envelope, WP-16's live evaluation report, and WP-17/WP-18's live container and clean-checkout checks. Unsupported scans are explicitly rejected in the initial MVP; no AWS credentials or deployment are needed. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.
+Start the long-document work from [WP-19](features/19-long-document-rule-compilation.md) and its [implementation plan](plans/long-document-rule-compilation.md). Implement the LD-01–LD-10 slices and A21 checks before claiming complete long-guideline support. Independent policy/chart preparation and the page-fold prototype are present in the unfinished working tree, with coverage, reconciliation, scoped compilation, durable build/UI integration, and direct-OpenAI acceptance still requiring evidence.
+
+Historical core [completion evidence](work-breakdown.md#implementation-evidence) identifies commits and result records. The [feature index](features/README.md) links each implementation brief. Open no-live-call work remains in the construction ledger (FT-07 runtime counterexamples, FT-13 long-chart distractor variants, and FT-14 multiple-procedure/conflicting-annotation cases) and in WP-16's evaluation-report structure. Earlier live-dependent gates also remain: WP-05 model selection, WP-07–WP-09 semantic acceptance, the WP-11 live CLI run, the WP-15 measured token envelope, WP-16's live evaluation report, and WP-17/WP-18's live launch and clean-checkout checks. Unsupported scans are explicitly rejected in the initial MVP. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.

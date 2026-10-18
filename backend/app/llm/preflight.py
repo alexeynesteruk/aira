@@ -50,7 +50,7 @@ async def verify(
     identity = {
         "checked_at": datetime.now(UTC).isoformat(),
         "provider": "openai",
-        "api": "responses",
+        "api": settings.transport,
         "configured_model": settings.model,
         "sdk_version": version("openai"),
         "prompt_version": "access-probe-v1",

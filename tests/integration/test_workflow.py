@@ -15,7 +15,6 @@ from pathlib import Path
 import pytest
 from support import (
     CREATED_AT,
-    IMAGE_ONLY_PDF,
     ControlledInterpreter,
     configuration,
     parse_sources,
@@ -25,13 +24,12 @@ from support import (
 )
 
 from app.assessment import EvaluationResult, evaluate_policy
-from app.assessment.stages import render_stage_input
+from app.assessment.stages import DocumentInputs, render_document_input
 from app.assessment.workflow import (
     _VALIDATION_VERSION,
     EvidenceArtifact,
     InterpretationFailure,
     ScopeArtifact,
-    StageInputs,
     WorkflowAdmissionError,
     WorkflowEngine,
     WorkflowLimits,
@@ -40,6 +38,7 @@ from app.documents import inspect_pdf
 from app.schemas import (
     ApplicabilityStatus,
     AssessmentOutcome,
+    ChartData,
     CreateAssessmentRequest,
     DocumentRecord,
     DocumentRole,
@@ -82,12 +81,13 @@ async def test_supplied_pair_completes_as_mismatch_under_default_limits(
     store: LocalStore,
     sources: dict[str, tuple[DocumentRecord, ExtractionRecord, bytes]],
 ) -> None:
-    """A01 regression: the rendered scope input fits the default context guardrail."""
+    """A01 regression: each whole-document extraction fits the default context guardrail."""
     policy_document, policy_extraction, _ = sources["policy"]
     chart_document, chart_extraction, _ = sources["chart"]
-    inputs = StageInputs(policy_document, chart_document, policy_extraction, chart_extraction)
-    rendered_scope = len(render_stage_input(inputs, "scope"))
-    assert 0 < rendered_scope < WorkflowLimits().max_context_characters
+    rendered_policy = len(render_document_input(DocumentInputs(policy_document, policy_extraction)))
+    rendered_chart = len(render_document_input(DocumentInputs(chart_document, chart_extraction)))
+    assert 0 < rendered_policy < WorkflowLimits().max_context_characters
+    assert 0 < rendered_chart < WorkflowLimits().max_context_characters
 
     interpreter = ControlledInterpreter()
     engine = await started(store, interpreter)
@@ -101,11 +101,14 @@ async def test_supplied_pair_completes_as_mismatch_under_default_limits(
     assert run.result.outcome == AssessmentOutcome.APPLICABILITY_MISMATCH
     assert run.result.policy is None
     assert run.result.findings == ()
-    assert interpreter.calls == {"scope": 1, "policy": 0, "evidence": 0}
+    assert interpreter.calls == {"scope": 1, "policy": 1, "chart": 1, "evidence": 0}
     assert run.progress.completed_phases == (
         RunPhase.EXTRACTING,
+        RunPhase.INTERPRETING_POLICY,
+        RunPhase.EXTRACTING_CHART,
         RunPhase.CHECKING_APPLICABILITY,
     )
+    assert len(store.list_policy_rule_sets()) == 1
 
 
 @pytest.mark.anyio
@@ -124,7 +127,7 @@ async def test_unresolved_scope_requests_named_input_and_stops(store: LocalStore
     assert run.applicability is not None
     assert run.applicability.unresolved_fields == (RequestField.PLAN,)
     assert run.result is None
-    assert interpreter.calls == {"scope": 1, "policy": 0, "evidence": 0}
+    assert interpreter.calls == {"scope": 1, "policy": 1, "chart": 1, "evidence": 0}
 
 
 @pytest.mark.anyio
@@ -142,8 +145,16 @@ async def test_applicable_run_completes_every_phase_with_persisted_evaluation(
         await engine.close()
 
     assert run.status == RunStatus.COMPLETED
-    assert run.progress.completed_phases == tuple(RunPhase)
-    assert interpreter.calls == {"scope": 1, "policy": 1, "evidence": 1}
+    assert run.progress.completed_phases == (
+        RunPhase.EXTRACTING,
+        RunPhase.INTERPRETING_POLICY,
+        RunPhase.EXTRACTING_CHART,
+        RunPhase.CHECKING_APPLICABILITY,
+        RunPhase.MAPPING_EVIDENCE,
+        RunPhase.VALIDATING,
+        RunPhase.EVALUATING,
+    )
+    assert interpreter.calls == {"scope": 1, "policy": 1, "chart": 1, "evidence": 1}
     interpreted = {
         usage.phase: usage
         for usage in run.usage
@@ -151,10 +162,11 @@ async def test_applicable_run_completes_every_phase_with_persisted_evaluation(
         in {
             RunPhase.CHECKING_APPLICABILITY,
             RunPhase.INTERPRETING_POLICY,
+            RunPhase.EXTRACTING_CHART,
             RunPhase.MAPPING_EVIDENCE,
         }
     }
-    assert len(interpreted) == 3
+    assert len(interpreted) == 4
     assert all(usage.attempts >= 1 for usage in interpreted.values())
 
     result = run.result
@@ -174,6 +186,7 @@ async def test_applicable_run_completes_every_phase_with_persisted_evaluation(
     phases = {
         RunPhase.CHECKING_APPLICABILITY: ScopeArtifact,
         RunPhase.INTERPRETING_POLICY: Policy,
+        RunPhase.EXTRACTING_CHART: ChartData,
         RunPhase.MAPPING_EVIDENCE: EvidenceArtifact,
         RunPhase.EVALUATING: EvaluationResult,
     }
@@ -267,7 +280,7 @@ async def test_interpreter_failure_carries_its_error_and_usage(store: LocalStore
 
 @pytest.mark.anyio
 async def test_stage_timeout_fails_the_run_retryably(store: LocalStore) -> None:
-    limits = WorkflowLimits(stage_timeout_seconds=0.05)
+    limits = WorkflowLimits(stage_timeout_seconds=5)
     interpreter = ControlledInterpreter(sleep=60)
     engine = await started(store, interpreter, limits)
     try:
@@ -279,7 +292,7 @@ async def test_stage_timeout_fails_the_run_retryably(store: LocalStore) -> None:
     assert run.error is not None
     assert run.error.code == ErrorCode.TIMEOUT
     assert run.error.retryable is True
-    assert run.error.stage == RunPhase.CHECKING_APPLICABILITY
+    assert run.error.stage == RunPhase.INTERPRETING_POLICY
 
 
 @pytest.mark.anyio
@@ -291,12 +304,13 @@ async def test_an_unusable_chart_fails_during_extraction(
     policy_document, policy_extraction, policy_raw = sources["policy"]
     store.put_document(policy_document, policy_raw)
     store.put_extraction(policy_extraction)
-    raw = IMAGE_ONLY_PDF.read_bytes()
+    raw = Path(__file__).resolve().parents[2] / "tests/fixtures/pdf/vector-only.pdf"
+    raw = raw.read_bytes()
     store.put_document(
         inspect_pdf(
             raw,
             document_id="chart-image",
-            filename="image-only.pdf",
+            filename="vector-only.pdf",
             role=DocumentRole.CHART,
             created_at=CREATED_AT,
         ),
@@ -315,7 +329,7 @@ async def test_an_unusable_chart_fails_during_extraction(
     assert run.error is not None
     assert run.error.code == ErrorCode.EXTRACTION_FAILED
     assert run.error.stage == RunPhase.EXTRACTING
-    assert interpreter.calls == {"scope": 0, "policy": 0, "evidence": 0}
+    assert interpreter.calls == {"scope": 0, "policy": 0, "chart": 0, "evidence": 0}
 
 
 @pytest.mark.anyio
@@ -331,8 +345,8 @@ async def test_a_tiny_context_limit_fails_before_interpretation(store: LocalStor
     assert run.status == RunStatus.FAILED
     assert run.error is not None
     assert run.error.code == ErrorCode.UNSUPPORTED_INPUT
-    assert run.error.stage == RunPhase.CHECKING_APPLICABILITY
-    assert interpreter.calls == {"scope": 0, "policy": 0, "evidence": 0}
+    assert run.error.stage == RunPhase.INTERPRETING_POLICY
+    assert interpreter.calls == {"scope": 0, "policy": 0, "chart": 0, "evidence": 0}
 
 
 @pytest.mark.anyio
@@ -343,7 +357,7 @@ async def test_a_saturated_queue_rejects_admission_retryably(store: LocalStore) 
     try:
         first = await engine.submit(submission())
         await until(
-            lambda: interpreter.calls["scope"] == 1,
+            lambda: interpreter.calls["policy"] == 1,
             "the worker never reached the blocking interpreter",
         )
         second = await engine.submit(submission())
@@ -405,7 +419,7 @@ async def test_restart_interrupts_a_run_blocked_in_the_interpreter(
     engine = await started(store, interpreter)
     submitted = await engine.submit(submission())
     await until(
-        lambda: interpreter.calls["scope"] == 1,
+        lambda: interpreter.calls["policy"] == 1,
         "the run never reached the blocking interpreter",
     )
     await engine.close()
@@ -415,7 +429,7 @@ async def test_restart_interrupts_a_run_blocked_in_the_interpreter(
     assert run.error is not None
     assert run.error.code == ErrorCode.INTERRUPTED
     assert run.error.retryable is True
-    assert run.phase == RunPhase.CHECKING_APPLICABILITY
+    assert run.phase == RunPhase.INTERPRETING_POLICY
     history = store.run_history(submitted.run_id)
     assert history[-1].status == RunStatus.INTERRUPTED
     assert [snapshot.status for snapshot in history[:2]] == [
@@ -456,9 +470,9 @@ async def test_an_identical_submission_reuses_saved_work(store: LocalStore) -> N
     engine = await started(store, interpreter)
     try:
         first = await engine.wait((await engine.submit(submission())).run_id)
-        assert interpreter.calls == {"scope": 1, "policy": 1, "evidence": 1}
+        assert interpreter.calls == {"scope": 1, "policy": 1, "chart": 1, "evidence": 1}
         second = await engine.wait((await engine.submit(submission())).run_id)
-        assert interpreter.calls == {"scope": 1, "policy": 1, "evidence": 1}
+        assert interpreter.calls == {"scope": 1, "policy": 1, "chart": 1, "evidence": 1}
         annotation = TextAnnotation(
             annotation_id="staff-plan",
             field="plan",
@@ -478,9 +492,13 @@ async def test_an_identical_submission_reuses_saved_work(store: LocalStore) -> N
     for phase in (
         RunPhase.CHECKING_APPLICABILITY,
         RunPhase.INTERPRETING_POLICY,
+        RunPhase.EXTRACTING_CHART,
         RunPhase.MAPPING_EVIDENCE,
     ):
         assert cached[phase].attempts == 0
-    # A changed annotation produces a different input fingerprint and misses cache.
+    # A changed annotation repeats assessment work and leaves both extractions in place.
     assert third.input_fingerprint != second.input_fingerprint
-    assert interpreter.calls == {"scope": 2, "policy": 2, "evidence": 2}
+    assert interpreter.calls == {"scope": 2, "policy": 1, "chart": 1, "evidence": 2}
+    third_attempts = {usage.phase: usage.attempts for usage in third.usage}
+    assert third_attempts[RunPhase.INTERPRETING_POLICY] == 0
+    assert third_attempts[RunPhase.EXTRACTING_CHART] == 0

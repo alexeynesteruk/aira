@@ -24,8 +24,11 @@ These files define the implementation scope and checked work. The contract basel
 | WP-14 | [Traceable assessment exports](14-assessment-exports.md) | Product feature | M4 |
 | WP-15 | [OCR decision and supported input limits](15-ocr-input-limits.md) | Engineering enabler | M2 |
 | WP-16 | [Integrated evaluation and regression checks](16-evaluation-regression.md) | Engineering enabler | M5 |
-| WP-17 | [Container packaging and reviewer setup](17-reviewer-packaging.md) | Delivery enabler | M6 |
+| WP-17 | [Reviewer setup](17-reviewer-packaging.md) | Delivery enabler | M6 |
 | WP-18 | [Release verification and design note](18-release-handoff.md) | Delivery enabler | M6 |
+| WP-19 | [Long-document rule-set compilation](19-long-document-rule-compilation.md) | Product feature and processing enabler | M2–M6 |
+
+WP-19 is the October 18 long-document extension, with BR-013/TR-019/A21 and its own [implementation plan](../plans/long-document-rule-compilation.md). Existing identifiers and historical evidence remain unchanged. Its full section/dependency/coverage workflow is not established by the working-tree page-fold prototype.
 
 ## Start order
 

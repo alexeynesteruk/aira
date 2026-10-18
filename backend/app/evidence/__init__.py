@@ -8,6 +8,7 @@ from .validation import (
     check_predicate,
     normalize_whitespace,
     predicate_support_reasons,
+    require_saved_fact_mapping,
     validate_findings,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "check_predicate",
     "normalize_whitespace",
     "predicate_support_reasons",
+    "require_saved_fact_mapping",
     "validate_findings",
 ]

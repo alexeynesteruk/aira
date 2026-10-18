@@ -81,11 +81,18 @@ def prepare(root: Path, case_id: str, stage: StageName) -> ExperimentInput:
             raise ValueError("Fixture logical pages differ from their reviewed registry")
         documents.append({"document_id": source_id, "role": role, "pages": pages})
         hashes[source_id] = record["sha256"]
+    if stage == "policy":
+        shown = [documents[0]]
+    elif stage == "chart":
+        shown = [documents[1]]
+    else:
+        shown = documents
     packet: dict[str, Any] = {
         "input_kind": "fictional_text_with_logical_pages_not_pdf_extraction",
-        "selected_request": case["request"],
-        "documents": documents if stage != "policy" else [documents[0]],
+        "documents": shown,
     }
+    if stage not in ("policy", "chart"):
+        packet["selected_request"] = case["request"]
     if stage == "evidence":
         # An isolated evidence experiment uses reviewed criteria, not a generated
         # policy candidate. The end-to-end pipeline must validate its own policy.

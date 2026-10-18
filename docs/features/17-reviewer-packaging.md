@@ -1,4 +1,4 @@
-# Container packaging and reviewer setup
+# Reviewer setup
 
 Let an assessor start the application and process new PDFs with a documented command and explicit provider configuration prerequisites, using a fresh checkout on their machine.
 
@@ -13,15 +13,17 @@ Work package: [WP-17](../work-breakdown.md#wp-17-packaging-and-reviewer-setup). 
 ## Technical requirements
 
 - [TR-010](../requirements/technical-requirements.md#tr-010-model-contract-and-configuration): read a documented server-only `OPENAI_API_KEY` and explicit `AIRA_MODEL`; verify the configured model/API combination without exposing the key to the browser.
-- [TR-018](../requirements/technical-requirements.md#tr-018-packaging-and-reviewer-delivery): package built React assets, FastAPI, locked dependencies, and parser tools in one application image with a persistent volume and documented port.
+- [TR-018](../requirements/technical-requirements.md#tr-018-packaging-and-reviewer-delivery): package built React assets, FastAPI, and locked dependencies behind one launch command, with a persistent local data directory and a documented port.
 
 ## Implementation tasks
 
-- [x] Add `Dockerfile`, `compose.yaml`, and `.env.example` without secrets.
-- [x] Implement the target `docker compose up --build` launch and persistent data directory.
-- [x] Document Docker, OpenAI model access, server-side key/model configuration, scan limitations, input limits, and first-run behavior.
-- [ ] Verify credentials inside the container and ensure setup failures remain understandable in the UI.
+- [x] Add `.env.example` without secrets.
+- [x] Implement the target one-line launch (`./scripts/launch.sh`) and persistent data directory.
+- [x] Document OpenAI model access, server-side key/model configuration, scan limitations, input limits, and first-run behavior.
+- [ ] Verify credentials with the documented preflight command and ensure setup failures remain understandable in the UI.
 - [ ] Exercise a new upload, source inspection, and export through live inference.
+
+- [ ] Demonstrate direct OpenAI with reviewer-supplied backend key/model and no running LiteLLM service; all preparation, reconciliation, audit, repair, and assessment calls must follow the selected configuration ([WP-19](19-long-document-rule-compilation.md)).
 
 ## Acceptance criteria
 

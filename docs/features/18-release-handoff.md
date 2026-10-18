@@ -24,6 +24,8 @@ Work package: [WP-18](../work-breakdown.md#wp-18-release-evidence-and-handoff). 
 - [ ] Prepare the repository or zip and a short demonstration of one successful case and one useful failure.
 - [ ] Confirm the call date and submission deadline; prepare handoff materials without sending messages to assessors.
 
+- [ ] Include [WP-19/A21](19-long-document-rule-compilation.md) long-document build/reuse/recovery and direct-OpenAI source/export checks in the release verification record.
+
 ## Acceptance criteria
 
 - [ ] [A11 and A19](../evaluation.md#required-scenarios) pass on the identified release revision with documented OpenAI model access and no author-specific dependency.

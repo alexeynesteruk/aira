@@ -18,7 +18,7 @@ Use `Model.model_validate_json(payload)` at a JSON boundary and `model_dump_json
 | API | `CreateAssessmentRequest`, `AssessmentAccepted`, `DocumentResponse`, `PageResponse`, `ErrorResponse`, `LivenessResponse`, `ReadinessResponse`, `AssessmentExport`. |
 | Provider candidates | `ScopeCandidate`, `PolicyCandidate`, `EvidenceCandidate` and their nested candidate types. They describe transport shape, not trusted domain artifacts. |
 
-`ConfigurationProvenance` records `provider`, `model_id`, parser/prompt/schema versions, SDK version, inference settings, and parser configuration hash. OpenAI is the initial provider and has no AWS region. A future Bedrock configuration requires `region`. Secrets are not configuration fields. Provider verification records its provider, model, and check time; local readiness can be true while remote access remains unverified.
+`ConfigurationProvenance` records `provider`, `model_id`, parser/prompt/schema versions, SDK version, inference settings, and parser configuration hash. OpenAI is the initial provider and does not use a region. Secrets are not configuration fields. Provider verification records its provider, model, and check time; local readiness can be true while remote access remains unverified.
 
 `DocumentResponse` wraps `document` and its `extractions`. The upload response can use an empty extraction collection: intake page inventory does not claim completed extraction. `PageResponse` identifies the document and extraction revision around an `ExtractedPage`. `AssessmentExport` wraps export time, the persisted run, and its policy/chart metadata. For `needs_input`, `run.result` is null and `run.applicability` explains the stop; unassessed criteria are not fabricated.
 
@@ -38,7 +38,7 @@ Baseline validation on October 18, 2026: all 45 contract tests passed with Pytho
 
 ## Reviewed integration amendments
 
-On October 18, integration added `ScopeCandidate.field_sources`, grouping exact chart citations by request field. Its empty default preserves existing Python/JSON baseline examples; the strict provider schema requires the field, and conversion rejects unsupported non-null extracted metadata. The provider scope prompt is versioned `scope-v2`, with its exact output-schema hash retained by the experiment. This does not change the domain record version or rewrite reviewed patient expectations.
+On October 18, integration added `ScopeCandidate.field_sources`, grouping exact chart citations by request field. Its empty default preserves existing Python/JSON baseline examples; the strict provider schema requires the field, and conversion rejects unsupported non-null extracted metadata. The provider scope prompt is versioned `scope-v3`, with its exact output-schema hash retained by the experiment. This does not change the domain record version or rewrite reviewed patient expectations.
 
 `StageUsage` now preserves unreported input/output tokens as null rather than implying a measured zero, and can retain the served model ID and response IDs. Existing records remain readable. A regression distinguishes unknown usage from an explicit zero.
 

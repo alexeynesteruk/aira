@@ -9,6 +9,7 @@ from app.schemas import (
     ConfigurationProvenance,
     DocumentRecord,
     DocumentRole,
+    ExtractionRecord,
     MetadataAnnotation,
     RequestContext,
 )
@@ -25,6 +26,43 @@ def canonical_bytes(value: object) -> bytes:
 
 def fingerprint(value: object) -> str:
     return hashlib.sha256(canonical_bytes(value)).hexdigest()
+
+
+def document_interpretation_fingerprint(
+    configuration: ConfigurationProvenance,
+    extraction: ExtractionRecord,
+    stage: str,
+    output_type: type[BaseModel],
+) -> str:
+    """Only this document's extraction and model contract can invalidate reuse."""
+    related = {
+        "policy": {"policy", "policy_index", "policy_page"},
+        "chart": {"chart"},
+    }.get(stage, {stage})
+    relevant = tuple(prompt for prompt in configuration.prompts if prompt.name in related)
+    return fingerprint(
+        {
+            "identity_version": "independent-documents-v1",
+            "stage": stage,
+            "source_sha256": extraction.document_sha256,
+            "parser": [
+                extraction.parser_name,
+                extraction.parser_version,
+                extraction.configuration_sha256,
+            ],
+            "pages": [page.model_dump(mode="json") for page in extraction.pages],
+            "prompts": [
+                prompt.model_dump(mode="json") for prompt in (relevant or configuration.prompts)
+            ],
+            "provider": configuration.provider.value,
+            "model": configuration.model_id,
+            "transport": configuration.transport,
+            "endpoint_sha256": configuration.endpoint_sha256,
+            "sdk": configuration.sdk_version,
+            "inference": configuration.inference.model_dump(mode="json"),
+            "output_schema": output_type.model_json_schema(),
+        }
+    )
 
 
 def assessment_fingerprint(

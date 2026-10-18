@@ -17,6 +17,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.assessment.stages import (
+    ChartInterpretation,
+    DocumentInputs,
     EvidenceInterpretation,
     PolicyInterpretation,
     ScopeInterpretation,
@@ -35,6 +37,7 @@ from app.schemas import (
     ApplicabilityResult,
     ApplicabilityStatus,
     CandidateCitation,
+    ChartData,
     ChartFact,
     ConfigurationProvenance,
     CreateAssessmentRequest,
@@ -146,6 +149,14 @@ def quote(inputs: StageInputs, document: DocumentRecord, page: int, text: str) -
     )
 
 
+def document_quote(
+    document: DocumentRecord, extraction: ExtractionRecord, page: int, text: str
+) -> SourceSpan:
+    return CitationResolver((document,), (extraction,)).resolve(
+        CandidateCitation(document_id=document.document_id, page=page, quote=text)
+    )
+
+
 def corrupted(span: SourceSpan) -> SourceSpan:
     return span.model_copy(update={"excerpt": "corrupted excerpt"})
 
@@ -165,7 +176,7 @@ class ControlledInterpreter:
         sleep: float | None = None,
         gate: asyncio.Event | None = None,
     ) -> None:
-        self.calls = {"scope": 0, "policy": 0, "evidence": 0}
+        self.calls = {"scope": 0, "policy": 0, "chart": 0, "evidence": 0}
         self.scope_status = scope_status
         self.unresolved_fields = unresolved_fields
         self.missing_finding = missing_finding
@@ -212,9 +223,18 @@ class ControlledInterpreter:
             applicability=applicability,
         )
 
-    async def policy(self, inputs: StageInputs) -> PolicyInterpretation:
+    async def chart(self, inputs: DocumentInputs) -> ChartInterpretation:
+        return ChartInterpretation(
+            chart=ChartData(
+                document_id=inputs.document.document_id,
+                document_sha256=inputs.document.sha256,
+                facts=(),
+            )
+        )
+
+    async def policy(self, inputs: DocumentInputs) -> PolicyInterpretation:
         await self._enter("policy", RunPhase.INTERPRETING_POLICY)
-        span = quote(inputs, inputs.policy_document, *POLICY_CRITERION_QUOTE)
+        span = document_quote(inputs.document, inputs.extraction, *POLICY_CRITERION_QUOTE)
         if self.corrupt_stage == RunPhase.INTERPRETING_POLICY:
             span = corrupted(span)
         criterion = Criterion(
@@ -229,8 +249,8 @@ class ControlledInterpreter:
         return PolicyInterpretation(
             policy=Policy(
                 policy_id="controlled-policy",
-                document_id=inputs.policy_document.document_id,
-                document_sha256=inputs.policy_document.sha256,
+                document_id=inputs.document.document_id,
+                document_sha256=inputs.document.sha256,
                 title="Controlled policy",
                 scope_summary="Scripted scope summary for the controlled interpreter.",
                 criteria=(criterion,),
@@ -255,10 +275,10 @@ class ControlledInterpreter:
             )
         )
 
-    async def evidence(self, inputs: StageInputs, policy: Policy) -> EvidenceInterpretation:
-        await self._enter("evidence", RunPhase.MAPPING_EVIDENCE)
-        span = quote(inputs, inputs.chart_document, *CHART_FACT_QUOTE)
-        if self.corrupt_stage == RunPhase.MAPPING_EVIDENCE:
+    async def chart(self, inputs: DocumentInputs) -> ChartInterpretation:
+        await self._enter("chart", RunPhase.EXTRACTING_CHART)
+        span = document_quote(inputs.document, inputs.extraction, *CHART_FACT_QUOTE)
+        if self.corrupt_stage == RunPhase.EXTRACTING_CHART:
             span = corrupted(span)
         fact = ChartFact(
             fact_id="fact-heart-rate",
@@ -266,6 +286,38 @@ class ControlledInterpreter:
             sources=(span,),
             polarity=FactPolarity.AFFIRMED,
         )
+        return ChartInterpretation(
+            chart=ChartData(
+                document_id=inputs.document.document_id,
+                document_sha256=inputs.document.sha256,
+                facts=(fact,),
+            )
+        )
+
+    async def evidence(self, inputs: StageInputs, policy: Policy) -> EvidenceInterpretation:
+        await self._enter("evidence", RunPhase.MAPPING_EVIDENCE)
+        if inputs.chart is None:
+            raise ValueError("Evidence mapping requires saved chart facts")
+        facts = inputs.chart.facts
+        if self.corrupt_stage == RunPhase.MAPPING_EVIDENCE:
+            invented = facts[0].model_copy(update={"fact_id": "invented-fact"})
+            return EvidenceInterpretation(
+                facts=(*facts, invented),
+                findings=tuple(
+                    Finding(
+                        criterion_id=criterion.criterion_id,
+                        status=EvidenceStatus.MET,
+                        rationale="This finding cites a fact the chart extraction did not save.",
+                        evidence=(
+                            EvidenceReference(
+                                fact_id="invented-fact", relation=EvidenceRelation.SUPPORTING
+                            ),
+                        ),
+                    )
+                    for criterion in policy.criteria
+                ),
+            )
+        fact_id = facts[0].fact_id
         findings = tuple(
             Finding(
                 criterion_id=criterion.criterion_id,
@@ -277,13 +329,11 @@ class ControlledInterpreter:
                 ),
                 evidence=()
                 if self.missing_finding
-                else (
-                    EvidenceReference(fact_id=fact.fact_id, relation=EvidenceRelation.SUPPORTING),
-                ),
+                else (EvidenceReference(fact_id=fact_id, relation=EvidenceRelation.SUPPORTING),),
                 unresolved_reasons=("No supporting documentation was cited.",)
                 if self.missing_finding
                 else (),
             )
             for criterion in policy.criteria
         )
-        return EvidenceInterpretation(facts=(fact,), findings=findings)
+        return EvidenceInterpretation(facts=facts, findings=findings)

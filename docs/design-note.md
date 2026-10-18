@@ -44,7 +44,7 @@ Consequence: a new guideline needs no code change — it is data. A new kind of 
 
 ## Extensions (not built)
 
-Retrieval only with evidence-recall evidence; an OCR adapter with provenance; more predicate kinds; multi-document charts; hosted Postgres/S3/ECS ([aws.md](aws.md)).
+Retrieval only with evidence-recall evidence; an OCR adapter with provenance; more predicate kinds; multi-document charts; hosted storage and a shared database.
 
 ---
 

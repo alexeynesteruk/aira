@@ -6,21 +6,23 @@ This is the canonical technical design document (TDD), updated October 18, 2026.
 
 ## Implementation snapshot
 
+The rows below describe previously recorded component evidence. The current working tree also contains an unfinished independent-extraction/page-fold refactor. The newly accepted [WP-19 long-document design](plans/long-document-rule-compilation.md) is not verified by those historical test counts; its 100/200-page builds, coverage/reconciliation, durable standalone preparation, and direct-OpenAI release checks remain open.
+
 | Area | Current implementation | Integration boundary |
 | --- | --- | --- |
-| Application and delivery | `backend/app/main.py` lifespan wires `LocalStore`, provider configuration, and the `WorkflowEngine`; the React workspace uploads, submits, reviews, and exports; locked dependencies, lint/type/tests/build, GitHub Actions container/browser checks and image artifact delivery. | The UI proves saved fixture journeys; live-model journeys remain quota-blocked. |
+| Application and delivery | `backend/app/main.py` lifespan wires `LocalStore`, provider configuration, and the `WorkflowEngine`; the React workspace uploads, submits, reviews, and exports; locked dependencies, lint/type/tests/build, and GitHub Actions browser checks. | The UI proves saved fixture journeys; live-model journeys remain quota-blocked. |
 | Shared records | Strict, frozen schema version `0.1.0` in `backend/app/schemas/`; [contract examples and tests](contracts.md). | Candidate interpretations still require domain validation before use. |
 | Evaluation inputs | Hash-pinned development sources, independently reviewed expectations, and a separately reserved pair in `evals/`. | Fixture integrity is verified; live semantic evaluation is pending. |
 | Model boundary | `backend/app/llm/`: OpenAI Responses adapter, versioned prompts, `OpenAIStageInterpreter`, access probe, isolated-stage CLI, and the one-pair `app.cli assess` slice; [12 mocked-transport checks](results/stage-interpreter.md) pass. | Live calls failed with insufficient quota. No tested model/default or model-quality claim exists. |
-| Native extraction | `backend/app/documents/` performs intake checks, page-accounted native extraction, and the complete-input gate; [34 checks](results/pdf-extraction.md) pass on the supplied chart and both policy snapshots. | The measured model-input envelope remains WP-15 scope. |
+| Native extraction | `backend/app/documents/` performs intake checks, page-accounted native extraction, Tesseract OCR for image-only pages when enabled, and the complete-input gate; [34 checks](results/pdf-extraction.md) pass on the supplied chart and both policy snapshots. | OCR is a runtime fallback requiring the `tesseract` executable; the measured model-input envelope remains WP-15 scope. |
 | Provenance and rules | `backend/app/evidence/` and `backend/app/assessment/rules.py` provide pure citation validation, bounded predicates, and three-valued aggregation; [140 checks](results/rules.md) pass. | Semantic support and policy completeness stay reviewed judgments. |
 | Candidate conversion | `backend/app/policies/` converts provider candidates into source-valid domain records; 52 checks pass. | Consumed by `OpenAIStageInterpreter`; conversion errors surface as operational stage failures. |
-| Persistence | `backend/app/storage/` supplies SQLite, immutable content-addressed files, run history, and conservative versioned caching; [30 checks](results/storage.md) pass. `WorkflowEngine.start()` calls `interrupt_unfinished` and now runs in the application lifespan. | The engine is a local singleton per process; no shared/clustered store exists. |
+| Persistence | `backend/app/storage/` supplies SQLite, immutable content-addressed files, run history, conservative versioned caching, and a policy rule-set registry keyed by document hash/configuration; [30 checks](results/storage.md) pass. `WorkflowEngine.start()` calls `interrupt_unfinished` and now runs in the application lifespan. | Policy graphs can be reviewed and approved once, then reused for the same document hash/configuration; the engine is a local singleton per process and no shared/clustered store exists. |
 | Workflow | `backend/app/assessment/workflow.py` runs bounded single-worker execution with persisted phase artifacts and reuse; [15 controlled-interpreter checks plus 9 rendered-input checks](results/workflow.md) pass over the real parser and store, plus 3 engine runs through the mocked production interpreter. The HTTP app starts the engine in its lifespan. | A live run remains blocked on deferred quota. |
 | Exports | `backend/app/assessment/export.py` renders a Markdown evidence checklist from a saved snapshot; `GET /api/assessments/{id}/export` serves JSON or Markdown with 409 on ineligible runs; the UI offers both download actions. | WP-16 parity against live runs remains open. |
-| HTTP API and review UI | `backend/app/api/` serves uploads, document metadata/originals/pages, assessment submit/status/export, and the readiness contract; [15 API checks](results/http-api.md) pass with the controlled interpreter. The staff workspace in `frontend/src/` consumes them; [8 saved journeys](results/review-ui.md) pass against the fixture interpreter. | WP-16 live parity remains unexercised. |
+| HTTP API and review UI | `backend/app/api/` serves uploads, document metadata/originals/pages, assessment submit/status/export, and the readiness contract; [19 API checks plus 3 health checks](results/http-api.md) pass with the controlled interpreter. The staff workspace in `frontend/src/` consumes them; [9 saved journeys](results/review-ui.md) pass against the fixture interpreter. | WP-16 live parity remains unexercised. |
 
-The health endpoints now use the WP-02 contracts: liveness returns `{"status":"alive"}`; readiness returns 200 only when the store opened, provider configuration resolved, and the engine started — otherwise 503 with `missing_prerequisites` and `provider` stuck at `unverified`. Do not treat a successful shell/container check or a ready response as live assessment readiness: readiness never verifies model access. Test details and successful CI runs are linked from [implementation evidence](work-breakdown.md#implementation-evidence).
+The health endpoints now use the WP-02 contracts: liveness returns `{"status":"alive"}`; readiness returns 200 only when the store opened, provider configuration resolved, and the engine started — otherwise 503 with `missing_prerequisites` and `provider` stuck at `unverified`. Do not treat a successful shell check or a ready response as live assessment readiness: readiness never verifies model access. Test details and successful CI runs are linked from [implementation evidence](work-breakdown.md#implementation-evidence).
 
 ## System context and deployment boundary
 
@@ -30,18 +32,18 @@ The primary actor is a clinic staff member preparing one request. Assessment rev
 flowchart LR
     Staff[Clinic staff or assessment reviewer] --> Browser[Web browser]
     subgraph Local[Reviewer machine]
-        Browser --> App[One application container]
-        App --> Volume[Mounted data directory]
-        Volume --> DB[SQLite run metadata]
-        Volume --> Files[Original PDFs and immutable artifacts]
+        Browser --> App[One local application process]
+        App --> Data[Local data directory]
+        Data --> DB[SQLite run metadata]
+        Data --> Files[Original PDFs and immutable artifacts]
     end
     OpenAI[OpenAI Responses API]
     App -->|Configured server-side model calls| OpenAI
 ```
 
-FastAPI serves the built React application and the HTTP API from one origin. The container includes the tested parser dependencies; the mounted volume preserves runs across restarts. Only the backend reads `OPENAI_API_KEY` and calls the model adapter. The browser receives business results and source content; the API key stays on the server. Model access is a documented prerequisite, and the UI can explain missing configuration without returning fixture answers.
+FastAPI serves the built React application and the HTTP API from one origin. The process uses the locked parser dependencies; the data directory preserves runs across restarts. Only the backend reads `OPENAI_API_KEY` and calls the model adapter. The browser receives business results and source content; the API key stays on the server. Model access is a documented prerequisite, and the UI can explain missing configuration without returning fixture answers.
 
-This topology deliberately has one local executor and one metadata store. Its restart behavior is explicit below. A hosted target is described under [future AWS options](#future-aws-options); it is not an implemented deployment or a replacement for the local reviewer contract.
+This topology deliberately has one local executor and one metadata store. Its restart behavior is explicit below. A later hosted deployment is outside this local reviewer contract.
 
 ## Components and dependency direction
 
@@ -66,23 +68,30 @@ Prompt templates are versioned with code, while uploaded rules and clinical fact
 
 ```mermaid
 flowchart TD
-    U[Upload policy and chart] --> D[Hash inputs and extract all pages]
-    D --> Q{Extraction usable?}
-    Q -->|No| X[Explain unreadable pages or extraction error]
-    Q -->|Yes| S[Extract request and policy scope]
-    S --> A{Applicable to selected request?}
-    A -->|Mismatch| M[Show mismatch and supporting citations]
-    A -->|Uncertain| H[Ask staff to resolve scope]
-    A -->|Supported| P[Interpret policy criteria and logical groups]
-    P --> E[Map chart evidence to criteria]
-    E --> V[Validate sources, rules, and evidence]
-    V --> R[Evaluate supported logic]
-    R --> O[Checklist, issues, source viewer, and export]
+    G[Guideline PDF] --> GP[Complete page extraction]
+    GP --> GI[Inventory structural sections and dependencies]
+    GI --> GR[Bounded contextual section extraction]
+    GR --> RC[Reconcile definitions, scopes, references and exceptions]
+    RC --> AU[Audit coverage and compile supported rules]
+    AU --> GS[Persist versioned rule set and build manifest]
+    C[Chart PDF] --> CP[Complete page extraction]
+    CP --> CF[Chart-only model extraction]
+    CF --> CS[Persist sourced patient facts]
+    GS --> A[Assess applicability with selected request]
+    CS --> A
+    A -->|Mismatch or uncertain| H[Explain mismatch or ask for clarification]
+    A -->|Applicable| M[Map saved facts to saved requirements]
+    M --> V[Validate references and evaluate supported rules]
+    V --> O[Cited checklist and export]
 ```
 
-The OpenAI adapter serves the scope, policy interpretation, and evidence stages. Start with page-tagged full text inside explicit input limits. Layout extraction preserves tables and block positions. A future retrieval adapter must demonstrate evidence recall before replacing the full-context baseline.
+The [WP-19 implementation plan](plans/long-document-rule-compilation.md) specifies the long-document contracts, algorithm, task sequence, persistence, and acceptance. Every section has an explicit disposition; auxiliary summaries/retrieval help gather context without replacing original evidence or exhaustive accounting. Failed/unprocessed required sections prevent complete final publication.
 
-Validate each stage's structure and source references before its output is consumed or reused. The final validation node in the flow represents cross-stage checks as well as result assembly; it does not postpone scope or policy validation until after evidence mapping.
+The two extraction flows have document-only typed inputs. They share the configured OpenAI-compatible transport (including a configured LiteLLM gateway), but neither receives the other document, selected request, or staff annotations. They need not run concurrently to be independent. Their persisted artifacts survive assessments and process restarts. Assessment uses saved artifacts rather than re-reading documents through the model. Evidence mapping returns findings referencing existing fact IDs and cannot invent additional patient facts.
+
+Artifact reuse keys contain source content, actual extraction content/parser settings, the relevant extraction prompt/schema, provider endpoint/transport/model, and inference configuration. Policy keys exclude chart, request, annotations, chart prompt, and assessment prompt versions. Chart keys exclude policy and assessment settings. A changed document or relevant extraction version creates a new artifact; a changed assessment does not. Rejected rule sets are never reused. Technically validated drafts may be reused without implying human approval. Legacy request-specific policy artifacts are not compatible with this whole-guideline extraction version.
+
+Validate each artifact before publication and after rebinding citations to an identical re-upload's document/extraction IDs. Preserve original immutable payloads and the exact artifacts consumed by each run. Inventory all guideline sections; unsupported conditional/procedure logic remains a blocker rather than being dropped to fit a patient. Exact-span validation establishes provenance, not semantic completeness; live evaluation remains required.
 
 ## Request and run lifecycle
 
@@ -106,14 +115,23 @@ sequenceDiagram
     API->>Worker: Schedule bounded local work
     Worker->>Store: Record running and current phase
     Worker->>Worker: Extract pages and validate input coverage
-    Worker->>Model: Interpret scope with source references
+    Worker->>Store: Load exact compatible guideline and chart artifacts
+    opt Guideline build required
+        Worker->>Model: Read every guideline page, with no chart or request
+        Worker->>Store: Publish the validated whole-guideline rule set
+    end
+    opt Chart extraction required
+        Worker->>Model: Extract sourced chart facts, with no guideline or request
+        Worker->>Store: Publish the validated chart artifact
+    end
+    Worker->>Model: Interpret scope from saved artifacts and selected request
     Worker->>Worker: Validate scope and applicability
     alt Scope is uncertain
         Worker->>Store: Record needs_input and specific questions
     else Payer or procedure mismatch
         Worker->>Store: Complete with cited applicability mismatch
     else Scope is supported
-        Worker->>Model: Interpret policy and map chart evidence
+        Worker->>Model: Map saved chart facts to the selected policy path
         Worker->>Worker: Validate sources and evaluate supported logic
         Worker->>Store: Complete with findings and unresolved issues
     end
@@ -123,7 +141,7 @@ sequenceDiagram
     Reviewer->>UI: Inspect source or supply clarification
 ```
 
-`status` describes execution; `phase` identifies work within `running`; the assessment outcome describes what the documents establish. Keep these fields separate. Phases are `extracting`, `checking_applicability`, `interpreting_policy`, `mapping_evidence`, `validating`, and `evaluating`.
+`status` describes execution; `phase` identifies work within `running`; the assessment outcome describes what the documents establish. Keep these fields separate. Assessment phases include `extracting`, `interpreting_policy`, `extracting_chart`, `checking_applicability`, `mapping_evidence`, `validating`, and `evaluating`. WP-19 introduces a separate durable document-build lifecycle with section progress and bounded inventory/extraction/reconciliation/audit/compile work; its API/schema amendments are LD-02 work, not already verified endpoints.
 
 ```mermaid
 stateDiagram-v2
@@ -164,7 +182,7 @@ Match evidence to the selected request, anatomical target, and relevant time per
 
 ## Policy structure
 
-The model's wire format uses flat records: `nodes` contain an ID, a kind (`all`, `any`, or `criterion`), and references to child IDs or a criterion ID. The policy identifies one root. This avoids a recursive provider schema. Local validation rejects duplicate IDs, unknown references, cycles, unreachable nodes, empty logical groups, and unsupported operators. Use ordinary typed domain objects internally after validation.
+The model's wire format uses flat records: `nodes` contain an ID, a kind (`all`, `any`, or `criterion`), and references to child IDs or a criterion ID. The current policy contract identifies one root. WP-19 must amend/version the whole-guideline envelope to retain distinct procedure/scope paths, with one root per evaluated path or faithful source-supported guards. Unrelated branches cannot satisfy the selected request. Flat nodes avoid a recursive provider schema. Local validation rejects duplicate IDs, unknown references, cycles, unreachable nodes, empty logical groups, and unsupported operators. Use ordinary typed domain objects internally after validation.
 
 Preserve the source passage behind every interpreted requirement and connective. Keep headings, definitions, applicability restrictions, and policy-wide exceptions attached to the selected path. A boolean tree alone does not prove that the extractor captured the whole policy. Account for relevant sections with linked requirements or explicit explanations of their role; retain unclassified conditions and unresolved interpretation as independent blockers. Even a true rule tree cannot produce `documented requirements satisfied` while a relevant governing condition is unresolved. This gate catches known gaps; independent annotated evaluations are still needed to discover conditions the extractor missed entirely.
 
@@ -200,6 +218,8 @@ Treat model output as a candidate interpretation. Validate its schema, domain in
 
 Source existence is necessary but does not establish that the passage supports the claim. Semantic support, negation, relevance, and completeness require reviewed evaluation cases. The interface exposes these judgments and their sources so staff can challenge them. Untrusted document instructions are content, not permissions to invoke tools or change application rules; the model has no submission or browsing tools.
 
+Each extracted page also carries an `extraction_score`: the ratio of retained native characters to source characters. A run with no extracted chart facts receives a blocking completeness issue and cannot be marked satisfied. Medical-term context matching can use the small reviewed synonym helpers in `backend/app/evidence/synonyms.py`; they are bounded helpers, not a clinical ontology. The working tree has provisional context limits, `backend/app/assessment/chunking.py` page-range helpers, and a page-index/serial-fold prototype in `policies/pages.py` and the interpreter/workflow. These do not establish WP-19 support. Replace or extend them through structural chunk planning, explicit dependencies, immutable local extraction, reconciliation, coverage audit, and measured whole-build limits. A short excerpt cannot justify skipping a section, and an accumulated graph cannot be assumed to preserve earlier rules after repeated model rewrites.
+
 Use the selected model's verified structured-output mechanism, then validate locally with strict Pydantic contracts. Provider schema support is narrower than application validation; bounds, cross-record references, and tree invariants remain code responsibilities. An invalid response can receive one bounded repair attempt with validation feedback. A persistent error ends that stage visibly.
 
 ## Execution and persistence
@@ -210,14 +230,16 @@ Use a single-process executor with bounded concurrency for the local MVP, plus S
 
 Fingerprint reusable artifacts with input bytes plus parser, prompt, schema, model, and relevant configuration versions. Include selected request and user annotations in assessment identity. Cache only completed, validated artifacts. A retry cannot overwrite a prior final result or silently reuse output from a changed policy. Store actual outputs: a fixed temperature does not guarantee reproducible model responses.
 
+Policy interpretation results are also retained in a separate rule-set registry keyed by the policy document hash and configuration fingerprint. A model-generated graph is stored as a draft after technical validation. Later assessments reuse compatible drafts or approved rule sets without repeating extraction. Approval records human review separately and is never implied by reuse or a successful run.
+
 The implemented storage API uses separate role-scoped document IDs even when identical bytes share a blob. The original submitted fingerprint remains immutable; derived request context is saved in each run snapshot and participates in stage cache keys. Exact extraction revisions, upstream artifact identities, output schema, and validator version also participate. Files publish atomically before SQLite metadata, and reads verify their hashes. See the [storage verification record](results/storage.md) for APIs and failure tests. The workflow must validate candidate semantics before calling the artifact publication API.
 
 Bound provider retries for transient errors with exponential backoff and jitter, and an overall stage deadline. Avoid retry multiplication between SDK and application layers. Authentication errors, invalid schemas, and unsupported input require corrective action rather than repeated calls. Record attempts and distinguish parser failure, access failure, throttling, timeout, refusal, invalid output, and citation failure. All-page accounting and complete model responses are prerequisites for an ordinary completed assessment.
 
 Liveness reports that the HTTP process is serving. Readiness reports local dependencies and configuration needed to accept work; it does not promise current model access or trigger repeated paid inference. Record the outcome/time of a separately invoked live access check when available. Both stale access and mid-run provider failure remain possible and use the ordinary error path.
 
-## Future AWS options
+## Later hosting
 
-The initial MVP uses OpenAI for language interpretation and native PDF extraction locally. Unsupported scans or unusable image-only pages receive an explicit failure; they are never silently omitted. No AWS credentials or services are required. Adding OCR needs a justified scope decision and extraction/failure verification. The [provider decision](model-provider.md) owns the active integration boundary.
+The initial MVP uses OpenAI for language interpretation and native PDF extraction locally. Unsupported scans or unusable image-only pages receive an explicit failure; they are never silently omitted. Adding OCR needs a justified scope decision and extraction/failure verification. The [provider decision](model-provider.md) owns the active integration boundary.
 
-A later hosted version can package the same API/UI image on ECS Fargate, store immutable documents and artifacts in S3, and move shared metadata to Postgres. Add SQS and a worker when execution must survive restarts or multiple workers. Use CloudWatch for service signals, then evaluate Step Functions only if cross-service retries and workflow recovery justify it. Bedrock Knowledge Bases, OpenSearch, EKS, and autonomous agent orchestration have no demonstrated requirement in the current scope. The dated [AWS research](aws.md) preserves the earlier Bedrock/Textract proposal and service details for future evaluation; it does not define initial MVP prerequisites.
+Hosted deployment, a shared database, and extra workers are outside the current scope. Managed retrieval and autonomous agent orchestration have no demonstrated requirement.

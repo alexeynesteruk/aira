@@ -2,17 +2,18 @@
 
 Research date: October 17, 2026. This review compares public reference implementations and primary library documentation with the Aira assessment. Recommendations below are engineering judgments for this project. Public samples demonstrate patterns; they do not establish production accuracy, prevalence, or a measured reduction in denials.
 
+The [October 18 long-document follow-up](research/long-document-rule-extraction.md) and [WP-19 implementation plan](plans/long-document-rule-compilation.md) supersede the initial whole-document-call recommendation for long-guideline preparation. The earlier research below remains historical rationale, not long-document acceptance evidence.
+
 ## Recommended direction
 
 Build a provider-facing evidence and documentation gap assistant. Start with a staged Python pipeline, a small upload and review UI, and explicit structured results. Use the uploaded policy as the source of requirements, retain page-level evidence, and keep staff in control of unresolved findings.
 
-For the first experiment, process the complete guideline and chart when they fit the chosen model's measured limits. Compare that baseline with section-based retrieval before introducing a vector database. The assessment and Obsidian reviews informed FastAPI, React/TypeScript, Pydantic, and local SQLite/artifact storage. On October 18 the user selected OpenAI for initial inference, superseding the earlier Bedrock proposal. The exact model and native PDF limits still require representative-input experiments; unsupported scans are explicitly rejected initially. See the [implementation plan](implementation-plan.md) and [model provider decision](model-provider.md) for current decisions. The [AWS research](aws.md) preserves dated findings for future options.
+For the first experiment, process the complete guideline and chart when they fit the chosen model's measured limits. Compare that baseline with section-based retrieval before introducing a vector database. The assessment and Obsidian reviews informed FastAPI, React/TypeScript, Pydantic, and local SQLite/artifact storage. On October 18 the user selected OpenAI for initial inference. The exact model and native PDF limits still require representative-input experiments; unsupported scans are explicitly rejected initially. See the [implementation plan](implementation-plan.md) and [model provider decision](model-provider.md) for current decisions.
 
 ## Patterns in public implementations
 
 | Source | Pattern observed | Relevance to Aira |
 | --- | --- | --- |
-| [AWS prior authorization assistant](https://github.com/aws-samples/sample-prior-authorization-assistant) | Document extraction, payer and policy matching, criteria extraction, record review, then gap analysis. Uses Textract, Bedrock, a knowledge base, and Step Functions. | Reuse the separation of stages. Its AWS service choices are a reference example; the initial Aira boundary is OpenAI inference with a local application runtime. |
 | [Azure AutoAuth](https://github.com/Azure-Samples/autoauth-solution-accelerator) | OCR and clinical extraction followed by hybrid vector/BM25 policy retrieval and an assessment stage. | Retrieval helps when selecting from a policy collection; the take-home already lets the user supply the policy. |
 | [Microsoft multi-agent accelerator](https://github.com/microsoft/Prior-Authorization-Multi-Agent-Solution-Accelerator) | Separate compliance, clinical, coverage, and synthesis agents with per-criterion findings and human review. | The staged responsibilities are useful. Four deployed agent services add complexity beyond the initial workflow. |
 | [Anthropic prior authorization assessment reference](https://github.com/anthropics/healthcare/blob/main/plugins/healthcare/skills/prior-auth/references/01-intake-assessment.md) | Payer-side review with policy lookup, criterion-level MET / NOT_MET / INSUFFICIENT findings, supporting evidence, and gaps. | Borrow the distinction between finding states. Payer decision rules and mandatory external lookups do not define our provider-facing product. |
@@ -42,9 +43,9 @@ Use the local [versioned snapshots](../examples/guidelines/README.md) to test br
 
 ## What to avoid copying from reference code
 
-The [AWS compliance engine](https://github.com/aws-samples/sample-prior-authorization-assistant/blob/main/src/reviewer/compliance_engine.py) defines separate insufficient and contradictory evidence decisions, then maps both to `NOT_MET`. Its aggregator can label a case compliant using an 80% criterion threshold and average confidence when critical criteria pass. Those are implementation choices in that sample, not medical necessity rules we should inherit. Aira should retain distinct states and evaluate the actual policy's required combinations.
+Public samples sometimes define separate insufficient and contradictory evidence decisions, then map both to `NOT_MET`, or label a case compliant using an 80% criterion threshold and average confidence when critical criteria pass. Those are implementation choices, not medical necessity rules we should inherit. Aira retains distinct states and evaluates the actual policy's required combinations.
 
-The [AWS evidence mapper](https://github.com/aws-samples/sample-prior-authorization-assistant/blob/main/src/reviewer/evidence_mapper.py) adjusts confidence partly using the lengths of evidence and reasoning text. This is not evidence that the resulting number estimates correctness. Prefer visible evidence and measured error rates over an uncalibrated percentage in the MVP.
+Some samples also adjust confidence from the lengths of evidence and reasoning text. That is not evidence that the resulting number estimates correctness. Prefer visible evidence and measured error rates over an uncalibrated percentage in the MVP.
 
 The [Microsoft decision rubric](https://github.com/microsoft/Prior-Authorization-Multi-Agent-Solution-Accelerator/blob/main/docs/architecture.md) includes an approval fallback when no policy is found but clinical evidence is strong. That is outside our proposed product contract: a missing or mismatched guideline should require clarification rather than produce a supported-by-policy result.
 
@@ -104,7 +105,7 @@ Measure applicability errors, criterion extraction completeness, citation validi
 
 Use FastAPI, React with TypeScript, Pydantic schemas, and a thin OpenAI Responses API adapter. This aligns with Aira's stated stack while keeping policy logic outside the UI. Local files and SQLite preserve saved runs without additional services. Postgres, retrieval, queues, and agent orchestration require demonstrated needs.
 
-The [implementation plan](implementation-plan.md#planned-repository-structure) owns the folder structure and Docker launch contract. The backend/frontend foundation and shared contracts are implemented; current package evidence is in the [work breakdown](work-breakdown.md#implementation-evidence). The container shell passes GitHub Actions. The complete live workflow still requires clean-checkout verification with documented OpenAI credentials and available API quota.
+The [implementation plan](implementation-plan.md#planned-repository-structure) owns the folder structure and the one-line launch contract. The backend/frontend foundation and shared contracts are implemented; current package evidence is in the [work breakdown](work-breakdown.md#implementation-evidence). Browser checks pass in GitHub Actions. The complete live workflow still requires clean-checkout verification with documented OpenAI credentials and available API quota.
 
 ## Extension path
 
@@ -115,3 +116,11 @@ For a later integrated product, study the [HL7 Da Vinci electronic prior authori
 This is a targeted review of relevant Reddit threads, public code, library documentation, an experimental research repository, a standards repository, and the actual example policy. It is not an exhaustive search of the internet. No external accuracy, latency, or approval-rate claim has been adopted as an expected outcome for Aira.
 
 Contracts and the independently reviewed two-family text corpus are implemented. Parser and isolated OpenAI experiments now follow the [stable milestones](implementation-plan.md#implementation-sequence). The supplied pair remains the mismatch case. Live inference is deferred until project quota is available; the [feasibility record](results/model-feasibility.md) records the observed failure and repeatable commands. Inspect criterion structure, citations, failures, latency, and usage before adding retrieval or an agent framework.
+
+## October 18 follow-up: long-document rule extraction
+
+The user requires independent persisted guideline and chart extraction, and complete rule-set preparation for 100–200-page guidelines. The [dated research log](research/long-document-rule-extraction.md) records primary sources inspected through the web-headed browser: Google LangExtract, Berkeley DocETL, Docling, AWS policy-to-logic building/testing, and the TACL long-context study. It separates observed claims from Aira-specific inferences and unmeasured limits.
+
+The accepted design is structure-aware decomposition, contextual section extraction, explicit dependency reconciliation, coverage/omission auditing, deterministic compilation, and immutable intermediate/final artifacts. A top-k retrieval result or a short page excerpt cannot establish complete coverage. JSON shape, graph validity, and source-faithful interpretation require separate checks.
+
+Implementation is [WP-19](features/19-long-document-rule-compilation.md), with BR-013/TR-019/A21 and a [task-by-task execution plan](plans/long-document-rule-compilation.md). Direct OpenAI using the reviewer's backend key is required; LiteLLM remains optional. These are design/specification findings, not implementation or live accuracy results.

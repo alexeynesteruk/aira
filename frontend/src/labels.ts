@@ -35,10 +35,33 @@ export const RUN_STATUS_LABELS: Record<string, string> = {
 
 export const PHASE_LABELS: Record<string, string> = {
   extracting: 'Extracting documents',
-  checking_applicability: 'Checking applicability',
   interpreting_policy: 'Interpreting policy',
+  extracting_chart: 'Reading the chart',
+  checking_applicability: 'Checking applicability',
   mapping_evidence: 'Mapping evidence',
+  validating: 'Checking the saved result',
   evaluating: 'Evaluating policy',
+}
+
+/** Staff-visible order. The model stages have no honest percent of work left. */
+export const ASSESSMENT_PHASES = [
+  'extracting',
+  'interpreting_policy',
+  'extracting_chart',
+  'checking_applicability',
+  'mapping_evidence',
+  'evaluating',
+] as const
+
+export const PHASE_ACTIVITY: Record<string, string> = {
+  extracting: 'Reading every page of the guideline and the chart.',
+  interpreting_policy:
+    'Building the rule set from the whole guideline. The model is working on this step, and it often takes several minutes.',
+  extracting_chart: 'Reading the chart on its own and saving the facts for later assessments.',
+  checking_applicability: 'Checking whether the saved policy applies to the saved chart facts.',
+  mapping_evidence: 'Comparing the chart with the saved rule set.',
+  validating: 'Checking that every quote still matches the saved pages.',
+  evaluating: 'Scoring the checklist from the saved rules and the chart evidence.',
 }
 
 export const REQUEST_FIELD_LABELS: Record<string, string> = {

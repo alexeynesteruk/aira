@@ -1,14 +1,22 @@
 """Rendered stage inputs are the shared model-facing text form, not raw records."""
 
 import json
+from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import pytest
 
-from app.assessment.stages import StageInputs, render_stage_input
+from app.assessment.stages import (
+    DocumentInputs,
+    StageInputs,
+    render_document_input,
+    render_stage_input,
+)
 from app.schemas import (
     AllNode,
     BoundingBox,
+    ChartData,
+    ChartFact,
     Criterion,
     CriterionNode,
     DateAnnotation,
@@ -17,6 +25,7 @@ from app.schemas import (
     ExtractedPage,
     ExtractionMethod,
     ExtractionRecord,
+    FactPolarity,
     FieldSources,
     NumericPredicate,
     PageInventory,
@@ -155,27 +164,73 @@ def policy() -> Policy:
     )
 
 
-def test_scope_renders_both_documents_policy_first(inputs: StageInputs) -> None:
-    packet = json.loads(render_stage_input(inputs, "scope"))
-    assert packet["input_kind"] == "native_pdf_text_blocks"
-    assert [item["document_id"] for item in packet["documents"]] == [
-        "policy-doc",
-        "chart-doc",
-    ]
-    assert "criteria" not in packet
+def chart_data() -> ChartData:
+    return ChartData(
+        document_id="chart-doc",
+        document_sha256=CHART_SHA,
+        facts=(
+            ChartFact(
+                fact_id="fact-heart-rate",
+                proposition="The chart documents a resting heart rate of 44 bpm.",
+                sources=(span("chart-doc", CHART_SHA),),
+                polarity=FactPolarity.AFFIRMED,
+            ),
+        ),
+    )
+
+
+def assessed(inputs: StageInputs, **changes: object) -> StageInputs:
+    return replace(inputs, policy=policy(), chart=chart_data(), **changes)
+
+
+def test_scope_renders_saved_artifacts_without_raw_pages(inputs: StageInputs) -> None:
+    packet = json.loads(render_stage_input(assessed(inputs), "scope"))
+    assert packet["input_kind"] == "saved_document_interpretations"
+    assert "documents" not in packet
+    assert packet["policy"]["title"] == "Hand-built policy"
+    assert packet["chart"]["facts"][0]["fact_id"] == "fact-heart-rate"
+    assert packet["selected_request"] is None
+    assert packet["staff_annotations"] == []
+    rendered = json.dumps(packet)
+    assert "policy-doc first block" not in rendered
+    assert "chart-doc first block" not in rendered
 
 
 def test_policy_stage_renders_only_the_policy_document(inputs: StageInputs) -> None:
-    packet = json.loads(render_stage_input(inputs, "policy"))
+    annotated = assessed(
+        inputs,
+        request_context=RequestContext(procedure="endovenous ablation"),
+        annotations=(
+            TextAnnotation(annotation_id="staff-plan", field="plan", value="Plan", created_at=NOW),
+        ),
+    )
+    packet = json.loads(render_stage_input(annotated, "policy"))
+    assert packet["input_kind"] == "pdf_text_blocks"
     assert [item["document_id"] for item in packet["documents"]] == ["policy-doc"]
-    assert "criteria" not in packet
+    rendered = json.dumps(packet)
+    assert "chart-doc" not in rendered
+    assert "selected_request" not in packet
+    assert "staff_annotations" not in packet
+    assert "endovenous ablation" not in rendered
 
 
-def test_evidence_stage_renders_the_chart_and_interpreted_criteria(
+def test_chart_stage_renders_only_the_chart_document(inputs: StageInputs) -> None:
+    packet = json.loads(
+        render_document_input(DocumentInputs(inputs.chart_document, inputs.chart_extraction))
+    )
+    assert [item["document_id"] for item in packet["documents"]] == ["chart-doc"]
+    rendered = json.dumps(packet)
+    assert "policy-doc" not in rendered
+    assert "selected_request" not in packet
+    assert "criterion" not in rendered
+
+
+def test_evidence_stage_renders_saved_facts_and_criteria(
     inputs: StageInputs,
 ) -> None:
-    packet = json.loads(render_stage_input(inputs, "evidence", policy()))
-    assert [item["document_id"] for item in packet["documents"]] == ["chart-doc"]
+    packet = json.loads(render_stage_input(assessed(inputs), "evidence", policy()))
+    assert "documents" not in packet
+    assert packet["chart"]["facts"][0]["fact_id"] == "fact-heart-rate"
     criteria = packet["criteria"]
     assert [item["criterion_id"] for item in criteria] == [
         "criterion-diameter",
@@ -204,9 +259,10 @@ def test_stage_policy_argument_contract(inputs: StageInputs) -> None:
 
 
 def test_rendering_is_deterministic(inputs: StageInputs) -> None:
-    first = render_stage_input(inputs, "evidence", policy())
-    assert render_stage_input(inputs, "evidence", policy()) == first
-    assert render_stage_input(inputs, "scope") == render_stage_input(inputs, "scope")
+    saved = assessed(inputs)
+    first = render_stage_input(saved, "evidence", policy())
+    assert render_stage_input(saved, "evidence", policy()) == first
+    assert render_stage_input(saved, "scope") == render_stage_input(saved, "scope")
 
 
 def test_pages_are_ordered_one_based_and_blank_pages_render_empty_blocks(
@@ -232,7 +288,7 @@ def _keys(value: object) -> set[str]:
 
 
 def test_render_omits_provenance_geometry_and_record_identity(inputs: StageInputs) -> None:
-    rendered = render_stage_input(inputs, "evidence", policy())
+    rendered = render_stage_input(assessed(inputs), "evidence", policy())
     keys = _keys(json.loads(rendered))
     assert not keys & {
         "block_id",
@@ -254,11 +310,8 @@ def test_render_omits_provenance_geometry_and_record_identity(inputs: StageInput
 def test_request_and_annotations_render_values_without_provenance(
     inputs: StageInputs,
 ) -> None:
-    annotated = StageInputs(
-        inputs.policy_document,
-        inputs.chart_document,
-        inputs.policy_extraction,
-        inputs.chart_extraction,
+    annotated = assessed(
+        inputs,
         request_context=RequestContext(
             procedure="endovenous ablation",
             payer="Fixture Health",
@@ -310,6 +363,6 @@ def test_request_and_annotations_render_values_without_provenance(
 
 
 def test_no_request_context_renders_null(inputs: StageInputs) -> None:
-    packet = json.loads(render_stage_input(inputs, "scope"))
+    packet = json.loads(render_stage_input(assessed(inputs), "scope"))
     assert packet["selected_request"] is None
     assert packet["staff_annotations"] == []

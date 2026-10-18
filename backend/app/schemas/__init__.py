@@ -33,6 +33,7 @@ from .evaluation import (
     ReadinessBlocker,
 )
 from .evidence import (
+    ChartData,
     ChartFact,
     EvidenceReference,
     EvidenceRelation,
@@ -66,7 +67,10 @@ from .provider import (
     CandidatePolicyNode,
     CandidatePolicySection,
     CandidateRequest,
+    ChartCandidate,
     EvidenceCandidate,
+    FindingsCandidate,
+    PagePlanCandidate,
     PolicyCandidate,
     ScopeCandidate,
 )
@@ -117,6 +121,9 @@ __all__ = [
     "CandidatePolicyNode",
     "CandidatePolicySection",
     "CandidateRequest",
+    "ChartData",
+    "ChartCandidate",
+    "FindingsCandidate",
     "ChartFact",
     "ClarificationField",
     "ConfigurationProvenance",
@@ -156,6 +163,7 @@ __all__ = [
     "PageQuality",
     "PageResponse",
     "Policy",
+    "PagePlanCandidate",
     "PolicyCandidate",
     "PolicyNode",
     "PolicyScopeField",

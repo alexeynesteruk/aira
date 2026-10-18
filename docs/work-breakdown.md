@@ -2,7 +2,7 @@
 
 This backlog decomposes the [implementation milestones](implementation-plan.md#implementation-sequence) into assignable changes. The [business requirements](requirements/business-requirements.md) define the staff outcome, the [technical requirements](requirements/technical-requirements.md) define testable system behavior, and the [architecture](architecture.md) defines component boundaries. Acceptance IDs refer to the existing [evaluation matrix](evaluation.md#required-scenarios).
 
-The table below owns implementation status, dependencies, and responsibility. Individual [feature specifications](features/README.md) contain business/technical requirements, task checklists, deliverables, and acceptance details. As of October 18, 2026, all non-live packages are implemented: WP-01–WP-04, WP-06, WP-10, WP-12, WP-13, and WP-14 are complete, and WP-15–WP-18 are in progress. WP-05 live model evaluation remains blocked by API project quota, deferred at the user’s request; every live-model or live-delivery acceptance gate stays open. An owner role indicates responsibility, not an assigned person. No delivery date or effort estimate is implied before the first feasibility results.
+The table below owns implementation status, dependencies, and responsibility. Individual [feature specifications](features/README.md) contain business/technical requirements, task checklists, deliverables, and acceptance details. As of October 18, 2026, WP-01–WP-04, WP-06, WP-10, WP-12, WP-13, and WP-14 are complete, and WP-07–WP-09, WP-11, and WP-15–WP-18 are in progress. WP-05 live model evaluation remains blocked by API project quota, deferred at the user’s request; every live-model or live-delivery acceptance gate stays open. An owner role indicates responsibility, not an assigned person. WP-19 is in progress at the specification/prototype stage; its integrated long-document acceptance remains open. No delivery date or effort estimate is implied before the first feasibility results.
 
 ## Work packages and dependencies
 
@@ -25,11 +25,12 @@ Dependencies mean the evidence needed to finish a package. Exploratory implement
 | WP-13 | [Staff upload and review interface](features/13-staff-review-interface.md) | M4 | Frontend | WP-12 | TR-014 | Complete |
 | WP-14 | [Traceable assessment exports](features/14-assessment-exports.md) | M4 | Backend/frontend | WP-11, WP-12 | TR-015 | Complete |
 | WP-15 | [OCR decision and supported input limits](features/15-ocr-input-limits.md) | M2 | Documents/model integration | WP-03, WP-04, WP-05 | TR-003, TR-016 | In progress |
-| WP-16 | [Integrated evaluation and regression checks](features/16-evaluation-regression.md) | M5 | Evaluation/integration | WP-13, WP-14, WP-15 | TR-017 | In progress |
-| WP-17 | [Container packaging and reviewer setup](features/17-reviewer-packaging.md) | M6 | Integration | WP-05, WP-12, WP-13, WP-14, WP-15 | TR-010, TR-018 | In progress |
+| WP-16 | [Integrated evaluation and regression checks](features/16-evaluation-regression.md) | M5 | Evaluation/integration | WP-13, WP-14, WP-15, WP-19 | TR-017 | In progress |
+| WP-17 | [Reviewer setup](features/17-reviewer-packaging.md) | M6 | Integration | WP-05, WP-12, WP-13, WP-14, WP-15 | TR-010, TR-018 | In progress |
 | WP-18 | [Release verification and design note](features/18-release-handoff.md) | M6 | Integration | WP-16, WP-17 | TR-017, TR-018 | In progress |
+| WP-19 | [Long-document rule-set compilation](features/19-long-document-rule-compilation.md) | M2–M6 | Integration | WP-03, WP-04, WP-05, WP-06, WP-10, WP-15 | TR-006, TR-007, TR-010–TR-019 | In progress |
 
-WP-07, WP-08, and WP-09 can be developed independently using the request, policy, and evidence contracts from WP-02 and annotated examples from WP-03. Their runtime order is enforced by WP-11: scope first, then policy interpretation, then evidence mapping. A chart-only extraction test can inspect the supplied chronology even though its end-to-end pair stops at mismatch.
+WP-07, WP-08, and WP-09 can be developed independently using the request, policy, and evidence contracts from WP-02 and annotated examples from WP-03. Their runtime order is enforced by WP-11: save the whole-guideline rule set and the chart facts independently, then check applicability, then map evidence onto the saved fact IDs. A guideline extraction does not receive the chart, and a chart extraction does not receive the guideline. Changing the request or an annotation repeats only the assessment.
 
 ```mermaid
 flowchart LR
@@ -58,6 +59,13 @@ flowchart LR
     W15 --> W17
     W16 --> W18[WP-18 Release evidence]
     W17 --> W18
+    W3 --> W19[WP-19 Long-document compilation]
+    W4 --> W19
+    W5 --> W19
+    W6 --> W19
+    W10 --> W19
+    W15 --> W19
+    W19 --> W16
 ```
 
 The diagram summarizes the flow; the dependency table is authoritative. The principal integration path is contracts and fixtures → validated parser/provider/domain stages → workflow/API → staff review → release evidence. Storage, pure rules, and the native-text input-limit decision can progress alongside that path. Final delivery requires both evaluated behavior and a clean packaged launch.
@@ -140,6 +148,12 @@ Design-note draft (`docs/design-note.md`); live release checks remain open.
 
 [Feature specification and implementation checklist](features/18-release-handoff.md).
 
+### WP-19 Long-document rule-set compilation
+
+[Feature specification, LD-01–LD-10 tasks, and LD-AC01–LD-AC12 acceptance](features/19-long-document-rule-compilation.md). [Detailed implementation plan](plans/long-document-rule-compilation.md). Research/specification and the BRD/TRD/acceptance amendments are recorded; runtime completion is not claimed. Existing working-tree document-isolation, registry, and page-fold changes must be inspected and integrated against the new contracts. No reviewed 100/200-page live result or direct-OpenAI clean-checkout evidence is recorded for this feature.
+
+WP-19 consumes existing package foundations and WP-15's amended input envelope. Its integration follow-up applies to WP-08/WP-09/WP-11–WP-14; WP-16/WP-18 release checks must include A21 before declaring the expanded product complete. The LD task graph in the plan supplies execution order without making the original package dependency graph circular. A future result record must identify implementing commits and actual deterministic/live checks; documentation is specification evidence only.
+
 ## Integration and completion rules
 
 Use `Not started`, `In progress`, `Blocked`, or `Complete` in the status column, with a concrete reason for blocked work. Each package should fit a focused change or a small series of reviewable changes. Its completion record identifies the owner, implementing commit, requirements covered, checks run, observed results, and remaining limitations. Use actual evidence before changing status; the records below distinguish completed packages from unfinished integration and live validation.
@@ -152,7 +166,7 @@ Start with WP-01–WP-03, then run WP-04 and WP-05 alongside the pure validation
 
 | Package | Implementing commit and verification | Remaining boundary |
 | --- | --- | --- |
-| WP-01 | `f42b670`; [successful Actions run](https://github.com/alexeynesteruk/aira/actions/runs/39071755373). FastAPI/React shell, pinned toolchains, lint/type/tests/build, Docker and browser gates, checksummed image delivery. A deliberate TypeScript error was rejected locally. | The delivered image now serves the full UI/API; live in-container processing is WP-17's remaining gate. |
+| WP-01 | `f42b670`; [successful Actions run](https://github.com/alexeynesteruk/aira/actions/runs/39071755373). FastAPI/React shell, pinned toolchains, lint/type/tests/build, and browser checks. A deliberate TypeScript error was rejected locally. | The one-line launcher serves the full UI/API; the live upload-to-export check is WP-17's remaining gate. |
 | WP-02 | `28da09e`; [successful Actions run](https://github.com/alexeynesteruk/aira/actions/runs/39072343066). Versioned records, 45 contract checks, [contract documentation](contracts.md). Integration owner maintains shared schemas. | Provider schema compatibility and domain interpretation need live verification. |
 | WP-03 | `eff3124`; [successful Actions run](https://github.com/alexeynesteruk/aira/actions/runs/39072616016). 23 corpus checks and [independent source review](reviews/wp03-fixtures.md). A follow-up commit adds the rendered development PDFs (`examples/synthetic/`), manifest, integrity checks, and the FT-01 construction-ledger update. | These are text fixtures and reviewed expectations, not a semantic benchmark. The reserved pair is not claimed blind; final release inputs still need independent curation. |
 | WP-04 | Implemented in b615da6, verified by [CI](https://github.com/alexeynesteruk/aira/actions/runs/39112341365); [extraction record](results/pdf-extraction.md), 34 integration checks on the supplied chart and both guideline snapshots. | Persistence/workflow use is in WP-06/WP-11; the measured model envelope is in WP-15. |
@@ -166,4 +180,10 @@ Start with WP-01–WP-03, then run WP-04 and WP-05 alongside the pure validation
 | WP-14 | Markdown export renderer in `app.assessment.export` with 5 checks (7526a77, [CI](https://github.com/alexeynesteruk/aira/actions/runs/39112341365)); export routes in `app.api` proven for JSON/Markdown, state conflicts, and cross-run stability (f92c4fd, [CI](https://github.com/alexeynesteruk/aira/actions/runs/39114147676)); UI downloads verified against filenames and persisted content (e5bb91a, [CI](https://github.com/alexeynesteruk/aira/actions/runs/39115133880)); evaluation-path lines added in 9f3c368 ([CI](https://github.com/alexeynesteruk/aira/actions/runs/39122282423)). | WP-16 UI parity against live runs remains the open boundary. |
 | WP-15 | Declared boundary and limit evidence in [input limits record](results/input-limits.md); parser byte/page/character limits and intake rejection classes verified at API level in [results/http-api.md](results/http-api.md) and [results/pdf-extraction.md](results/pdf-extraction.md). | The parser-plus-model token envelope needs live calls and stays open under the deferred quota. |
 | WP-16 | Deterministic checks (lint/type/build/pytest/Vitest) run on every push (latest [CI](https://github.com/alexeynesteruk/aira/actions/runs/39122282423)); controlled-interpreter and fixture-interpreter checks exercise failure, interruption, annotation conflict, cache invalidation, source navigation, and export parity. A follow-up commit renders the development corpus to native-text PDFs (FT-01) and updates the construction ledger. | The live semantic evaluation report, release-corpus expectations, and the live A19 run remain open. |
-| WP-17 | Container delivery verified on every main push (latest [CI](https://github.com/alexeynesteruk/aira/actions/runs/39115133880)); the reviewer docs and compose volume landed in e5bb91a, and persisted preflight verification plus `AIRA_MAX_OUTPUT_TOKENS` landed in 9f3c368 ([CI](https://github.com/alexeynesteruk/aira/actions/runs/39122282423)). | The live in-container upload-to-export check (A19) remains open until quota is restored. |
+| WP-17 | Reviewer setup is the one-line launcher. `scripts/launch.sh` was verified on a clean checkout on October 18: it installed locked dependencies, built the UI, served liveness/readiness and the app on port 8000, and ran a real upload-to-provider run against the supplied BCBS guideline and chart (all 21 pages extracted; the run failed `throttled` at `checking_applicability`). Persisted preflight verification plus `AIRA_MAX_OUTPUT_TOKENS` landed in 9f3c368 ([CI](https://github.com/alexeynesteruk/aira/actions/runs/39122282423)). | The live upload-to-export check (A19) remains open until quota is restored. |
+
+[WP-19 specification and observed check record](results/wp19-specification.md) records this documentation delivery and the working-tree lint/browser failures. It does not close runtime or live acceptance.
+
+## Independent extraction follow-up (October 18)
+
+User-authorized implementation in progress: replace request-specific policy interpretation and combined chart extraction/mapping with whole-guideline and chart-only model flows, persisted independently by stage-specific configuration. Assessment consumes both saved artifacts. WP-08/WP-09/WP-11 scope includes typed document-only boundaries, cross-patient/cross-guideline/restart reuse, duplicate-upload citation rebinding, and mapping that cannot add facts. The [WP-19 plan](plans/long-document-rule-compilation.md) extends this work to structural chunks, dependencies, coverage audits, and durable builds. A future implementation result record must contain actual commands/revisions; live acceptance remains open.

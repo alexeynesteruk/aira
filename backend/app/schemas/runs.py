@@ -1,7 +1,7 @@
 """Run lifecycle, provenance, and assessment result contracts."""
 
 from enum import StrEnum
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import AwareDatetime, Field, model_validator
 
@@ -32,6 +32,7 @@ class RunStatus(StrEnum):
 
 class RunPhase(StrEnum):
     EXTRACTING = "extracting"
+    EXTRACTING_CHART = "extracting_chart"
     CHECKING_APPLICABILITY = "checking_applicability"
     INTERPRETING_POLICY = "interpreting_policy"
     MAPPING_EVIDENCE = "mapping_evidence"
@@ -81,7 +82,6 @@ class InferenceSettings(StrictModel):
 
 class ModelProvider(StrEnum):
     OPENAI = "openai"
-    BEDROCK = "bedrock"
 
 
 class ConfigurationProvenance(VersionedModel):
@@ -93,15 +93,15 @@ class ConfigurationProvenance(VersionedModel):
     region: NonEmptyText | None = None
     sdk_version: NonEmptyText
     inference: InferenceSettings
+    transport: Literal["responses", "chat_completions"] = "responses"
+    endpoint_sha256: Sha256 | None = None
 
     @model_validator(mode="after")
     def unique_prompts(self) -> Self:
         if len({item.name for item in self.prompts}) != len(self.prompts):
             raise ValueError("prompt names must be unique in configuration provenance")
-        if self.provider == ModelProvider.BEDROCK and self.region is None:
-            raise ValueError("Bedrock configuration requires a region")
         if self.provider == ModelProvider.OPENAI and self.region is not None:
-            raise ValueError("OpenAI configuration does not use an AWS region")
+            raise ValueError("OpenAI configuration does not use a region")
         return self
 
 
@@ -121,6 +121,7 @@ class RunProgress(StrictModel):
     completed_phases: tuple[RunPhase, ...] = ()
     completed_pages: NonNegativeInt = 0
     total_pages: NonNegativeInt | None = None
+    activity: str | None = None
 
     @model_validator(mode="after")
     def bounded_progress(self) -> Self:
@@ -218,6 +219,8 @@ class RunRecord(VersionedModel):
     result: AssessmentResult | None = None
     error: OperationalError | None = None
     usage: tuple[StageUsage, ...] = ()
+    policy_rule_set_id: Identifier | None = None
+    chart_interpretation_id: Identifier | None = None
 
     @model_validator(mode="after")
     def valid_lifecycle(self) -> Self:
