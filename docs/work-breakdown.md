@@ -1,5 +1,7 @@
 # Aira implementation work breakdown
 
+*Historical planning record; statuses reflect Oct 18 and are not maintained.*
+
 This backlog decomposes the [implementation milestones](implementation-plan.md#implementation-sequence) into assignable changes. The [business requirements](requirements/business-requirements.md) define the staff outcome, the [technical requirements](requirements/technical-requirements.md) define testable system behavior, and the [architecture](architecture.md) defines component boundaries. Acceptance IDs refer to the existing [evaluation matrix](evaluation.md#required-scenarios).
 
 The table below owns implementation status, dependencies, and responsibility. Individual [feature specifications](features/README.md) contain business/technical requirements, task checklists, deliverables, and acceptance details. As of October 18, 2026, WP-01–WP-04, WP-06, WP-10, WP-12, WP-13, and WP-14 are complete, and WP-07–WP-09, WP-11, and WP-15–WP-18 are in progress. WP-05 live model evaluation remains blocked by API project quota, deferred at the user’s request; every live-model or live-delivery acceptance gate stays open. An owner role indicates responsibility, not an assigned person. WP-19 runtime and controlled integration are implemented; live semantic/reviewer-release acceptance remains open. No delivery date or effort estimate is implied before the first feasibility results.

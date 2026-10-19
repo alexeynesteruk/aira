@@ -194,7 +194,7 @@ From `backend/app/api/routes.py` and the TRD:
 
 Error contract: `error.code`, `message`, `retryable`, optional `stage`/`page`/`document_id`, and corrective `action`, plus a request ID. Typical statuses: 400 malformed syntax, 415 unsupported file type, 422 contract failure, 413 limit exceeded, 404 unknown resource, 409 state conflict, 429 queue full, 503 missing configuration/processing unavailable.
 
-Readiness reports the persisted explicit preflight state but never performs inference. `/health` is a newly added alias for liveness in the working tree.
+Readiness reports the persisted explicit preflight state but never performs inference. `/health` is an alias for liveness.
 
 ## 9. Provider and configuration
 
@@ -268,7 +268,7 @@ make dev-ui           # Vite dev server
 ./scripts/launch.sh   # one-line reviewer launch on port 8000
 ```
 
-### `make check` on October 19, 2026 (this working tree)
+### `make check` on October 19, 2026
 
 - Ruff lint: passed.
 - Ruff format check: 91 files already formatted.
@@ -290,73 +290,13 @@ make dev-ui           # Vite dev server
 ### Not run in this pass
 
 - `make browser-test` (Playwright). Historical record: 14 passed.
-- Any live model call, preflight, or paid probe.
+- Any additional live model call, preflight, or paid probe (the one live run is recorded at the top of this note).
 
 ## 14. Current implementation status
 
-| Work package | Status |
-| --- | --- |
-| WP-01 Foundation | Complete |
-| WP-02 Contracts | Complete |
-| WP-03 Fixtures | Complete; held-out semantic curation still open |
-| WP-04 Native PDF extraction | Complete |
-| WP-05 Model feasibility | Blocked by deferred quota; adapter/CLI/controlled tests exist |
-| WP-06 Storage | Complete |
-| WP-07–WP-09 Domain stages | In progress; controlled conversion/interpreter evidence, live semantic checks open |
-| WP-10 Rules/provenance | Complete |
-| WP-11 Workflow | In progress; live run open |
-| WP-12 HTTP API | Complete |
-| WP-13 Review UI | Complete |
-| WP-14 Exports | Complete |
-| WP-15 Input limits | In progress; parser boundary verified, model token envelope open |
-| WP-16 Integrated evaluation | In progress; live semantic report open |
-| WP-17 Reviewer setup | In progress; clean-checkout live workflow open |
-| WP-18 Release handoff | In progress; design-note draft exists |
-| WP-19 Long-document compilation | In progress; runtime/controlled checks delivered, LD-09/LD-10 live acceptance open |
+One live run of the supplied pair completed as an applicability mismatch during development (on an earlier extraction revision); there is no live accuracy benchmark yet, and the 98-page path has not been run live. Everything else rests on deterministic tests and controlled interpreters. The [work breakdown](work-breakdown.md) is a historical planning record and is not maintained.
 
-Open release gates: live semantic accuracy, model selection, measured parser+model envelope, A19 clean-checkout live run, A21 rule/edge/exception fidelity and repeatability, held-out pair curation.
-
-## 15. Current working tree (uncommitted)
-
-`git status --short` shows a broad in-progress update:
-
-### Staged
-
-- `.github/workflows/ci.yml` deleted. Documentation and `AGENTS.md` now say verification is local and there is no hosted CI. README previously linked GitHub Actions.
-
-### Modified application code
-
-- `backend/app/llm/config.py`: endpoint selection reworked. Env-file `OPENAI_BASE_URL` now selects a compatible endpoint for any backend; shell-only values are ignored unless `AIRA_LLM_BACKEND=litellm`; custom endpoints imply `litellm` backend and chat-completions transport unless explicitly overridden; blank shell values no longer override the env file.
-- `backend/app/main.py`: added `GET /health` as an alias of `/health/live`.
-- `backend/app/policies/__init__.py`, `conversion.py`: removed the unused `convert_evidence` helper. Production now uses `convert_chart` then `convert_findings`, preserving saved-fact mapping. Unreadable model dates are handled as staff-confirmation issues:
-  - criterion `date_boundary`: predicate dropped, wording/sources kept, blocking `DATE_CONFIRMATION`.
-  - policy revision/effective dates: field left `None`, one blocking `conversion-policy-date` issue.
-  - chart event/documentation date: field left `None`, fact kept, non-blocking note in `ChartData.interpretation_issues`.
-  - literal `YYYY-MM-DD` unchanged; an invalid real date such as `20260230` still fails conversion.
-  - logical groups may carry a stray `criterion_id`: children win. A group with no children and no criterion fails. A group node with only `criterion_id` becomes a criterion leaf.
-- `backend/app/policies/compiler.py`: an empty fragment (no criteria) is treated as a shell, not a failed extraction; a requirements disposition without a cited rule becomes a blocking review issue instead of failing the section.
-- `backend/app/storage/local.py`: run update conflict detection now compares the validated snapshot (`expected != current`) instead of re-hashing the loaded record. This allows older snapshots missing later optional fields to be updated/interrupted without a false conflict.
-
-### Modified tests / frontend
-
-- `tests/unit/test_candidate_conversion.py`: switched to `convert_chart` + `convert_findings`; added unreadable policy/chart date tests; stray group `criterion_id` test; removed `bad_date` from hard-failure cases.
-- `tests/unit/test_policy_compiler.py`: shell/empty-fragment coverage.
-- `tests/integration/test_storage.py`: legacy snapshot update/interruption regression.
-- `tests/integration/test_openai_adapter.py`: env-file compatible-endpoint selection and transport tests.
-- `tests/integration/test_health.py`: `/health` alias assertion.
-- `frontend/src/App.test.tsx`, `frontend/src/components/Readiness.tsx`: label a non-openai backend as "OpenAI-compatible API", not "LiteLLM" or "Direct OpenAI".
-
-### Modified documentation
-
-Broad synchronization across README, AGENTS, and docs: architecture, requirements, evaluation, implementation plan, work breakdown, provider decision, decisions, handoff, feature 09/17/19, plans, research logs, and result records. Includes the CI removal, current WP-19/independent-extraction evidence, endpoint-selection wording, and date-confirmation behavior.
-
-### Untracked
-
-- `docs/results/candidate-conversion.md`: detailed record of conversion entry points, unreadable-date policy, provenance checks, and the observed 53-test verification.
-
-Nothing in this working tree should be assumed committed or final until reviewed and checked again.
-
-## 16. Important invariants to preserve
+## 15. Important invariants to preserve
 
 - Do not hard-code the supplied patient, procedure, payer, or coverage rules. New uploads must drive results.
 - Do not let processing failures become clinical `missing` findings.
@@ -371,10 +311,10 @@ Nothing in this working tree should be assumed committed or final until reviewed
 - Do not wire the fixture interpreter into `backend/app`.
 - Do not commit `.env`, runtime data, private vault material, or credentials.
 
-## 17. Known failure modes / what breaks first
+## 16. Known failure modes / what breaks first
 
 **Guideline changes**
-1. Paraphrased or line-spanning quotes fail as `citation_invalid`.
+1. Paraphrased quotes fail as `citation_invalid`.
 2. Long policies may exceed the output budget (`invalid_output`); raise `AIRA_MAX_OUTPUT_TOKENS`.
 3. Unsupported semantics produce `review_required`.
 4. Omitted governing conditions can only be caught by annotated evaluation.
@@ -385,10 +325,10 @@ Nothing in this working tree should be assumed committed or final until reviewed
 1. Scans, faxes, and images are rejected.
 2. Non-ISO dates leave date predicates at `needs_review`; unreadable dates now request confirmation.
 3. Repeated short phrases can be ambiguous citations; longer quotes are needed.
-4. Charts beyond the 200,000-character rendered guardrail fail explicitly.
+4. Chart facts come from one call under `AIRA_BUILD_INPUT_TOKENS` (default 60,000 UTF-8 bytes, roughly 25-30 dense pages); larger charts fail explicitly, never truncated.
 5. Contradictions, wrong side, and post-cutoff evidence become `conflicting`/`needs_review`, not `met`.
 
-## 18. Where to read what
+## 17. Where to read what
 
 | Question | Document |
 | --- | --- |
@@ -407,11 +347,10 @@ Nothing in this working tree should be assumed committed or final until reviewed
 | WP-19 design/algorithm | `docs/plans/long-document-rule-compilation.md` |
 | Evidence records | `docs/results/` |
 
-## 19. Practical continuation notes
+## 18. Practical continuation notes
 
 - Before changing behavior, read the owning BR/TR and the relevant feature file.
 - For document/build/assessment changes, run the focused tests first, then `make check` and `make browser-test`.
 - Keep live evidence separate from controlled/fixture evidence.
 - Update the work breakdown only with actual command results and observed output.
-- Preserve the existing uncommitted changes unless they are clearly superseded; they look like a coherent robustness/doc-sync pass.
-- The main open work is not more shell tests: it is restoring quota, running live semantic evaluation (LD-09/WP-16), verifying A19 on a clean checkout, and finishing the held-out long-document annotations.
+- The main open work is not more shell tests: it is a live semantic evaluation, a live run of a long guideline, and finishing the held-out long-document annotations.
