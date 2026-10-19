@@ -76,7 +76,7 @@ Statuses derive from the [work breakdown](work-breakdown.md): **implemented and 
 | [Independent extraction record](results/independent-extraction.md) | Verified separation of guideline and chart document builds, artifact reuse, and saved-fact mapping. |
 | [WP-03 fixture review](reviews/wp03-fixtures.md) | Independent review of the annotated fixture corpus. |
 | [Implementation handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules. |
-| [Project notes](project-notes.md) | Comprehensive orientation notes: architecture, module map, semantics, limits, status, uncommitted changes, and observed check results. |
+| [Project notes](project-notes.md) | Comprehensive orientation notes: architecture, module map, semantics, limits, status, and observed check results. |
 | [Model provider decision](model-provider.md) | OpenAI integration, server-side configuration, and native PDF boundary. |
 | [Model feasibility record](results/model-feasibility.md) | Implemented adapter/CLI, controlled checks, observed quota failure, and commands to resume live validation. |
 | [Long-document feature](features/19-long-document-rule-compilation.md) | BR-013/TR-019/WP-19/A21, LD-01–LD-10 tasks, and LD-AC01–LD-AC12 acceptance. |
