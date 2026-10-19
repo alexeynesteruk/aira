@@ -6,6 +6,7 @@ evidence. No test contacts a provider: the configured-app cases assert zero
 outbound HTTP through a patched httpx sender.
 """
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -453,15 +454,21 @@ def test_restart_interrupts_an_active_run(tmp_path, monkeypatch):
         interpreter=ControlledInterpreter(sleep=30),
         data_dir=data_dir,
     )
+    synthetic = Path(__file__).resolve().parents[2] / "examples" / "synthetic"
     with TestClient(app) as client:
-        policy_id, chart_id = _uploaded_pair(client)
+        policy_id = _upload(client, synthetic / "monitor_policy.pdf", "policy").json()["document"][
+            "document_id"
+        ]
+        chart_id = _upload(client, synthetic / "monitor_chart.pdf", "chart").json()["document"][
+            "document_id"
+        ]
         run_id = _submit(client, policy_document_id=policy_id, chart_document_id=chart_id).json()[
             "run_id"
         ]
         deadline = time.monotonic() + 15
         while (
             client.get(f"/api/assessments/{run_id}").json()["phase"]
-            != RunPhase.CHECKING_APPLICABILITY.value
+            != RunPhase.INTERPRETING_POLICY.value
         ):
             assert time.monotonic() < deadline
             time.sleep(0.05)
@@ -475,7 +482,7 @@ def test_restart_interrupts_an_active_run(tmp_path, monkeypatch):
         run = client.get(f"/api/assessments/{run_id}").json()
         assert run["status"] == RunStatus.INTERRUPTED.value
         assert run["error"]["code"] == ErrorCode.INTERRUPTED.value
-        assert run["phase"] == RunPhase.CHECKING_APPLICABILITY.value
+        assert run["phase"] == RunPhase.INTERPRETING_POLICY.value
 
 
 def test_exports_survive_later_runs_and_versions(tmp_path, monkeypatch):
@@ -625,6 +632,9 @@ def test_readiness_reports_the_last_verification_for_the_configured_model(
                 "checked_at": "2026-10-18T12:00:00+00:00",
                 "model_id": "test-model",
                 "detail": "served-model-name",
+                "backend": "openai",
+                "transport": "responses",
+                "endpoint_sha256": hashlib.sha256(b"https://api.openai.com/v1").hexdigest(),
             }
         )
     )
@@ -665,3 +675,103 @@ def test_readiness_marks_a_verification_for_another_model_unverified(tmp_path, m
     assert body["provider"]["detail"] == (
         "Last verification was for a different model (older-model)."
     )
+
+
+def _build_until_stopped(client, build_id):
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        response = client.get(f"/api/builds/{build_id}")
+        assert response.status_code == 200
+        body = response.json()
+        if body["status"] not in ("queued", "running"):
+            return body
+        time.sleep(0.02)
+    raise AssertionError("Document build did not stop")
+
+
+def test_standalone_build_review_rebuild_and_exact_assessment_pins(tmp_path, monkeypatch):
+    app = _app(tmp_path, monkeypatch, interpreter=ControlledInterpreter())
+    with TestClient(app) as client:
+        policy_id, chart_id = _uploaded_pair(client)
+        accepted = client.post(f"/api/documents/{policy_id}/builds")
+        assert accepted.status_code == 202
+        policy = _build_until_stopped(client, accepted.json()["build_id"])
+        assert policy["status"] == "completed" and policy["chart"] is None
+        assert policy["coverage"] and all(item["audited"] for item in policy["coverage"])
+        identity = policy["build_id"]
+        step = policy["steps"][0]
+        inspected = client.get(f"/api/builds/{identity}/steps/{step['checkpoint_key']}")
+        assert inspected.status_code == 200 and inspected.json()["receipt"] == step
+        assert client.get(f"/api/builds/{identity}/steps/unknown").status_code == 404
+        approved = client.post(f"/api/builds/{identity}/approve")
+        assert approved.status_code == 200 and approved.json()["review_status"] == "approved"
+        assert approved.json()["policy"] == policy["policy"]
+        chart = _build_until_stopped(
+            client, client.post(f"/api/documents/{chart_id}/builds").json()["build_id"]
+        )
+        run = _run_until_stopped(
+            client,
+            _submit(
+                client,
+                policy_document_id=policy_id,
+                chart_document_id=chart_id,
+                policy_build_id=identity,
+                chart_build_id=chart["build_id"],
+            ).json()["run_id"],
+        )
+        assert run["status"] == "completed"
+        assert run["policy_build_id"] == run["requested_policy_build_id"] == identity
+        assert run["policy_build_configuration"] == policy["configuration"]
+        new = _build_until_stopped(
+            client, client.post(f"/api/builds/{identity}/rebuild").json()["build_id"]
+        )
+        assert new["parent_build_id"] == identity and new["build_id"] != identity
+        assert new["review_status"] == "draft" and not new["cached"]
+        assert client.get(f"/api/assessments/{run['run_id']}").json() == run
+        listed = client.get(f"/api/documents/{policy_id}/builds").json()["builds"]
+        assert {identity, new["build_id"]} <= {item["build_id"] for item in listed}
+        assert client.post(f"/api/builds/{identity}/reject").status_code == 200
+        rejected = _submit(
+            client,
+            policy_document_id=policy_id,
+            chart_document_id=chart_id,
+            policy_build_id=identity,
+        )
+        assert rejected.status_code == 422
+        assert client.post("/api/builds/unknown/retry").status_code == 404
+        assert (
+            client.post(f"/api/documents/{policy_id}/builds", json={"unknown": True}).status_code
+            == 422
+        )
+
+
+def test_unconfigured_preparation_makes_no_provider_calls(tmp_path, monkeypatch):
+    app = _app(tmp_path, monkeypatch, interpreter=None)
+    with TestClient(app) as client:
+        assert client.post("/api/documents/unknown/builds").status_code == 503
+
+
+def test_readiness_does_not_reuse_a_verification_from_a_different_connection(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    app = _app(tmp_path, monkeypatch, interpreter=None, data_dir=data_dir)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-fake-key-do-not-use")
+    monkeypatch.setenv("AIRA_MODEL", "test-model")
+    data_dir.mkdir(parents=True)
+    (data_dir / "provider-verification.json").write_text(
+        json.dumps(
+            dict(
+                status="verified",
+                provider="openai",
+                checked_at="2026-10-18T12:00:00+00:00",
+                model_id="test-model",
+                backend="litellm",
+                transport="chat_completions",
+                endpoint_sha256="a" * 64,
+            )
+        )
+    )
+    with TestClient(app) as client:
+        provider = client.get("/health/ready").json()["provider"]
+    assert provider["status"] == "unverified" and provider["backend"] == "openai"
+    assert provider["transport"] == "responses" and provider["model_id"] == "test-model"
+    assert "test-fake-key-do-not-use" not in json.dumps(provider)

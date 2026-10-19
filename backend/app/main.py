@@ -1,5 +1,6 @@
 """HTTP entry point. Domain modules must not import this module."""
 
+import hashlib
 import os
 import sqlite3
 from collections.abc import AsyncIterator
@@ -19,6 +20,7 @@ from app.api import (
     request_validation_error,
     router,
 )
+from app.assessment.build_config import build_limits_from_environment
 from app.assessment.stages import StageInterpreter
 from app.assessment.workflow import (
     WorkflowEngine,
@@ -40,6 +42,7 @@ from app.schemas import (
     ReadinessResponse,
     RunRecord,
 )
+from app.schemas.builds import BuildList, BuildRecord, BuildRequest
 from app.storage import LocalStore, StorageError
 
 
@@ -71,16 +74,27 @@ def _provider_status(application: FastAPI, provider_detail: str | None) -> Provi
     settings = application.state.openai_settings
     if settings is None:
         return ProviderVerification(detail=provider_detail)
+    configured = dict(
+        backend=settings.backend,
+        transport=settings.transport,
+        endpoint_sha256=hashlib.sha256(settings.base_url.encode()).hexdigest(),
+        model_id=settings.model,
+    )
     record_path = Path(application.state.data_dir) / "provider-verification.json"
     try:
         record = ProviderVerification.model_validate_json(record_path.read_bytes())
     except (OSError, ValidationError):
         record = None
     if record is None or record.status.value == "unverified":
-        return ProviderVerification(detail=provider_detail)
+        return ProviderVerification(**configured, detail=provider_detail)
     if record.model_id != settings.model:
         return ProviderVerification(
-            detail=f"Last verification was for a different model ({record.model_id})."
+            **configured, detail=f"Last verification was for a different model ({record.model_id})."
+        )
+    if any(getattr(record, key) != value for key, value in configured.items()):
+        return ProviderVerification(
+            **configured,
+            detail="Last verification does not match the active connection configuration.",
         )
     return record
 
@@ -148,6 +162,11 @@ def create_app(
                 active_configuration,
                 parser_config=parser_config,
                 limits=limits,
+                build_limits=build_limits_from_environment(
+                    env_file=env_file,
+                    output_tokens=active_configuration.inference.max_output_tokens,
+                    call_timeout_seconds=limits.stage_timeout_seconds,
+                ),
             )
             await engine.start()
         application.state.store = store
@@ -176,7 +195,15 @@ def create_app(
     application.include_router(router)
     _register_openapi_schemas(
         application,
-        (CreateAssessmentRequest, ErrorResponse, RunRecord, AssessmentExport),
+        (
+            CreateAssessmentRequest,
+            ErrorResponse,
+            RunRecord,
+            AssessmentExport,
+            BuildRecord,
+            BuildRequest,
+            BuildList,
+        ),
     )
 
     @application.get("/health/live", responses={200: {"model": LivenessResponse}})
@@ -195,6 +222,8 @@ def create_app(
         engine = application.state.engine
         if engine is not None and engine.fatal_error is not None:
             missing.append(engine.fatal_error.message)
+        if engine is not None and engine.builds.fatal_error is not None:
+            missing.append(engine.builds.fatal_error.message)
         if engine is None and not missing:
             missing.append("Assessment processing is not configured.")
         body = ReadinessResponse(

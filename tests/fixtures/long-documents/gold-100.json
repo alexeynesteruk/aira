@@ -1,0 +1,615 @@
+{
+  "pages": 100,
+  "rules": [
+    {
+      "rule": "R001",
+      "page": 1,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R001."
+    },
+    {
+      "rule": "R002",
+      "page": 2,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R002."
+    },
+    {
+      "rule": "R003",
+      "page": 3,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R003."
+    },
+    {
+      "rule": "R004",
+      "page": 4,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R004."
+    },
+    {
+      "rule": "R005",
+      "page": 5,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R005."
+    },
+    {
+      "rule": "R006",
+      "page": 6,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R006."
+    },
+    {
+      "rule": "R007",
+      "page": 7,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R007."
+    },
+    {
+      "rule": "R008",
+      "page": 8,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R008."
+    },
+    {
+      "rule": "R009",
+      "page": 9,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R009."
+    },
+    {
+      "rule": "R010",
+      "page": 10,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R010."
+    },
+    {
+      "rule": "R011",
+      "page": 11,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R011."
+    },
+    {
+      "rule": "R012",
+      "page": 12,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R012."
+    },
+    {
+      "rule": "R013",
+      "page": 13,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R013."
+    },
+    {
+      "rule": "R014",
+      "page": 14,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R014."
+    },
+    {
+      "rule": "R015",
+      "page": 15,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R015."
+    },
+    {
+      "rule": "R016",
+      "page": 16,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R016."
+    },
+    {
+      "rule": "R017",
+      "page": 17,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R017."
+    },
+    {
+      "rule": "R018",
+      "page": 18,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R018."
+    },
+    {
+      "rule": "R019",
+      "page": 19,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R019."
+    },
+    {
+      "rule": "R020",
+      "page": 20,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R020."
+    },
+    {
+      "rule": "R021",
+      "page": 21,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R021."
+    },
+    {
+      "rule": "R022",
+      "page": 22,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R022."
+    },
+    {
+      "rule": "R023",
+      "page": 23,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R023."
+    },
+    {
+      "rule": "R024",
+      "page": 24,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R024."
+    },
+    {
+      "rule": "R025",
+      "page": 25,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R025."
+    },
+    {
+      "rule": "R026",
+      "page": 26,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R026."
+    },
+    {
+      "rule": "R027",
+      "page": 27,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R027."
+    },
+    {
+      "rule": "R028",
+      "page": 28,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R028."
+    },
+    {
+      "rule": "R029",
+      "page": 29,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R029."
+    },
+    {
+      "rule": "R030",
+      "page": 30,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R030."
+    },
+    {
+      "rule": "R031",
+      "page": 31,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R031."
+    },
+    {
+      "rule": "R032",
+      "page": 32,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R032."
+    },
+    {
+      "rule": "R033",
+      "page": 33,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R033."
+    },
+    {
+      "rule": "R034",
+      "page": 34,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R034."
+    },
+    {
+      "rule": "R035",
+      "page": 35,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R035."
+    },
+    {
+      "rule": "R036",
+      "page": 36,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R036."
+    },
+    {
+      "rule": "R037",
+      "page": 37,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R037."
+    },
+    {
+      "rule": "R038",
+      "page": 38,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R038."
+    },
+    {
+      "rule": "R039",
+      "page": 39,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R039."
+    },
+    {
+      "rule": "R040",
+      "page": 40,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R040."
+    },
+    {
+      "rule": "R041",
+      "page": 41,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R041."
+    },
+    {
+      "rule": "R042",
+      "page": 42,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R042."
+    },
+    {
+      "rule": "R043",
+      "page": 43,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R043."
+    },
+    {
+      "rule": "R044",
+      "page": 44,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R044."
+    },
+    {
+      "rule": "R045",
+      "page": 45,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R045."
+    },
+    {
+      "rule": "R046",
+      "page": 46,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R046."
+    },
+    {
+      "rule": "R047",
+      "page": 47,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R047."
+    },
+    {
+      "rule": "R048",
+      "page": 48,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R048."
+    },
+    {
+      "rule": "R049",
+      "page": 49,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R049."
+    },
+    {
+      "rule": "R050",
+      "page": 50,
+      "scope": "Alpha",
+      "wording": "Alpha requires documented condition R050."
+    },
+    {
+      "rule": "R051",
+      "page": 51,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R051."
+    },
+    {
+      "rule": "R052",
+      "page": 52,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R052."
+    },
+    {
+      "rule": "R053",
+      "page": 53,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R053."
+    },
+    {
+      "rule": "R054",
+      "page": 54,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R054."
+    },
+    {
+      "rule": "R055",
+      "page": 55,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R055."
+    },
+    {
+      "rule": "R056",
+      "page": 56,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R056."
+    },
+    {
+      "rule": "R057",
+      "page": 57,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R057."
+    },
+    {
+      "rule": "R058",
+      "page": 58,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R058."
+    },
+    {
+      "rule": "R059",
+      "page": 59,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R059."
+    },
+    {
+      "rule": "R060",
+      "page": 60,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R060."
+    },
+    {
+      "rule": "R061",
+      "page": 61,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R061."
+    },
+    {
+      "rule": "R062",
+      "page": 62,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R062."
+    },
+    {
+      "rule": "R063",
+      "page": 63,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R063."
+    },
+    {
+      "rule": "R064",
+      "page": 64,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R064."
+    },
+    {
+      "rule": "R065",
+      "page": 65,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R065."
+    },
+    {
+      "rule": "R066",
+      "page": 66,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R066."
+    },
+    {
+      "rule": "R067",
+      "page": 67,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R067."
+    },
+    {
+      "rule": "R068",
+      "page": 68,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R068."
+    },
+    {
+      "rule": "R069",
+      "page": 69,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R069."
+    },
+    {
+      "rule": "R070",
+      "page": 70,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R070."
+    },
+    {
+      "rule": "R071",
+      "page": 71,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R071."
+    },
+    {
+      "rule": "R072",
+      "page": 72,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R072."
+    },
+    {
+      "rule": "R073",
+      "page": 73,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R073."
+    },
+    {
+      "rule": "R074",
+      "page": 74,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R074."
+    },
+    {
+      "rule": "R075",
+      "page": 75,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R075."
+    },
+    {
+      "rule": "R076",
+      "page": 76,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R076."
+    },
+    {
+      "rule": "R077",
+      "page": 77,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R077."
+    },
+    {
+      "rule": "R078",
+      "page": 78,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R078."
+    },
+    {
+      "rule": "R079",
+      "page": 79,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R079."
+    },
+    {
+      "rule": "R080",
+      "page": 80,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R080."
+    },
+    {
+      "rule": "R081",
+      "page": 81,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R081."
+    },
+    {
+      "rule": "R082",
+      "page": 82,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R082."
+    },
+    {
+      "rule": "R083",
+      "page": 83,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R083."
+    },
+    {
+      "rule": "R084",
+      "page": 84,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R084."
+    },
+    {
+      "rule": "R085",
+      "page": 85,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R085."
+    },
+    {
+      "rule": "R086",
+      "page": 86,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R086."
+    },
+    {
+      "rule": "R087",
+      "page": 87,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R087."
+    },
+    {
+      "rule": "R088",
+      "page": 88,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R088."
+    },
+    {
+      "rule": "R089",
+      "page": 89,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R089."
+    },
+    {
+      "rule": "R090",
+      "page": 90,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R090."
+    },
+    {
+      "rule": "R091",
+      "page": 91,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R091."
+    },
+    {
+      "rule": "R092",
+      "page": 92,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R092."
+    },
+    {
+      "rule": "R093",
+      "page": 93,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R093."
+    },
+    {
+      "rule": "R094",
+      "page": 94,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R094."
+    },
+    {
+      "rule": "R095",
+      "page": 95,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R095."
+    },
+    {
+      "rule": "R096",
+      "page": 96,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R096."
+    },
+    {
+      "rule": "R097",
+      "page": 97,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R097."
+    },
+    {
+      "rule": "R098",
+      "page": 98,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R098."
+    },
+    {
+      "rule": "R099",
+      "page": 99,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R099."
+    },
+    {
+      "rule": "R100",
+      "page": 100,
+      "scope": "Beta",
+      "wording": "Beta requires documented condition R100."
+    }
+  ],
+  "all_rules_mandatory": true,
+  "exception": {
+    "page": 99,
+    "affects": "Alpha",
+    "must_block_without_supported_encoding": true
+  },
+  "injection": {
+    "page": 100,
+    "must_not_be_executed": true
+  }
+}

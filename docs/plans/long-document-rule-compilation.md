@@ -1,12 +1,12 @@
 # WP-19 implementation plan
 
-This is the execution plan for [long-document rule-set compilation](../features/19-long-document-rule-compilation.md), derived from the [October 18 research](../research/long-document-rule-extraction.md) and the user's architecture decisions. BR-013/TR-019 own the requirement; WP-19 owns tasks/acceptance; the [work breakdown](../work-breakdown.md) owns status. Names below describe target contracts and modules unless explicitly identified as existing.
+This is the execution plan for [long-document rule-set compilation](../features/19-long-document-rule-compilation.md), derived from the [October 18 research](../research/long-document-rule-extraction.md) and the user's architecture decisions. BR-013/TR-019 own the requirement; WP-19 owns tasks/acceptance; the [work breakdown](../work-breakdown.md) owns status. The [October 19 implementation record](../results/wp19-implementation.md) maps delivered modules, controlled checks, and open release evidence. The initial gap analysis is historical.
 
-## Starting point and gaps
+## Historical starting point and gaps
 
 Inspect current files and `git status` before editing. The working tree contains unfinished changes beyond this documentation; preserve them and establish the current check results. Existing reusable components include `documents/native.py`, strict schemas, `CitationResolver`, candidate conversion, the pure evaluator, `LocalStore`, the configured inference adapter, and the assessment UI/export flow.
 
-`DocumentInputs` and chart/policy artifact support are present in the working tree. `assessment/chunking.py` is a character-based page-range helper, not a complete section orchestrator. `policies/pages.py`, `select_policy_pages`, `apply_policy_page`, and `WorkflowEngine._policy_by_page` form an excerpt-index/serial-fold prototype. It classifies short page excerpts, can skip pages, and repeatedly regenerates an accumulated graph. These are implementation gaps to assess, not the accepted design: missing rules may occur outside excerpts; lists span pages; remote exceptions need reconciliation; repeated full-graph rewriting can lose earlier conditions or exceed output budgets. A skipped-page warning or failed merge retained as a partial graph does not establish complete guideline preparation.
+`DocumentInputs` and chart/policy artifact support are present in the working tree. `assessment/chunking.py` is a character-based page-range helper, not a complete section orchestrator. `policies/pages.py`, `select_policy_pages`, `apply_policy_page`, and `WorkflowEngine._policy_by_page` formed an excerpt-index/serial-fold prototype; that workflow method has been replaced. It classifies short page excerpts, can skip pages, and repeatedly regenerates an accumulated graph. These are implementation gaps to assess, not the accepted design: missing rules may occur outside excerpts; lists span pages; remote exceptions need reconciliation; repeated full-graph rewriting can lose earlier conditions or exceed output budgets. A skipped-page warning or failed merge retained as a partial graph does not establish complete guideline preparation.
 
 ## Target flow
 
@@ -86,10 +86,16 @@ Measure criterion and logical-edge/exception recall against reviewed annotations
 
 ## Direct OpenAI reviewer path
 
-Document backend-only `.env` settings `OPENAI_API_KEY` and explicit `AIRA_MODEL`, with `OPENAI_BASE_URL=https://api.openai.com/v1` and `AIRA_LLM_TRANSPORT=responses` for direct mode. Optional LiteLLM settings must be explicit and cannot silently override direct mode through inherited personal gateway configuration. Inventory, extraction, reconciliation, repair, audit, assessment, and preflight all use the same selected adapter configuration.
+Document backend-only `.env` settings `OPENAI_API_KEY` and explicit `AIRA_MODEL`, with `AIRA_LLM_BACKEND=openai` for direct mode. The loader pins the official endpoint and Responses transport. LiteLLM requires explicit `AIRA_LLM_BACKEND=litellm` and `OPENAI_BASE_URL`. Optional LiteLLM settings must be explicit and cannot silently override direct mode through inherited personal gateway configuration. Inventory, extraction, reconciliation, repair, audit, assessment, and preflight all use the same selected adapter configuration.
 
 Controlled transport tests verify destination, credentials, error categories, and secret omission without paid calls. Health/status endpoints never probe inference. UI exposes configuration state without credentials. The clean-checkout live check must succeed without a running LiteLLM service before this path is declared release-verified. Respect the recorded quota deferral; label unavailable live evidence as pending.
 
 ## Completion evidence
 
 Run the targeted checks for each slice, then `make check`, `make browser-test`, and `git diff --check` on the integrated revision. Record implementing commits, exact commands, observed failures/counts, fixture versus live provenance, source/configuration hashes, and supported limits in a WP-19 result record linked from the work breakdown. Update feature checklists only from actual evidence. Historical test counts do not establish that this unfinished working-tree refactor passes.
+
+## Delivered slices (October 19)
+
+LD-02–LD-08 runtime is delivered: build/path contracts, full-source planner/compiler, configured section/group/merge/audit operations, durable checkpoints and recovery, independent assessment inputs, public APIs, `app.cli prepare`, and preparation/review UI. Hierarchy uses bounded groups and one bounded scope merge; excess input fails explicitly. LD-01 has hash-pinned 100/200-page fictional PDFs and independent mandatory-condition/path annotations. Held-out insurer/table/footnote semantic annotation remains LD-09 work.
+
+LD-09 deterministic checks are recorded. Live recall/entailment/repeatability, calibrated model limits, and LD-10 clean-checkout direct-OpenAI demonstration remain open under deferred quota. The implementation record contains actual commands/counts and limitations. Mechanical coverage is not completed live acceptance.

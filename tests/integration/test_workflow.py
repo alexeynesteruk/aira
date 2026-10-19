@@ -96,7 +96,7 @@ async def test_supplied_pair_completes_as_mismatch_under_default_limits(
     finally:
         await engine.close()
 
-    assert run.status == RunStatus.COMPLETED
+    assert run.status == RunStatus.COMPLETED, run.error
     assert run.result is not None
     assert run.result.outcome == AssessmentOutcome.APPLICABILITY_MISMATCH
     assert run.result.policy is None
@@ -333,7 +333,9 @@ async def test_an_unusable_chart_fails_during_extraction(
 
 
 @pytest.mark.anyio
-async def test_a_tiny_context_limit_fails_before_interpretation(store: LocalStore) -> None:
+async def test_assessment_context_limit_does_not_change_document_preparation(
+    store: LocalStore,
+) -> None:
     limits = WorkflowLimits(max_context_characters=200)
     interpreter = ControlledInterpreter()
     engine = await started(store, interpreter, limits)
@@ -345,8 +347,8 @@ async def test_a_tiny_context_limit_fails_before_interpretation(store: LocalStor
     assert run.status == RunStatus.FAILED
     assert run.error is not None
     assert run.error.code == ErrorCode.UNSUPPORTED_INPUT
-    assert run.error.stage == RunPhase.INTERPRETING_POLICY
-    assert interpreter.calls == {"scope": 0, "policy": 0, "chart": 0, "evidence": 0}
+    assert run.error.stage == RunPhase.CHECKING_APPLICABILITY
+    assert interpreter.calls == {"scope": 0, "policy": 1, "chart": 1, "evidence": 0}
 
 
 @pytest.mark.anyio

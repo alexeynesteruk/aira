@@ -71,6 +71,7 @@ def assessment_fingerprint(
     configuration: ConfigurationProvenance,
     request_context: RequestContext | None = None,
     annotations: tuple[MetadataAnnotation, ...] = (),
+    requested_build_ids: tuple[str | None, str | None] = (None, None),
 ) -> str:
     """Identify submitted inputs, not a run attempt or a predicted model response.
 
@@ -82,6 +83,7 @@ def assessment_fingerprint(
     return fingerprint(
         {
             "identity_version": 1,
+            **({"requested_build_ids": requested_build_ids} if any(requested_build_ids) else {}),
             "documents": [
                 {"role": item.role.value, "document_id": item.document_id, "sha256": item.sha256}
                 for item in (policy, chart)

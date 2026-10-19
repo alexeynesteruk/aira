@@ -32,6 +32,8 @@ export interface VersionReference {
 }
 
 export interface ProviderVerification {
+  backend?: 'openai' | 'litellm' | null
+  transport?: string | null
   status: string
   provider: string
   checked_at?: string | null
@@ -278,6 +280,9 @@ export interface RunProgress {
 export interface RunRecord {
   run_id: string
   parent_run_id?: string | null
+  policy_build_id?: string | null
+  chart_build_id?: string | null
+  policy_path_id?: string | null
   policy_document_id: string
   policy_sha256: string
   chart_document_id: string
@@ -305,6 +310,8 @@ export interface AssessmentAccepted {
 }
 
 export interface SubmissionBody {
+  policy_build_id?: string
+  chart_build_id?: string
   policy_document_id: string
   chart_document_id: string
   parent_run_id?: string
@@ -379,4 +386,38 @@ export function submitAssessment(body: SubmissionBody): Promise<AssessmentAccept
 
 export function getRun(runId: string): Promise<RunRecord> {
   return request(`/api/assessments/${runId}`)
+}
+
+export interface BuildRecord {
+  build_id: string
+  parent_build_id: string | null
+  document_id: string
+  document_sha256: string
+  role: 'policy' | 'chart'
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'interrupted'
+  phase: string
+  total_sections: number
+  completed_sections: number
+  review_status: 'draft' | 'approved' | 'rejected'
+  cached: boolean
+  configuration: ConfigurationProvenance
+  policy: Policy | null
+  chart: { facts: ChartFact[] } | null
+  issues: string[]
+  error: OperationalError | null
+  steps: { name: string; checkpoint_key: string; cached: boolean }[]
+  coverage: { section_id: string; unit_id: string; source: SourceSpan; disposition: string; explanation: string; audited: boolean }[]
+}
+
+export function startBuild(documentId: string): Promise<BuildRecord> {
+  return request(`/api/documents/${documentId}/builds`, { method: 'POST' })
+}
+export function listBuilds(documentId: string): Promise<{ builds: BuildRecord[] }> {
+  return request(`/api/documents/${documentId}/builds`)
+}
+export function getBuild(buildId: string): Promise<BuildRecord> {
+  return request(`/api/builds/${buildId}`)
+}
+export function actOnBuild(buildId: string, action: 'retry' | 'rebuild' | 'approve' | 'reject'): Promise<BuildRecord> {
+  return request(`/api/builds/${buildId}/${action}`, { method: 'POST' })
 }

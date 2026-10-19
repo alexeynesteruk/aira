@@ -31,13 +31,13 @@ Prerequisites: uv and Node 24/npm. No OpenAI key is needed to boot the applicati
 1. `cp .env.example .env` and set `OPENAI_API_KEY` and `AIRA_MODEL` (server-side only — the key never reaches the browser).
 2. `./scripts/launch.sh` — installs locked dependencies, builds the UI, and serves everything at http://localhost:8000.
 3. Optionally verify model access once: `uv run --project backend python -m app.llm.preflight` — it writes the verification record into the data directory, so readiness reports it.
-4. Upload a policy PDF and a chart PDF, fill optional request metadata, and start the assessment. Runs poll, show the saved outcome with source-level citations, and export JSON or Markdown.
+4. Upload a policy and use **Prepare document** to build its reusable rule set without a chart. Inspect coverage, extraction steps, issues, and saved versions. Prepare a chart independently, or let **Start assessment** prepare both automatically. Select saved versions, fill optional request metadata, and assess. Results retain their exact build IDs and export JSON or Markdown.
 
 Synthetic fictional PDFs for development cases live in [examples/synthetic](examples/synthetic/README.md).
 
-Application data persists under `data/app` (overridable with `AIRA_DATA_DIR`). Inputs are native-text PDFs by default (10 MiB / 100 pages maximum); image-only pages are OCR-processed with Tesseract when it is available, while password-protected, annotated, rotated, or fillable-form pages are rejected with an explicit message rather than silently degraded. OCR requires the `tesseract` executable in the runtime environment. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
+Application data persists under `data/app` (overridable with `AIRA_DATA_DIR`). Intake accepts native-text PDFs up to 10 MiB / 250 pages and 2,000,000 extracted characters; each call/build also has explicit budgets. Controlled tests complete 100/200-page fictional guidelines; this does not establish live model quality on arbitrary documents. Image-only pages fail explicitly by default. OCR is an opt-in parser configuration requiring Tesseract. Password-protected, unsupported annotated, rotated, or fillable-form inputs fail rather than silently lose content. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
 
-To exercise the review journeys without credentials, `npm --prefix frontend run build` then `make browser-test` starts the local app plus a labeled fixture server and replays the nine saved staff journeys.
+To exercise the review journeys without credentials, `npm --prefix frontend run build` then `make browser-test` starts the local app plus a labeled fixture server and replays the saved staff journeys, including independent preparation and recovery.
 
 ## Model experiment
 
@@ -66,9 +66,19 @@ It makes billable model calls and remains blocked until quota is restored; run i
 
 The local command is `./scripts/launch.sh`. It serves the review UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured. The live A19 upload-to-export workflow remains unverified under the deferred quota.
 
-## Long-document feature plan
+## Long-document preparation
 
-The user-authorized [WP-19 feature](docs/features/19-long-document-rule-compilation.md) adds complete 100–200-page guideline preparation through structural section extraction, cross-section reconciliation, coverage auditing, deterministic compilation, and durable reuse independent of patient charts. Its [implementation plan](docs/plans/long-document-rule-compilation.md) breaks the work into LD-01–LD-10; the [research log](docs/research/long-document-rule-extraction.md) records the primary sources. BR-013/TR-019/A21 define acceptance. The working-tree prototype is unfinished; this documentation does not establish long-document or live accuracy. Final reviewer delivery requires direct OpenAI with a backend API key/model and no local LiteLLM dependency.
+The [WP-19 implementation](docs/results/wp19-implementation.md) uses full-source structural chunks, immutable section outputs, bounded group reconciliation, a final scope merge when needed, source-coverage audits, and deterministic graph compilation. Saved guideline rules and chart facts are independent. A new patient or changed request reuses the policy build; a changed policy reuses chart facts. Failed builds retain completed checkpoints for linked retry. Rebuild creates a new version; it does not replace a saved assessment.
+
+Direct OpenAI uses backend-only `OPENAI_API_KEY`, explicit `AIRA_MODEL`, and `AIRA_LLM_BACKEND=openai` (default). Direct mode always selects the official endpoint and Responses transport, ignoring inherited gateway overrides. To use LiteLLM explicitly, set `AIRA_LLM_BACKEND=litellm`, `OPENAI_BASE_URL`, and optionally `AIRA_LLM_TRANSPORT=chat_completions`. Health displays the active connection/model and never makes inference calls. No API key is sent to the browser.
+
+Standalone CLI preparation uses the same service and adapter:
+
+```sh
+uv run --project backend python -m app.cli prepare --role policy --document path/to/guideline.pdf --data-dir data/cli
+```
+
+Use `--role chart` for chart facts. These are billable operations. The [feature](docs/features/19-long-document-rule-compilation.md), [implementation plan](docs/plans/long-document-rule-compilation.md), and [research log](docs/research/long-document-rule-extraction.md) describe the design, tasks, and remaining live release gates. Unsupported exceptions, unresolved references, and audit discrepancies block readiness; approval does not remove those blockers. A build's source coverage is a processing ledger, not a semantic-completeness certificate.
 
 ## Project documentation
 

@@ -68,3 +68,7 @@ Publish the evaluation date, commit, input hashes, provider/model, SDK, prompts/
 ## Final verification record
 
 M6 should add a short result file with the exact launch command tested, environment/prerequisites, build/typecheck/lint/test results, live case outcomes, source-inspection results, known limits, and remaining manual checks. Do not fill this with expected successes in advance. The [implementation plan](implementation-plan.md) remains incomplete until that evidence exists.
+
+## October 19 WP-19 evidence boundary
+
+The [runtime/check record](results/wp19-implementation.md) reports real 100/200-page fictional PDF parsing with independently authored condition/path gold, structural graph/source controls, durable recovery/reuse, configured SDK routing, and saved preparation journeys. The interpreter in those tests is scripted. A21 live source fidelity, rule/edge/exception recall, entailment, instruction resistance, repeatability, calibrated limits, and clean-checkout reviewer execution remain open. Expected insurer/patient outcomes above are unchanged.

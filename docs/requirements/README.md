@@ -1,6 +1,6 @@
 # Aira requirements and design documents
 
-Use the business requirements to understand the staff outcome, then the technical requirements to implement the corresponding behavior. Both are the implementation baseline for the take-home MVP. Earlier non-live components have recorded evidence. The independent-extraction refactor and WP-19 long-document feature require implementation/integration evidence; live-model verification and release remain pending.
+Use the business requirements to understand the staff outcome, then the technical requirements to implement the corresponding behavior. Both are the implementation baseline for the take-home MVP. Earlier non-live components have recorded evidence. Independent extraction and WP-19 now have [implementation/check evidence](../results/wp19-implementation.md); live-model verification and release remain pending.
 
 | Document | Owns |
 | --- | --- |

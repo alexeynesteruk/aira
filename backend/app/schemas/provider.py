@@ -93,6 +93,14 @@ class PagePlanCandidate(VersionedModel):
     pages: tuple[CandidatePageRole, ...]
 
 
+class CandidatePolicyPath(StrictModel):
+    path_id: str
+    title: str
+    scope: str
+    root_id: str
+    citations: tuple[CandidateCitation, ...]
+
+
 class PolicyCandidate(VersionedModel):
     title: str
     scope_summary: str
@@ -105,6 +113,7 @@ class PolicyCandidate(VersionedModel):
     root_id: str
     sections: tuple[CandidatePolicySection, ...]
     interpretation_issues: tuple[str, ...]
+    paths: tuple[CandidatePolicyPath, ...] = ()
 
 
 class CandidateFact(StrictModel):

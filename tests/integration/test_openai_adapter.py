@@ -213,6 +213,7 @@ def test_configuration_reads_endpoint_transport_and_timeouts(tmp_path):
         env_file=tmp_path / "missing",
         environ={
             **base,
+            "AIRA_LLM_BACKEND": "litellm",
             "OPENAI_BASE_URL": "http://127.0.0.1:4000/v1",
             "AIRA_LLM_TRANSPORT": "chat_completions",
             "AIRA_REQUEST_TIMEOUT_SECONDS": "110",
@@ -225,8 +226,13 @@ def test_configuration_reads_endpoint_transport_and_timeouts(tmp_path):
     assert configured.stage_timeout_seconds == 280.0
 
     for bad_environ in (
-        {**base, "OPENAI_BASE_URL": "not-a-url"},
-        {**base, "AIRA_LLM_TRANSPORT": "xml"},
+        {**base, "AIRA_LLM_BACKEND": "litellm", "OPENAI_BASE_URL": "not-a-url"},
+        {
+            **base,
+            "AIRA_LLM_BACKEND": "litellm",
+            "OPENAI_BASE_URL": "http://localhost:4000/v1",
+            "AIRA_LLM_TRANSPORT": "xml",
+        },
     ):
         with pytest.raises(ValidationError):
             OpenAISettings.from_environment(env_file=tmp_path / "missing", environ=bad_environ)
@@ -546,3 +552,27 @@ def test_output_token_budget_defaults_overrides_and_validates(tmp_path):
                 env_file=tmp_path / "missing",
                 environ={**base, "AIRA_MAX_OUTPUT_TOKENS": bad},
             )
+
+
+def test_direct_mode_ignores_inherited_gateway_settings(tmp_path):
+    settings = OpenAISettings.from_environment(
+        env_file=tmp_path / "missing",
+        environ={
+            "OPENAI_API_KEY": "test-direct-key",
+            "AIRA_MODEL": "test-model",
+            "OPENAI_BASE_URL": "http://personal-gateway:4000/v1",
+            "AIRA_LLM_TRANSPORT": "chat_completions",
+        },
+    )
+    assert settings.backend == "openai"
+    assert settings.base_url == "https://api.openai.com/v1"
+    assert settings.transport == "responses"
+    with pytest.raises(ValidationError):
+        OpenAISettings.from_environment(
+            env_file=tmp_path / "missing",
+            environ={
+                "OPENAI_API_KEY": "test-key",
+                "AIRA_MODEL": "test-model",
+                "AIRA_LLM_BACKEND": "litellm",
+            },
+        )

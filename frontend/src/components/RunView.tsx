@@ -397,6 +397,11 @@ export function RunView({
           <strong>{runStatusLabel(run.status)}</strong>
           {run.phase ? ` — ${phaseLabel(run.phase)}` : ''}
         </p>
+        {(run.policy_build_id || run.chart_build_id) && <p className="note">
+          Saved extractions: {run.policy_build_id && <a href={`/?build=${run.policy_build_id}`}>Policy build</a>}
+          {' · '}{run.chart_build_id && <a href={`/?build=${run.chart_build_id}`}>Chart build</a>}
+          {run.policy_path_id && <> · Path <code>{run.policy_path_id}</code></>}
+        </p>}
         {run.parent_run_id && (
           <p>
             <a href={`/?run=${run.parent_run_id}`} onClick={(event) => {

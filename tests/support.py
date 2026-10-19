@@ -223,15 +223,6 @@ class ControlledInterpreter:
             applicability=applicability,
         )
 
-    async def chart(self, inputs: DocumentInputs) -> ChartInterpretation:
-        return ChartInterpretation(
-            chart=ChartData(
-                document_id=inputs.document.document_id,
-                document_sha256=inputs.document.sha256,
-                facts=(),
-            )
-        )
-
     async def policy(self, inputs: DocumentInputs) -> PolicyInterpretation:
         await self._enter("policy", RunPhase.INTERPRETING_POLICY)
         span = document_quote(inputs.document, inputs.extraction, *POLICY_CRITERION_QUOTE)

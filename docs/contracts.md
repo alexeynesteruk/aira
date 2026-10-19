@@ -45,3 +45,11 @@ On October 18, integration added `ScopeCandidate.field_sources`, grouping exact 
 `ErrorCode` gained `not_found`, `invalid_request`, and `state_conflict`: the TRD's HTTP layer needs 404/409/422 error envelopes distinct from existing operational codes. These additive integration amendments retain domain version `0.1.0`; incompatible contract changes require a new domain version and coordinated fixture migration.
 
 `NodeTrace`, `ReadinessBlocker`, and `EvaluationResult` moved into `app.schemas` (with `AssessmentOutcome`/`LogicalValue`, needed to keep the schema import graph acyclic), and `AssessmentResult` gained an optional `evaluation` field carrying the exact persisted evaluation artifact. It is optional only for older stored records; the workflow always populates it for applicable results, and the contract requires agreement with the result's policy root, logical value, and outcome. Domain version stays `0.1.0`.
+
+## Standalone build contracts (October 19)
+
+`schemas/builds.py` adds `BuildRequest`, `BuildRecord` (`document-build-v1`), source units/plans, dispositions/definitions/dependencies, immutable section results, group reconciliation, audits, coverage, and checkpoint receipts with generation configuration. `Policy.paths` and provider fragment paths expose named procedure roots. Existing logical nodes/predicates remain the executable language; unsupported exceptions block readiness.
+
+Assessment requests accept exact build pins. Runs retain submitted/consumed IDs, selected path, and generation configurations. Additive defaults keep old exports readable; old page-fold artifacts are not auto-promoted to the build registry. Legacy registry routes remain compatibility interfaces. New public routes/status/errors are in [TR-013](requirements/technical-requirements.md#tr-013-http-and-health-contracts); actual checks/limits are in the [implementation record](results/wp19-implementation.md).
+
+Explicit provider verification binds model, backend, transport, and endpoint hash. Another connection or a legacy record without matching connection identity is unverified for the active configuration. Health never invokes inference or returns credentials.

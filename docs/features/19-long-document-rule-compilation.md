@@ -11,7 +11,7 @@ Build a durable, inspectable rule set from an entire insurer guideline using bou
 - BR-001/BR-004/BR-006/BR-008/BR-009 and TR-002/TR-006/TR-008/TR-009/TR-011/TR-012/TR-014/TR-016/TR-017 govern sources, semantics, storage, failure handling, UI, and evaluation.
 - TR-007 preserves independent chart facts; TR-010/TR-018 require direct OpenAI configuration and a portable reviewer workflow.
 
-The target includes 100- and 200-page native-text guideline cases. This is an acceptance target, not a claim that current intake/model limits support them. OCR has its own declared boundary. Prepare a guideline without requiring a chart; prepare chart facts independently; combine saved artifacts only during assessment.
+The target includes 100- and 200-page native-text guideline cases. Controlled real-PDF builds cover this envelope; live model semantic acceptance remains open. OCR has its own declared boundary. Prepare a guideline without requiring a chart; prepare chart facts independently; combine saved artifacts only during assessment.
 
 Exclude automatic external-policy discovery, payer submission, new infrastructure services, a universal policy language, and unbounded autonomous processing. Referenced material absent from the upload becomes a visible dependency gap rather than an invented rule or an automatic web lookup.
 
@@ -25,7 +25,7 @@ Exclude automatic external-policy discovery, payer submission, new infrastructur
 
 ## Task breakdown
 
-These tasks are implementation work, not completion claims. Their execution order and proposed contracts are in the [implementation plan](../plans/long-document-rule-compilation.md).
+The [implementation record](../results/wp19-implementation.md) maps delivered runtime, the controlled corpus, and open release work. Task exit evidence still governs completion. Their execution order and proposed contracts are in the [implementation plan](../plans/long-document-rule-compilation.md).
 
 | Task | Deliverable | Depends on | Exit evidence |
 | --- | --- | --- | --- |
@@ -65,4 +65,4 @@ Completion depends on WP-03/WP-04/WP-05/WP-06/WP-10/WP-15 and integration with W
 
 Use the [research log](../research/long-document-rule-extraction.md) for observed source claims and the [implementation plan](../plans/long-document-rule-compilation.md) for contracts, execution, failure semantics, and verification. Do not treat the page-fold prototype or planning documents as proof of completion.
 
-The [specification/check record](../results/wp19-specification.md) records documentation delivery and current baseline failures. It is not the future implementation result.
+The [specification/check record](../results/wp19-specification.md) records documentation delivery and current baseline failures. Current runtime/check evidence is in the [October 19 implementation record](../results/wp19-implementation.md).

@@ -59,14 +59,14 @@ class NativePdfConfig:
     """Provisional parser guardrails, all included in the configuration hash."""
 
     max_bytes: int = 10 * 1024 * 1024
-    max_pages: int = 100
+    max_pages: int = 250
     max_characters_per_page: int = 50_000
-    max_total_characters: int = 500_000
+    max_total_characters: int = 2_000_000
     max_table_cells_per_page: int = 10_000
     x_tolerance: float = 3.0
     y_tolerance: float = 3.0
     column_gap: float = 30.0
-    ocr_enabled: bool = True
+    ocr_enabled: bool = False
     ocr_command: str = "tesseract"
     ocr_languages: str = "eng"
 
@@ -466,11 +466,12 @@ def _ocr_page(page: Page, config: NativePdfConfig) -> str:
             [config.ocr_command, image_path, "stdout", "-l", config.ocr_languages, "--psm", "6"],
             capture_output=True,
             check=False,
+            timeout=30,
         )
         if completed.returncode != 0:
             return ""
         return completed.stdout.decode("utf-8", errors="replace")
-    except (OSError, ValueError, RuntimeError):
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
         return ""
     finally:
         for name in os.listdir(temporary_directory):

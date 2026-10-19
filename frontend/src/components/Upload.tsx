@@ -6,6 +6,7 @@ import {
   submitAssessment,
   uploadDocument,
 } from '../api'
+import { DocumentBuild } from './DocumentBuild'
 import type { Availability } from './Readiness'
 import { annotationKind, REQUEST_FIELDS } from '../clarify'
 import { fieldLabel } from '../labels'
@@ -19,9 +20,13 @@ function DocumentSlot({
   role,
   label,
   onUploaded,
+  enabled,
+  onBuildSelected,
 }: {
   role: 'policy' | 'chart'
   label: string
+  enabled: boolean
+  onBuildSelected: (id: string | undefined) => void
   onUploaded: (uploaded: Uploaded | null) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
@@ -34,6 +39,7 @@ function DocumentSlot({
     setError(null)
     setUploaded(null)
     onUploaded(null)
+    onBuildSelected(undefined)
     try {
       const response = await uploadDocument(file, role)
       const next = { record: response.document, file }
@@ -66,6 +72,7 @@ function DocumentSlot({
           <code>{uploaded.record.sha256.slice(0, 12)}</code>
         </p>
       )}
+      {uploaded && <DocumentBuild key={uploaded.record.document_id} documentId={uploaded.record.document_id} enabled={enabled} onSelected={onBuildSelected} />}
       {error && (
         <p className="error-note" role="alert">
           {error.message}
@@ -85,6 +92,8 @@ export function Upload({
 }) {
   const [policy, setPolicy] = useState<Uploaded | null>(null)
   const [chart, setChart] = useState<Uploaded | null>(null)
+  const [policyBuild, setPolicyBuild] = useState<string>()
+  const [chartBuild, setChartBuild] = useState<string>()
   const [fields, setFields] = useState<Record<string, string>>({})
   const [error, setError] = useState<ApiRequestError | null>(null)
   const [busy, setBusy] = useState(false)
@@ -110,6 +119,8 @@ export function Upload({
         policy_document_id: policy.record.document_id,
         chart_document_id: chart.record.document_id,
         annotations,
+        policy_build_id: policyBuild,
+        chart_build_id: chartBuild,
       })
       onStarted(accepted.run_id)
     } catch (cause) {
@@ -127,8 +138,8 @@ export function Upload({
     <section aria-labelledby="upload-heading">
       <h2 id="upload-heading">New assessment</h2>
       <div className="upload-grid">
-        <DocumentSlot role="policy" label="Policy PDF" onUploaded={setPolicy} />
-        <DocumentSlot role="chart" label="Chart PDF" onUploaded={setChart} />
+        <DocumentSlot role="policy" label="Policy PDF" onUploaded={setPolicy} enabled={ready} onBuildSelected={setPolicyBuild} />
+        <DocumentSlot role="chart" label="Chart PDF" onUploaded={setChart} enabled={ready} onBuildSelected={setChartBuild} />
       </div>
       <fieldset className="metadata-fields">
         <legend>Request metadata (optional)</legend>

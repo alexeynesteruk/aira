@@ -34,6 +34,7 @@ from app.schemas import (
     RunStatus,
     SourceSpan,
 )
+from app.schemas.builds import BuildRecord
 
 from .identity import (
     assessment_fingerprint,
@@ -57,6 +58,8 @@ _FIXED_RUN_FIELDS = (
     "input_fingerprint",
     "configuration",
     "annotations",
+    "requested_policy_build_id",
+    "requested_chart_build_id",
     "created_at",
 )
 
@@ -169,6 +172,28 @@ class LocalStore:
                     validated INTEGER NOT NULL CHECK (validated = 1)
                 );
                 CREATE INDEX IF NOT EXISTS artifacts_lookup ON artifacts(fingerprint);
+                CREATE TABLE IF NOT EXISTS document_builds (
+                    build_id TEXT PRIMARY KEY,
+                    document_id TEXT NOT NULL REFERENCES documents(document_id),
+                    fingerprint TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    payload_sha256 TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS document_build_snapshots (
+                    build_id TEXT NOT NULL REFERENCES document_builds(build_id),
+                    revision INTEGER NOT NULL,
+                    payload_sha256 TEXT NOT NULL,
+                    PRIMARY KEY(build_id, revision)
+                );
+                CREATE TABLE IF NOT EXISTS document_checkpoint_metadata (
+                    checkpoint_key TEXT PRIMARY KEY,
+                    configuration_sha256 TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS document_checkpoints (
+                    checkpoint_key TEXT PRIMARY KEY,
+                    payload_sha256 TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS policy_rule_sets (
                     rule_set_id TEXT PRIMARY KEY,
                     policy_document_sha256 TEXT NOT NULL,
@@ -283,12 +308,188 @@ class LocalStore:
                    ON chart_interpretations(chart_sha256, configuration_sha256)"""
             )
 
+    def bind_document_artifact[T: BaseModel](
+        self, value: T, document: DocumentRecord, extraction: ExtractionRecord
+    ) -> T:
+        return self._remap_document_payload(
+            canonical_bytes(value), document, extraction, type(value)
+        )
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=5, isolation_level=None)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys=ON")
         connection.execute("PRAGMA synchronous=FULL")
         return connection
+
+    def _build(self, row: sqlite3.Row) -> BuildRecord:
+        record = self._model(str(row["payload_sha256"]), BuildRecord)
+        fields = ("build_id", "document_id", "fingerprint", "status")
+        if any(getattr(record, name) != str(row[name]) for name in fields):
+            raise StorageIntegrityError("Build metadata does not match its immutable manifest")
+        return record
+
+    def put_build(self, record: BuildRecord) -> BuildRecord:
+        record = _checked(BuildRecord, record)
+        with self._transaction(write=True) as connection:
+            document = self._document(connection, record.document_id)
+            if (document.sha256, document.role) != (record.document_sha256, record.role):
+                raise StorageReferenceError("Build identity differs from its original input")
+            row = connection.execute(
+                "SELECT * FROM document_builds WHERE build_id=?", (record.build_id,)
+            ).fetchone()
+            if row is not None:
+                previous = self._build(row)
+                if (previous.document_id, previous.fingerprint, previous.created_at) != (
+                    record.document_id,
+                    record.fingerprint,
+                    record.created_at,
+                ):
+                    raise StorageConflict("A build's input identity cannot change")
+                if previous.status not in ("queued", "running"):
+                    allowed = previous.model_copy(
+                        update={
+                            "review_status": record.review_status,
+                            "updated_at": record.updated_at,
+                        }
+                    )
+                    if canonical_bytes(allowed) != canonical_bytes(record):
+                        raise StorageConflict("Stopped build artifacts are immutable")
+            digest = self._write_object(canonical_bytes(record))
+            connection.execute(
+                "INSERT INTO document_builds VALUES (?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(build_id) DO UPDATE SET status=excluded.status, "
+                "payload_sha256=excluded.payload_sha256",
+                (
+                    record.build_id,
+                    record.document_id,
+                    record.fingerprint,
+                    record.status,
+                    digest,
+                    record.created_at.isoformat(),
+                ),
+            )
+            revision = connection.execute(
+                "SELECT COALESCE(MAX(revision),0)+1 FROM document_build_snapshots WHERE build_id=?",
+                (record.build_id,),
+            ).fetchone()[0]
+            connection.execute(
+                "INSERT INTO document_build_snapshots VALUES (?, ?, ?)",
+                (record.build_id, revision, digest),
+            )
+        return record
+
+    def get_build(self, build_id: str) -> BuildRecord:
+        with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM document_builds WHERE build_id=?", (build_id,)
+            ).fetchone()
+            if row is None:
+                raise StorageNotFound("Document build not found")
+            return self._build(row)
+
+    def list_builds(
+        self, document_id: str | None = None, *, active_only: bool = False
+    ) -> tuple[BuildRecord, ...]:
+        with self._transaction() as connection:
+            query = "SELECT * FROM document_builds"
+            params: tuple[str, ...] = ()
+            if document_id is not None:
+                self._document(connection, document_id)
+                query += " WHERE document_id=?"
+                params = (document_id,)
+            if active_only:
+                query += (
+                    " AND " if document_id is not None else " WHERE "
+                ) + "status IN ('queued', 'running')"
+            query += " ORDER BY created_at DESC, rowid DESC"
+            return tuple(self._build(row) for row in connection.execute(query, params).fetchall())
+
+    def _usable_build(self, connection: sqlite3.Connection, build_id: str) -> BuildRecord:
+        seen: set[str] = set()
+        selected = None
+        expected = None
+        while build_id:
+            if build_id in seen:
+                raise StorageIntegrityError("Build reuse lineage contains a cycle")
+            seen.add(build_id)
+            row = connection.execute(
+                "SELECT * FROM document_builds WHERE build_id=?", (build_id,)
+            ).fetchone()
+            if row is None:
+                raise StorageIntegrityError("Build reuse origin is missing")
+            record = self._build(row)
+            selected = selected or record
+            if record.status != "completed" or record.review_status == "rejected":
+                raise StorageConflict(
+                    "This build or its reused source was rejected; explicitly rebuild"
+                )
+            identity = (record.fingerprint, record.document_sha256, record.role)
+            expected = expected or identity
+            if expected != identity:
+                raise StorageIntegrityError("Build reuse origin has a different input identity")
+            build_id = record.reused_from_build_id or ""
+        if selected is None:
+            raise StorageNotFound("Build selection not found")
+        return selected
+
+    def require_usable_build(self, build_id: str) -> BuildRecord:
+        with self._transaction() as connection:
+            return self._usable_build(connection, build_id)
+
+    def find_completed_build(
+        self, key: str, *, generation_id: str | None = None
+    ) -> BuildRecord | None:
+        with self._transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM document_builds WHERE fingerprint=? "
+                "AND status='completed' ORDER BY created_at DESC, rowid DESC",
+                (key,),
+            ).fetchall()
+            for row in rows:
+                record = self._build(row)
+                if generation_id is not None and record.generation_id != generation_id:
+                    continue
+                return self._usable_build(connection, record.build_id)
+            return None
+
+    def put_checkpoint(
+        self, key: str, value: BaseModel, *, configuration: ConfigurationProvenance
+    ) -> None:
+        payload = self._write_object(canonical_bytes(_checked(type(value), value)))
+        with self._transaction(write=True) as connection:
+            row = connection.execute(
+                "SELECT payload_sha256 FROM document_checkpoints WHERE checkpoint_key=?", (key,)
+            ).fetchone()
+            if row is not None and str(row["payload_sha256"]) != payload:
+                raise StorageConflict("Completed document checkpoints cannot be overwritten")
+            metadata = self._write_object(canonical_bytes(configuration))
+            connection.execute(
+                "INSERT OR IGNORE INTO document_checkpoint_metadata VALUES (?, ?)", (key, metadata)
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO document_checkpoints VALUES (?, ?)", (key, payload)
+            )
+
+    def get_checkpoint[T: BaseModel](self, key: str, output_type: type[T]) -> T | None:
+        with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT payload_sha256 FROM document_checkpoints WHERE checkpoint_key=?", (key,)
+            ).fetchone()
+            return None if row is None else self._model(str(row["payload_sha256"]), output_type)
+
+    def checkpoint_configuration(self, key: str) -> ConfigurationProvenance:
+        with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT configuration_sha256 FROM document_checkpoint_metadata "
+                "WHERE checkpoint_key=?",
+                (key,),
+            ).fetchone()
+            if row is None:
+                raise StorageIntegrityError(
+                    "Checkpoint generation metadata is missing; explicitly rebuild"
+                )
+            return self._model(str(row["configuration_sha256"]), ConfigurationProvenance)
 
     @contextmanager
     def _transaction(self, *, write: bool = False) -> Iterator[sqlite3.Connection]:
@@ -522,6 +723,7 @@ class LocalStore:
                 record.configuration,
                 record.request_context,
                 record.annotations,
+                (record.requested_policy_build_id, record.requested_chart_build_id),
             )
             if record.input_fingerprint != expected:
                 raise StorageReferenceError("Run fingerprint does not match submitted inputs")
@@ -686,7 +888,7 @@ class LocalStore:
             ),
             "annotations": [annotation.model_dump(mode="json") for annotation in run.annotations],
             "extractions": extraction_refs,
-            "upstream": upstream_refs,
+            "upstream": sorted(upstream_refs, key=canonical_bytes),
             "output_schema": fingerprint(output_type.model_json_schema()),
             "validation_version": validation_version,
         }

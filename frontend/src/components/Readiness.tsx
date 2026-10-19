@@ -52,6 +52,7 @@ export function Readiness({
             {missing.map((item) => <li key={item}>{item}</li>)}
           </ul>
         )}
+        {readiness?.provider.backend && <p className="provider-note">Connection: {readiness.provider.backend === 'openai' ? 'Direct OpenAI' : 'LiteLLM'} · Model: {readiness.provider.model_id} · {readiness.provider.transport}</p>}
         {verification && <p className="provider-note">{verification}</p>}
         {detail && <p className="provider-note">{detail}</p>}
         <p className="note">

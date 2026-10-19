@@ -66,25 +66,25 @@ Python 3.13 / FastAPI / strict frozen Pydantic v2 (schema 0.1.0); React/TypeScri
 - Status: Accepted.
 
 **TD-02 · PDF boundary: native text only**
-pdfplumber layout blocks, ruled tables, and geometry; a complete-input gate. Conservative rejection set: raster images (even decorative), annotations other than plain links, rotation, forms, vector-only pages. No OCR in the MVP. Provisional limits: 10 MiB / 100 pages / 50k chars per page / 500k per document.
+pdfplumber layout blocks, ruled tables, and geometry; a complete-input gate. Conservative rejection set: raster images (even decorative), annotations other than plain links, rotation, forms, vector-only pages. No OCR in the MVP. October 19 WP-19 limits: 10 MiB / 250 pages / 50k characters per page / 2M per document, with separate call/build guardrails. OCR remains opt-in; default scan rejection is retained.
 - Why: every cited excerpt must map to exact native-text spans; OCR output would break quote resolution.
 - Consequences: scans are rejected with an action, not partially processed.
 - Owner: [feature 04](features/04-pdf-ingestion-extraction.md), [results/pdf-extraction](results/pdf-extraction.md) · Status: Accepted.
 
 **TD-03 · Transport**
-Strict JSON-schema structured output with flat candidate schemas; `store=false`; truncation disabled. SDK retries off — the adapter owns bounded retries (2 attempts, 30 s request, 65 s stage). Output budget 4,096 tokens by default, `AIRA_MAX_OUTPUT_TOKENS` configurable. Quota errors are never retried; no automatic repair attempt.
+Strict JSON-schema structured output with flat candidate schemas; `store=false`; truncation disabled. SDK retries off — the adapter owns bounded retries (2 attempts, 30 s request, 65 s stage). Output budget 4,096 tokens by default, `AIRA_MAX_OUTPUT_TOKENS` configurable. Quota errors are never retried. Schema/conversion failures may receive one bounded application repair with unchanged source input.
 - Why: deterministic failure classification beats silent retries; the probe already hit `insufficient_quota`.
 - Status: Accepted, live-unverified.
 
 **TD-04 · Prompts**
-Versioned per stage (`scope`, `policy`, `policy_index`, `policy_page`, `chart`, `evidence`); identity is version + sha256(instructions + schema)[:12]. Policy reuse keys include only the policy prompts. Chart reuse keys include only the chart prompt. Document text is untrusted data; the model has no tools.
+Versioned production stages include `policy_section`, `policy_reconcile`, `policy_merge`, `policy_audit`, `chart`, `scope`, and `evidence`; old policy/page prompts remain compatibility/experiment interfaces; identity is version + sha256(instructions + schema)[:12]. Policy reuse keys include only the policy prompts. Chart reuse keys include only the chart prompt. Document text is untrusted data; the model has no tools.
 - Why: a prompt change invalidates only the stage that uses it.
 - Status: Accepted.
 
 **TD-05 · Stage input**
-Guideline and chart model inputs contain only that document. Assessment inputs contain the saved rule set, saved facts, selected request, and staff annotations. The engine still reads every guideline page after the index pass; it does not drop a page the index marks skip. The 200,000-character guardrail remains the per-call limit. A structural long-document compiler beyond that page loop is the WP-19 plan and is not this workflow.
-- Why: independent reuse, and a section cannot disappear because an index call skipped it.
-- Owner: [architecture](architecture.md). Status: Accepted for the page-wise extraction. WP-19 remains open.
+Guideline and chart model inputs contain only that document. Assessment inputs contain the saved rule set, saved facts, selected request, and staff annotations. The structural build planner accounts for every source block, extracts immutable local records, reconciles bounded groups/scoped roots when necessary, audits coverage, and compiles supported paths. The 200,000-character guardrail remains for assessment inputs; builds have independent complete request/output and total budgets.
+- Why: independent reuse, exhaustive source accounting, and preservation of local rules/edges.
+- Owner: [architecture](architecture.md), [WP-19 implementation](results/wp19-implementation.md). Status: Implemented with controlled checks; live semantic/release acceptance remains open.
 
 **TD-06 · Citations**
 `(document_id, page, exact quote)`; the quote must occur exactly once on the page inside one block; whitespace-only normalization → `SourceSpan` (document hash, extraction ID, page, block, code-point offsets). No fuzzy repair.

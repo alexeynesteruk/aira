@@ -16,7 +16,18 @@ import json
 from collections.abc import Callable
 from dataclasses import replace
 from importlib.metadata import version
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from app.policies.compiler import ModelStep
+    from app.schemas.builds import (
+        AuditCandidate,
+        ReconciliationCandidate,
+        ReconciliationGroup,
+        SectionCandidate,
+        SectionPlan,
+        SectionResult,
+    )
 
 from pydantic import BaseModel
 
@@ -73,6 +84,10 @@ _STAGES: tuple[StageName, ...] = (
     "policy",
     "policy_index",
     "policy_page",
+    "policy_section",
+    "policy_reconcile",
+    "policy_merge",
+    "policy_audit",
     "chart",
     "evidence",
 )
@@ -277,6 +292,7 @@ class OpenAIStageInterpreter:
                 request=converted.request,
                 applicability=converted.applicability,
                 usage=None,
+                policy_path_id=value.policy_path_id,
             )
 
         try:
@@ -417,3 +433,93 @@ class OpenAIStageInterpreter:
         except InterpretationFailure:
             raise
         return replace(interpreted, usage=usage)
+
+    async def section(
+        self, inputs: DocumentInputs, plan: "SectionPlan"
+    ) -> "ModelStep[SectionCandidate]":
+        from app.policies.compiler import ModelStep, section_packet, validate_section
+        from app.schemas.builds import SectionCandidate
+
+        def convert(value: BaseModel) -> SectionCandidate:
+            if not isinstance(value, SectionCandidate):
+                raise InterpretationFailure(_unexpected(RunPhase.INTERPRETING_POLICY))
+            try:
+                validate_section(inputs.document, inputs.extraction, plan, value)
+            except ValueError as exc:
+                raise CandidateConversionError(
+                    ErrorCode.INVALID_OUTPUT, RunPhase.INTERPRETING_POLICY, str(exc)
+                ) from exc
+            return value
+
+        value, usage = await self._once(
+            "policy_section",
+            json.dumps(
+                section_packet(inputs.document, plan), ensure_ascii=False, separators=(",", ":")
+            ),
+            convert,
+        )
+        return ModelStep(value, usage)
+
+    async def reconcile(
+        self, inputs: DocumentInputs, sections: tuple["SectionResult", ...]
+    ) -> "ModelStep[ReconciliationCandidate]":
+        from app.policies.compiler import ModelStep, reconciliation_packet
+        from app.schemas.builds import ReconciliationCandidate
+
+        def convert(value: BaseModel) -> ReconciliationCandidate:
+            if not isinstance(value, ReconciliationCandidate):
+                raise InterpretationFailure(_unexpected(RunPhase.INTERPRETING_POLICY))
+            return value
+
+        value, usage = await self._once(
+            "policy_reconcile",
+            json.dumps(reconciliation_packet(sections), ensure_ascii=False, separators=(",", ":")),
+            convert,
+        )
+        return ModelStep(value, usage)
+
+    async def merge(
+        self,
+        inputs: DocumentInputs,
+        groups: tuple["ReconciliationGroup", ...],
+        sections: tuple["SectionResult", ...],
+    ) -> "ModelStep[ReconciliationCandidate]":
+        from app.policies.compiler import ModelStep, group_packet
+        from app.schemas.builds import ReconciliationCandidate
+
+        def convert(value: BaseModel) -> ReconciliationCandidate:
+            if not isinstance(value, ReconciliationCandidate):
+                raise InterpretationFailure(_unexpected(RunPhase.INTERPRETING_POLICY))
+            return value
+
+        value, usage = await self._once(
+            "policy_merge",
+            json.dumps(group_packet(groups, sections), ensure_ascii=False, separators=(",", ":")),
+            convert,
+        )
+        return ModelStep(value, usage)
+
+    async def audit(
+        self,
+        inputs: DocumentInputs,
+        section: "SectionResult",
+        reconciliation: "ReconciliationCandidate",
+    ) -> "ModelStep[AuditCandidate]":
+        from app.policies.compiler import ModelStep, section_packet
+        from app.schemas.builds import AuditCandidate
+
+        packet = {
+            "source": section_packet(inputs.document, section.plan),
+            "interpretation": section.model_dump(mode="json"),
+            "reconciliation": reconciliation.model_dump(mode="json"),
+        }
+
+        def convert(value: BaseModel) -> AuditCandidate:
+            if not isinstance(value, AuditCandidate):
+                raise InterpretationFailure(_unexpected(RunPhase.INTERPRETING_POLICY))
+            return value
+
+        value, usage = await self._once(
+            "policy_audit", json.dumps(packet, ensure_ascii=False, separators=(",", ":")), convert
+        )
+        return ModelStep(value, usage)

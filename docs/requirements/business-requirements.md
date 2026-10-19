@@ -119,6 +119,8 @@ Acceptance: [A19](../evaluation.md#required-scenarios), the [final verification 
 
 ### BR-013 Long guideline preparation and reuse
 
+Staff can now prepare either document independently, inspect source coverage and saved versions, retry a failed build, and select the exact completed version used for an assessment. Direct OpenAI configuration is backend-only; optional LiteLLM requires explicit selection. Build approval records review state and retains all source/interpretation blockers. The [WP-19 implementation record](../results/wp19-implementation.md) separates delivered behavior, controlled evidence, and the open live quality/reviewer-release gates.
+
 **Origin: user clarification on October 18, 2026, informed by the [research log](../research/long-document-rule-extraction.md).** Staff can prepare a complete 100–200-page guideline without a chart using bounded, structure-aware extraction. Definitions, procedure-specific branches, distant exceptions, tables, and cross-references retain their meaning and sources. Staff can inspect coverage, unresolved interpretation, progress, and failures; partial processing cannot appear as a complete rule set. A prepared version is saved and reused across patients and restarts. Retrying or rebuilding preserves prior versions and assessments. Changing the guideline does not silently rewrite saved chart facts.
 
 This adds a measured long-document acceptance target to the original scope; it does not claim that current parser/model limits or the working-tree prototype satisfy it. Source ambiguity and absent referenced material require review. Direct OpenAI access remains required, with LiteLLM optional.

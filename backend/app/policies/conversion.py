@@ -53,6 +53,7 @@ from app.schemas import (
     Policy,
     PolicyCandidate,
     PolicyNode,
+    PolicyPath,
     PolicyScopeField,
     PolicySection,
     Predicate,
@@ -176,11 +177,11 @@ def _request_values(
 
 
 def _unreadable_date_message(fields: Sequence[ClarificationField]) -> str:
-    labels = {
+    labels: dict[ClarificationField, str] = {
         RequestField.SERVICE_DATE: "service date",
         RequestField.ASSESSMENT_CUTOFF: "assessment cutoff",
     }
-    names = [labels[field] for field in fields]
+    names = [labels[RequestField(field.value)] for field in fields]
     if len(names) == 1:
         subject, verb = f"The {names[0]}", "was"
     else:
@@ -486,6 +487,16 @@ def convert_policy(
             root_id=candidate.root_id,
             sections=sections,
             issues=tuple(issues),
+            paths=tuple(
+                PolicyPath(
+                    path_id=item.path_id,
+                    title=item.title,
+                    scope=item.scope,
+                    root_id=item.root_id,
+                    sources=_citations(item.citations, resolver, document_id),
+                )
+                for item in candidate.paths
+            ),
         )
         resolver.validate_policy(policy)
         return policy

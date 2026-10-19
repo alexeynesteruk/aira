@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
 import sys
@@ -77,6 +78,9 @@ async def verify(
         verification = ProviderVerification(
             status=VerificationStatus.VERIFIED,
             provider=ModelProvider.OPENAI,
+            backend=settings.backend,
+            transport=settings.transport,
+            endpoint_sha256=hashlib.sha256(settings.base_url.encode()).hexdigest(),
             checked_at=datetime.now(UTC),
             model_id=settings.model,
             detail=result.model,
@@ -96,6 +100,9 @@ async def verify(
         verification = ProviderVerification(
             status=VerificationStatus.FAILED,
             provider=ModelProvider.OPENAI,
+            backend=settings.backend,
+            transport=settings.transport,
+            endpoint_sha256=hashlib.sha256(settings.base_url.encode()).hexdigest(),
             checked_at=datetime.now(UTC),
             model_id=settings.model,
             detail=f"{exc.error.code}: {exc.error.message}",

@@ -29,7 +29,18 @@ from app.schemas import (
     StageUsage,
 )
 
-type StageName = Literal["scope", "policy", "policy_index", "policy_page", "chart", "evidence"]
+type StageName = Literal[
+    "scope",
+    "policy",
+    "policy_index",
+    "policy_page",
+    "policy_section",
+    "policy_reconcile",
+    "policy_merge",
+    "policy_audit",
+    "chart",
+    "evidence",
+]
 
 
 @dataclass(frozen=True)

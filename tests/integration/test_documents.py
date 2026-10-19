@@ -222,17 +222,18 @@ def test_mixed_document_keeps_failed_and_blank_pages_in_original_order() -> None
     assert [page.page for page in extraction.pages] == [1, 2, 3]
     assert [page.quality for page in extraction.pages] == [
         PageQuality.USABLE,
-        PageQuality.USABLE,
+        PageQuality.NEEDS_OCR,
         PageQuality.BLANK,
     ]
     assert [page.method for page in extraction.pages] == [
         ExtractionMethod.NATIVE_TEXT,
-        ExtractionMethod.OCR,
+        None,
         None,
     ]
     assert document.page_count == 3
-    require_usable_extraction(document, extraction)
-    with pytest.raises(ValueError, match="Source block does not exist"):
+    with pytest.raises(PdfInputError):
+        require_usable_extraction(document, extraction)
+    with pytest.raises(ValueError, match="cannot supply assessment evidence"):
         source_span(extraction, page=2, block_id="p0002.b00000")
 
 

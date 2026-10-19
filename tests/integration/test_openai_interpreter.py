@@ -183,16 +183,74 @@ def _envelope(text: str, response_id: str) -> dict[str, object]:
 type _Body = dict[str, object] | httpx.Response | Callable[[dict[str, object]], dict[str, object]]
 
 
-def _adapter(bodies: dict[str, _Body], requests: list[httpx.Request]) -> OpenAIAdapter:
+def _adapter(
+    bodies: dict[str, _Body], requests: list[httpx.Request], *, transport="responses"
+) -> OpenAIAdapter:
     """Adapter over the real SDK; bodies are keyed by strict schema name."""
 
     def respond(request: httpx.Request) -> httpx.Response:
         requests.append(request)
         payload = json.loads(request.content)
-        name = payload["text"]["format"]["name"]
-        packet = json.loads(payload["input"]) if name not in bodies else None
+        name = (
+            payload["text"]["format"]["name"]
+            if transport == "responses"
+            else payload["response_format"]["json_schema"]["name"]
+        )
+        source_text = (
+            payload["input"] if transport == "responses" else payload["messages"][-1]["content"]
+        )
+        packet = json.loads(source_text)
         if name in bodies:
             body = bodies[name]
+        elif name == "SectionCandidate":
+            units = packet["primary"]
+            matching = [unit for unit in units if POLICY_CRITERION_QUOTE[1] in unit["text"]]
+            document_id = packet["document_id"]
+            fragment = _policy_candidate(document_id) if matching else None
+            body = dict(
+                schema_version="0.1.0",
+                fragment=fragment,
+                definitions=[],
+                dependencies=[],
+                issues=[],
+                dispositions=[
+                    dict(
+                        unit_id=unit["unit_id"],
+                        kind="requirements" if unit in matching else "context",
+                        explanation="Scripted full-block classification.",
+                    )
+                    for unit in units
+                ],
+            )
+        elif name == "ReconciliationCandidate":
+            policies = [
+                (item["section_id"], item["policy"])
+                for item in packet["sections"]
+                if item["policy"]
+            ]
+            body = dict(
+                schema_version="0.1.0",
+                nodes=[],
+                resolutions=[],
+                issues=[],
+                paths=[
+                    dict(
+                        path_id="scripted",
+                        title="Scripted procedure",
+                        scope="Scripted scope",
+                        root_id=policy["root_id"],
+                        citations=policy["citations"],
+                    )
+                    for _, policy in policies
+                ],
+            )
+        elif name == "AuditCandidate":
+            body = dict(
+                schema_version="0.1.0",
+                checked_unit_ids=[item["unit_id"] for item in packet["source"]["primary"]],
+                missing_conditions=[],
+                issues=[],
+            )
         elif name == "PagePlanCandidate":
             body = {"schema_version": "0.1.0", "pages": []}
         elif name == "ChartCandidate":
@@ -204,29 +262,53 @@ def _adapter(bodies: dict[str, _Body], requests: list[httpx.Request]) -> OpenAIA
                 "interpretation_issues": [],
             }
         elif name == "FindingsCandidate":
-            body = {
-                "schema_version": "0.1.0",
-                "findings": _evidence_candidate(CHART_ID)["findings"],
-            }
+            findings = _evidence_candidate(CHART_ID)["findings"]
+            for item in findings:
+                item["criterion_id"] = packet["criteria"][0]["criterion_id"]
+            body = {"schema_version": "0.1.0", "findings": findings}
         else:
             body = bodies[name]
         if isinstance(body, httpx.Response):
             return body
         if callable(body):
-            body = body(json.loads(json.loads(request.content)["input"]))
+            body = body(packet)
         return httpx.Response(
             200,
-            json=_envelope(json.dumps(body), f"resp-{name}"),
+            json=_envelope(json.dumps(body), f"resp-{name}")
+            if transport == "responses"
+            else {
+                "id": f"resp-{name}",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "test-model",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {"role": "assistant", "content": json.dumps(body)},
+                    }
+                ],
+                "usage": {"prompt_tokens": 31, "completion_tokens": 9, "total_tokens": 40},
+            },
             headers={"x-request-id": f"req-{name}"},
         )
 
+    settings = _settings().model_copy(
+        update={
+            "transport": transport,
+            "backend": "openai" if transport == "responses" else "litellm",
+            "base_url": "https://api.openai.com/v1"
+            if transport == "responses"
+            else "http://127.0.0.1:4000/v1",
+        }
+    )
     client = AsyncOpenAI(
         api_key="test-key-not-real",
-        base_url="https://api.openai.com/v1",
+        base_url=settings.base_url,
         max_retries=0,
         http_client=httpx.AsyncClient(transport=httpx.MockTransport(respond)),
     )
-    return OpenAIAdapter(_settings(), client=client)
+    return OpenAIAdapter(settings, client=client)
 
 
 def _citation(document_id: str, page_quote: tuple[int, str]) -> dict[str, object]:
@@ -582,6 +664,10 @@ def test_prompt_identity_tracks_text_and_configuration_names_the_real_parser(
         "policy",
         "policy_index",
         "policy_page",
+        "policy_section",
+        "policy_reconcile",
+        "policy_merge",
+        "policy_audit",
         "chart",
         "evidence",
     ]
@@ -626,13 +712,15 @@ async def test_workflow_completes_mismatch_through_the_mocked_transport(
     assert scope_usage[0].model_id == "test-model"
     assert scope_usage[0].input_tokens == 31
     names = [json.loads(item.content)["text"]["format"]["name"] for item in requests]
-    assert names[0] == "PagePlanCandidate"
-    assert names.count("PolicyCandidate") >= 1
+    assert names[0] == "SectionCandidate"
+    assert "ReconciliationCandidate" in names
+    assert "AuditCandidate" in names
     assert "ScopeCandidate" in names
 
 
 @pytest.mark.anyio
-async def test_workflow_runs_the_full_applicable_path(store: LocalStore) -> None:
+@pytest.mark.parametrize("transport", ["responses", "chat_completions"])
+async def test_workflow_runs_the_full_applicable_path(store: LocalStore, transport) -> None:
     requests: list[httpx.Request] = []
     adapter = _adapter(
         {
@@ -641,8 +729,12 @@ async def test_workflow_runs_the_full_applicable_path(store: LocalStore) -> None
             "EvidenceCandidate": _evidence_candidate(CHART_ID),
         },
         requests,
+        transport=transport,
     )
-    configuration, limits = _configuration()
+    _, limits = _configuration()
+    configuration = openai_configuration(
+        adapter.settings, workflow_parser_fingerprint(NativePdfConfig(), limits)
+    )
     engine = WorkflowEngine(store, OpenAIStageInterpreter(adapter), configuration, limits=limits)
     await engine.start()
     try:
@@ -654,9 +746,17 @@ async def test_workflow_runs_the_full_applicable_path(store: LocalStore) -> None
     assert run.status == RunStatus.COMPLETED
     assert run.result is not None
     assert run.result.outcome == AssessmentOutcome.DOCUMENTED_REQUIREMENTS_SATISFIED
-    names = [json.loads(item.content)["text"]["format"]["name"] for item in requests]
-    assert "PagePlanCandidate" in names
-    assert names.count("PolicyCandidate") >= 1
+    names = [
+        json.loads(item.content)["text"]["format"]["name"]
+        if transport == "responses"
+        else json.loads(item.content)["response_format"]["json_schema"]["name"]
+        for item in requests
+    ]
+    assert all(str(item.url).startswith(adapter.settings.base_url) for item in requests)
+    assert all(item.headers["authorization"] == "Bearer test-key-not-real" for item in requests)
+    assert "SectionCandidate" in names
+    assert "ReconciliationCandidate" in names
+    assert "AuditCandidate" in names
     assert "ChartCandidate" in names
     assert "FindingsCandidate" in names
     interpreted = {
@@ -870,11 +970,15 @@ async def test_chat_transport_keeps_extraction_inputs_and_credentials_isolated(
         policy = await interpreter.policy(
             DocumentInputs(inputs.policy_document, inputs.policy_extraction)
         )
-        chart = await interpreter.chart(DocumentInputs(inputs.chart_document, inputs.chart_extraction))
+        chart = await interpreter.chart(
+            DocumentInputs(inputs.chart_document, inputs.chart_extraction)
+        )
     finally:
         await adapter.close()
 
-    assert [json.loads(item.content)["response_format"]["json_schema"]["name"] for item in requests] == [
+    assert [
+        json.loads(item.content)["response_format"]["json_schema"]["name"] for item in requests
+    ] == [
         "PolicyCandidate",
         "ChartCandidate",
     ]
@@ -913,9 +1017,52 @@ async def test_chat_transport_keeps_extraction_inputs_and_credentials_isolated(
         configuration=configuration,
     )
     saved = "\n".join(
-        path.read_text(errors="ignore")
-        for path in store.root.rglob("*")
-        if path.is_file()
+        path.read_text(errors="ignore") for path in store.root.rglob("*") if path.is_file()
     )
     assert secret not in saved
 
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("transport", ["responses", "chat_completions"])
+async def test_group_merge_uses_the_same_selected_connection(inputs, transport):
+    from app.schemas.builds import ReconciliationCandidate, ReconciliationGroup
+
+    candidate = dict(
+        schema_version="0.1.0",
+        nodes=[],
+        resolutions=[],
+        issues=[],
+        paths=[
+            dict(
+                path_id="scripted",
+                title="Scripted scope",
+                scope="Scripted procedure",
+                root_id="root",
+                citations=[_citation(POLICY_ID, POLICY_CRITERION_QUOTE)],
+            )
+        ],
+    )
+    group = ReconciliationGroup(
+        group_id="group-1",
+        section_ids=("section-1",),
+        result=ReconciliationCandidate.model_validate_json(json.dumps(candidate)),
+    )
+    requests = []
+    adapter = _adapter({"ReconciliationCandidate": candidate}, requests, transport=transport)
+    try:
+        result = await OpenAIStageInterpreter(adapter).merge(
+            DocumentInputs(inputs.policy_document, inputs.policy_extraction), (group,), ()
+        )
+    finally:
+        await adapter.close()
+    assert result.value.paths[0].path_id == "scripted"
+    assert len(requests) == 1
+    assert str(requests[0].url) == adapter.settings.base_url + (
+        "/responses" if transport == "responses" else "/chat/completions"
+    )
+    assert requests[0].headers["authorization"] == "Bearer test-key-not-real"
+    body = json.loads(requests[0].content)
+    packet = json.loads(
+        body["input"] if transport == "responses" else body["messages"][-1]["content"]
+    )
+    assert "groups" in packet and "chart" not in packet and "selected_request" not in packet

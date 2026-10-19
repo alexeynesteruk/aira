@@ -13,8 +13,20 @@ from app.schemas import (
     RunPhase,
     ScopeCandidate,
 )
+from app.schemas.builds import AuditCandidate, ReconciliationCandidate, SectionCandidate
 
-type StageName = Literal["scope", "policy", "policy_index", "policy_page", "chart", "evidence"]
+type StageName = Literal[
+    "scope",
+    "policy",
+    "policy_index",
+    "policy_page",
+    "policy_section",
+    "policy_reconcile",
+    "policy_merge",
+    "policy_audit",
+    "chart",
+    "evidence",
+]
 
 
 @dataclass(frozen=True)
@@ -183,3 +195,112 @@ outcome or rewrite the supplied criteria. Dates use YYYY-MM-DD when established.
 """,
     ),
 }
+
+PROMPTS.update(
+    {
+        "policy_section": StagePrompt(
+            "policy-section-v1",
+            RunPhase.INTERPRETING_POLICY,
+            SectionCandidate,
+            COMMON
+            + """Read every PRIMARY source block and classify each unit_id
+exactly once. Extract ALL local requirements, exclusions, alternatives, thresholds,
+definitions, exceptions and references. Auxiliary context supplies parent headings,
+table headers and page continuations, but is not a second primary extraction.
+Return fragment=null only when there are no local requirements; explain context,
+non_normative and unresolved dispositions. Never skip text based on a short excerpt.
+A fragment uses PolicyCandidate: preserve the local AND/OR tree; include a scope
+prerequisite for each procedure-specific branch. Cite original primary/context text.
+Do not invent outside rules or flatten alternatives. Requirements whose connective
+or exception is in another section must retain a dependency with original citations.
+Definitions also have exact citations. Numeric/calendar/date ambiguities stay
+unsupported or unresolved. Describe all missing referenced material. Do not infer
+an effective date from a revision. Metadata unknown in this section stays null.
+Use short unique local IDs; the application namespaces them. Return no patient data.
+""",
+        ),
+        "policy_reconcile": StagePrompt(
+            "policy-reconcile-v1",
+            RunPhase.INTERPRETING_POLICY,
+            ReconciliationCandidate,
+            COMMON
+            + """Reconcile immutable section interpretations of ONE
+guideline. Do not rewrite or introduce criteria or modify any local graph edge.
+Each existing section policy root must be reachable in at least one procedure/scope
+path. Add only all/any connective nodes with distinct IDs and exact source citations.
+Paths identify source-supported procedure/plan scope, title, and a root_id.
+Never AND unrelated procedures or let one procedure satisfy another's requirements.
+Preserve shared mandatory conditions in every affected path. Existing sources on
+criteria/nodes/definitions are available to justify connective citations.
+Resolve EVERY namespaced reference_id exactly once, naming target section IDs.
+A missing/ambiguous reference stays unresolved or conflicting with an explanation.
+If an exception or conditional cannot be represented faithfully in the supported
+AND/OR/narrative language, retain it as a blocking issue; never approximate it away.
+A single local root can be referenced directly as a path root without new nodes.
+Definitions and scope references must affect the correct paths. Do not invent a
+logical relationship or rewrite a graph simply to make it connected. Return issues
+for unsupported cross-section relationships. Do not generate patient findings.
+""",
+        ),
+        "policy_audit": StagePrompt(
+            "policy-audit-v1",
+            RunPhase.INTERPRETING_POLICY,
+            AuditCandidate,
+            COMMON
+            + """Audit the PRIMARY original source units against their
+saved local interpretation and cross-section reconciliation. Return EVERY primary
+unit_id exactly once in checked_unit_ids. Identify omitted mandatory conditions,
+wrong AND/OR grouping, lost exclusions/definitions/footnotes, incorrect scope,
+unsupported inferred rules, and unresolved references. missing_conditions names
+actual omissions; issues explains other interpretation problems. Check context
+classifications as well as extracted rules; non_normative is not permission to
+ignore a hidden requirement. Return empty arrays only when you found no discrepancy.
+You cannot change saved rules, invent missing evidence, or approve the policy.
+""",
+        ),
+    }
+)
+PROMPTS["scope"] = StagePrompt(
+    "scope-v5-policy-path",
+    RunPhase.CHECKING_APPLICABILITY,
+    ScopeCandidate,
+    PROMPTS["scope"].instructions
+    + """
+When saved policy.paths is present, select the
+source-supported policy_path_id for an applicable request. With multiple paths,
+ambiguity requires unresolved policy_scope. Never silently select the first path.
+For mismatch or unresolved scope, policy_path_id may be null.
+""",
+)
+
+PROMPTS["policy_section"] = StagePrompt(
+    "policy-section-v2-paths",
+    RunPhase.INTERPRETING_POLICY,
+    SectionCandidate,
+    PROMPTS["policy_section"].instructions
+    + """
+If a chunk contains multiple procedure scopes, expose each as a named fragment.paths
+entry with its own root and source citations. Nodes can be reached from different
+path roots. Never join unrelated procedures into a shared ALL or ANY root.
+Use fragment.root_id as the first path root; every node must be reachable from the
+union of those roots. Include requirements only for primary blocks; context supplies
+governing scope, definitions, and continuation rather than duplicate criteria.
+""",
+)
+
+PROMPTS["policy_merge"] = StagePrompt(
+    "policy-merge-v1",
+    RunPhase.INTERPRETING_POLICY,
+    ReconciliationCandidate,
+    COMMON
+    + """Merge immutable reconciled groups into named procedure paths.
+Each group supplies scoped path roots whose internal rules/edges cannot be rewritten.
+Add only sourced ALL/ANY connector nodes over the supplied roots. Preserve distinct
+procedure/payer/plan/time scopes. Every group path must remain reachable. Resolve
+EVERY namespaced reference using the original_passages and original citations in
+references; targets are original section_ids. Unavailable or ambiguous references
+remain unresolved. Do not invent source text, rules, or executable exceptions.
+Return final paths and reference resolutions, newly added connector nodes only,
+and blockers for unsupported relationships, conflicts, or incomplete scope.
+""",
+)

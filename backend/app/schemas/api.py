@@ -5,13 +5,15 @@ from typing import Literal, Self
 
 from pydantic import AwareDatetime, Field, model_validator
 
-from .base import Identifier, NonEmptyText, StrictModel, VersionedModel
+from .base import Identifier, NonEmptyText, Sha256, StrictModel, VersionedModel
 from .documents import DocumentRecord, DocumentRole, ExtractedPage, ExtractionRecord
 from .requests import MetadataAnnotation, RequestContext
 from .runs import ModelProvider, OperationalError, RunPhase, RunRecord, RunStatus
 
 
 class CreateAssessmentRequest(VersionedModel):
+    policy_build_id: Identifier | None = None
+    chart_build_id: Identifier | None = None
     policy_document_id: Identifier
     chart_document_id: Identifier
     request_context: RequestContext | None = None
@@ -79,6 +81,9 @@ class VerificationStatus(StrEnum):
 
 
 class ProviderVerification(StrictModel):
+    backend: Literal["openai", "litellm"] | None = None
+    transport: Literal["responses", "chat_completions"] | None = None
+    endpoint_sha256: Sha256 | None = None
     status: VerificationStatus = VerificationStatus.UNVERIFIED
     provider: ModelProvider = ModelProvider.OPENAI
     checked_at: AwareDatetime | None = None

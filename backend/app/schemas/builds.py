@@ -87,6 +87,12 @@ class ReconciliationCandidate(VersionedModel):
     issues: tuple[str, ...]
 
 
+class ReconciliationGroup(StrictModel):
+    group_id: str
+    section_ids: tuple[str, ...]
+    result: ReconciliationCandidate
+
+
 class AuditCandidate(VersionedModel):
     checked_unit_ids: tuple[str, ...]
     missing_conditions: tuple[str, ...]
@@ -102,15 +108,26 @@ class CoverageEntry(StrictModel):
     audited: bool
 
 
+class BuildStep(StrictModel):
+    name: str
+    checkpoint_key: Sha256
+    input_sha256: Sha256
+    output_sha256: Sha256
+    cached: bool
+    configuration: ConfigurationProvenance
+
+
 class BuildRecord(VersionedModel):
     contract_version: Literal["document-build-v1"] = "document-build-v1"
     build_id: Identifier
     parent_build_id: Identifier | None = None
+    generation_id: Identifier | None = None
     document_id: Identifier
     document_sha256: Sha256
     role: DocumentRole
     fingerprint: Sha256
     configuration: ConfigurationProvenance
+    build_limits: dict[str, int | float] = Field(default_factory=dict)
     created_at: AwareDatetime
     updated_at: AwareDatetime
     status: Literal["queued", "running", "completed", "failed", "interrupted"]
@@ -123,6 +140,7 @@ class BuildRecord(VersionedModel):
     extraction: ExtractionRecord | None = None
     policy: Policy | None = None
     chart: ChartData | None = None
+    steps: tuple[BuildStep, ...] = ()
     coverage: tuple[CoverageEntry, ...] = ()
     resolutions: tuple[DependencyResolution, ...] = ()
     issues: tuple[str, ...] = ()
@@ -154,7 +172,17 @@ class BuildRecord(VersionedModel):
             raise ValueError("only a completed build can be approved")
         for value in (self.extraction, self.policy, self.chart):
             if value is not None and (value.document_id, value.document_sha256) != (
-                self.document_id, self.document_sha256
+                self.document_id,
+                self.document_sha256,
             ):
                 raise ValueError("build artifact belongs to another document")
         return self
+
+
+class BuildList(StrictModel):
+    builds: tuple[BuildRecord, ...]
+
+
+class BuildStepResponse(VersionedModel):
+    receipt: BuildStep
+    value: SectionCandidate | ReconciliationCandidate | AuditCandidate | ChartData | Policy

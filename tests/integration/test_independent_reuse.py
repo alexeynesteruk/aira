@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from support import configuration, document_quote
 
 from app.assessment.stages import (
     ChartInterpretation,
@@ -35,7 +36,6 @@ from app.schemas import (
     EvidenceStatus,
     FactPolarity,
     Finding,
-    InferenceSettings,
     NarrativePredicate,
     OperationalError,
     Policy,
@@ -46,9 +46,8 @@ from app.schemas import (
     TextAnnotation,
     VersionReference,
 )
-from app.storage import LocalStore
-from app.storage.identity import document_interpretation_fingerprint
-from support import configuration, document_quote
+from app.schemas.builds import BuildRequest
+from app.storage import LocalStore, StorageConflict
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY_V1 = ROOT / "examples/guidelines/bcbs_fl_02-33000-31_2025-08-15.pdf"
@@ -193,7 +192,9 @@ def _named(limits: WorkflowLimits, **versions: str) -> ConfigurationProvenance:
     return base.model_copy(update={"prompts": prompts})
 
 
-async def _engine(store: LocalStore, interpreter: RecordingInterpreter, config: ConfigurationProvenance):
+async def _engine(
+    store: LocalStore, interpreter: RecordingInterpreter, config: ConfigurationProvenance
+):
     limits = WorkflowLimits()
     # configuration() baked the default limits into the parser fingerprint.
     engine = WorkflowEngine(store, interpreter, config, limits=limits)
@@ -239,8 +240,12 @@ async def test_extractions_reuse_across_patients_requests_and_restarts(tmp_path:
         )
         assert interpreter.calls == {"policy": 1, "chart": 2, "scope": 2, "evidence": 2}
         assert first.status == second.status == RunStatus.COMPLETED
-        assert second.result is not None and second.result.facts[0].sources[0].document_id == "chart-b"
-        assert first.result is not None and first.result.facts[0].sources[0].document_id == "chart-a"
+        assert (
+            second.result is not None and second.result.facts[0].sources[0].document_id == "chart-b"
+        )
+        assert (
+            first.result is not None and first.result.facts[0].sources[0].document_id == "chart-a"
+        )
 
         changed = _upload(store, POLICY_V2, DocumentRole.POLICY, "policy-v2")
         third = await engine.wait(
@@ -334,7 +339,8 @@ async def test_extractions_reuse_across_patients_requests_and_restarts(tmp_path:
         assert "robert_mitchell_chart_final" not in body
         assert "bcbs_fl_02-33000-31_2025-08-15" not in body
 
-    # A policy-prompt change rebuilds only the guideline. An assessment-prompt change rebuilds neither.
+    # A policy-prompt change rebuilds only the guideline.
+    # An assessment-prompt change rebuilds neither extraction.
     policy_prompt = _named(limits, policy="2")
     focused = RecordingInterpreter()
     prompted = await _engine(LocalStore(store.root), focused, policy_prompt)
@@ -395,123 +401,67 @@ async def test_extractions_reuse_across_patients_requests_and_restarts(tmp_path:
 
 
 @pytest.mark.anyio
-async def test_bad_artifacts_are_not_reused_and_the_other_document_stays(
-    tmp_path: Path,
-) -> None:
-    limits = WorkflowLimits()
+async def test_bad_artifacts_are_not_reused_and_the_other_document_stays(tmp_path: Path) -> None:
+    """Build manifests are authoritative; corruption fails closed until explicit rebuild."""
     store = LocalStore(tmp_path / "store")
     policy = _upload(store, POLICY_V1, DocumentRole.POLICY, "policy-v1")
     chart = _upload(store, CHART_A, DocumentRole.CHART, "chart-a")
-    interpreter = RecordingInterpreter()
-    config = _named(limits)
-    engine = await _engine(store, interpreter, config)
+    config = _named(WorkflowLimits())
+    engine = await _engine(store, RecordingInterpreter(), config)
+    first = await engine.wait(
+        (
+            await engine.submit(
+                CreateAssessmentRequest(
+                    policy_document_id=policy.document_id, chart_document_id=chart.document_id
+                )
+            )
+        ).run_id
+    )
+    await engine.close()
+    assert first.status == RunStatus.COMPLETED
+    with sqlite3.connect(store.database_path) as connection:
+        digest = connection.execute(
+            "SELECT payload_sha256 FROM document_builds WHERE build_id=?", (first.policy_build_id,)
+        ).fetchone()[0]
+    (store.root / "objects" / digest).unlink()
+    restored = RecordingInterpreter()
+    engine = await _engine(LocalStore(store.root), restored, config)
     try:
-        await engine.wait(
+        failed = await engine.wait(
+            (
+                await engine.submit(
+                    CreateAssessmentRequest(
+                        policy_document_id=policy.document_id, chart_document_id=chart.document_id
+                    )
+                )
+            ).run_id
+        )
+        assert failed.status == RunStatus.FAILED and failed.error.code == ErrorCode.STATE_CONFLICT
+        assert restored.calls["policy"] == 0
+        rebuilt = await engine.builds.wait(
+            (await engine.builds.submit(policy.document_id, BuildRequest(rebuild=True))).build_id
+        )
+        assert rebuilt.status == "completed"
+        run = await engine.wait(
             (
                 await engine.submit(
                     CreateAssessmentRequest(
                         policy_document_id=policy.document_id,
                         chart_document_id=chart.document_id,
+                        policy_build_id=rebuilt.build_id,
+                        chart_build_id=first.chart_build_id,
                     )
                 )
             ).run_id
         )
+        assert run.status == RunStatus.COMPLETED, run.error
+        assert restored.calls["policy"] == 1 and restored.calls["chart"] == 0
+        engine.builds.review(rebuilt.build_id, approve=False)
+        with pytest.raises(StorageConflict, match="rejected"):
+            await engine.builds.prepare(policy, rebuilt.build_id)
+        assert store.get_build(first.chart_build_id).chart is not None
     finally:
         await engine.close()
-
-    reopened = LocalStore(store.root)
-    policy_document = reopened.get_document("policy-v1")
-    chart_document = reopened.get_document("chart-a")
-    policy_extraction = reopened.list_extractions("policy-v1")[-1]
-    chart_extraction = reopened.list_extractions("chart-a")[-1]
-    saved_chart = reopened.get_chart_interpretation(
-        chart_document, chart_extraction, configuration=config
-    )
-    assert saved_chart is not None
-    connection = sqlite3.connect(reopened.database_path)
-    connection.row_factory = sqlite3.Row
-    try:
-        policy_row = connection.execute(
-            "SELECT rule_set_id, payload_sha256, configuration_sha256 FROM policy_rule_sets"
-        ).fetchone()
-        assert policy_row is not None
-        payload = reopened.root / "objects" / str(policy_row["payload_sha256"])
-        payload.unlink()
-        connection.execute(
-            """INSERT INTO policy_rule_sets VALUES (?, ?, ?, 'failed', ?, ?, NULL, NULL)""",
-            (
-                "policy-rules-failed",
-                policy_document.sha256,
-                str(policy_row["configuration_sha256"]),
-                "a" * 64,
-                "2099-01-01T00:00:00+00:00",
-            ),
-        )
-        connection.execute(
-            """INSERT INTO chart_interpretations VALUES (?, ?, ?, ?, ?, 'incomplete')""",
-            (
-                "chart-data-incomplete",
-                chart_document.sha256,
-                document_interpretation_fingerprint(
-                    config, chart_extraction, "chart", ChartData
-                ),
-                "b" * 64,
-                "2099-01-01T00:00:00+00:00",
-            ),
-        )
-        connection.commit()
-    finally:
-        connection.close()
-
-    checked = LocalStore(store.root)
-    assert (
-        checked.get_policy_rule_set(
-            policy_document, policy_extraction, configuration=config, approved_only=False
-        )
-        is None
-    )
-    still_there = checked.get_chart_interpretation(
-        chart_document, chart_extraction, configuration=config
-    )
-    assert still_there is not None
-    assert still_there.facts[0].fact_id == saved_chart.facts[0].fact_id
-    rule_id = checked.list_policy_rule_sets()
-    # The corrupt row is not a success. Reject a freshly stored tree and keep the chart.
-    restored = RecordingInterpreter()
-    engine = await _engine(checked, restored, config)
-    try:
-        run = await engine.wait(
-            (
-                await engine.submit(
-                    CreateAssessmentRequest(
-                        policy_document_id="policy-v1", chart_document_id="chart-a"
-                    )
-                )
-            ).run_id
-        )
-    finally:
-        await engine.close()
-    assert run.status == RunStatus.COMPLETED, run.error
-    assert restored.calls["policy"] == 1
-    assert restored.calls["chart"] == 0
-    fresh = LocalStore(store.root)
-    drafts = [
-        row
-        for row in fresh.list_policy_rule_sets(document_id="policy-v1")
-        if row["status"] == "draft"
-    ]
-    fresh.reject_policy_rule_set(str(drafts[0]["rule_set_id"]))
-    assert (
-        fresh.get_policy_rule_set(
-            policy_document, policy_extraction, configuration=config, approved_only=False
-        )
-        is None
-    )
-    assert (
-        fresh.get_chart_interpretation(chart_document, chart_extraction, configuration=config)
-        is not None
-    )
-    assert rule_id
 
 
 @pytest.mark.anyio

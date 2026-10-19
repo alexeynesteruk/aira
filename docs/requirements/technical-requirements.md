@@ -128,6 +128,20 @@ Implement the endpoint and error contracts below with typed request/response sch
 
 **Acceptance:** Contract tests cover accepted uploads/jobs, wrong roles, unknown IDs, invalid fields, queue saturation, missing configuration, and premature export. A healthy UI remains reachable when model setup is missing. Repeated health checks produce no model calls; a real preflight outcome is labeled with its check time/configuration and cannot be mistaken for a permanent availability guarantee.
 
+Standalone preparation uses these versioned contracts (`schema_version: 0.1.0`, build contract `document-build-v1`):
+
+| Route | Contract |
+| --- | --- |
+| `POST /api/documents/{document_id}/builds` | Optional `BuildRequest {parent_build_id?, rebuild?}`; 202 `BuildRecord` and `Location`. Queue full: 429; unavailable: 503; wrong parent: 422; unknown document/parent: 404. |
+| `GET /api/documents/{document_id}/builds` | `BuildList {builds}` for saved versions; unknown document: 404. |
+| `GET /api/builds/{build_id}` | Exact persisted manifest, result, coverage, receipts, configuration/budgets, usage, and diagnostics; unknown: 404. |
+| `GET /api/builds/{build_id}/steps/{checkpoint_key}` | This manifest's source-checked intermediate output and generation receipt; unrelated/unknown key: 404. |
+| `POST /api/builds/{build_id}/{action}` | `retry`/`rebuild`: 202 linked new attempt; `approve`/`reject`: 200 explicit review of a completed build. Active parent or invalid review state: 409; unknown action/ID: 404. |
+
+`BuildRecord` states are queued → running → completed/failed/interrupted. Failed/interrupted builds have an operational error and no final policy/chart result. A completed policy requires extraction, completed sections, and audited block coverage; technical completion remains distinct from draft/approved/rejected human review. Approval does not clear interpretation blockers. Source pages, rule IDs, named paths, unresolved dependencies, and checkpoint generation settings remain inspectable. Interrupted work requires an explicit linked retry; rebuild bypasses old generation checkpoints. Originals and prior artifacts remain immutable.
+
+Assessment requests accept optional `policy_build_id`/`chart_build_id` pinned to completed, non-rejected versions of those exact uploads. Submitted pins participate in input identity. Auto-prepared versions are recorded on the run; clarification inherits matching parent pins. Exports include selected IDs/path and actual generation configurations. Build reads and health checks make no inference calls.
+
 ### TR-014 Review and clarification interface
 
 **Business mapping:** BR-002, BR-003, BR-005, BR-006, BR-007, BR-009.
@@ -176,7 +190,7 @@ Compile the complete guideline through a durable staged process: layout/source i
 
 Persist intermediate contracts and dependency edges, not just a repeatedly rewritten global graph. Keep procedure/plan/time scope and source-defined AND/OR grouping. Validate the executable representation locally; unsupported operations and unresolved semantics remain explicit review blockers. Failed/unprocessed extraction or required audit work cannot be published as a completed reusable rule set. Technically complete drafts with unresolved interpretation retain their blockers; reuse does not imply human approval or semantic certainty.
 
-Handle dependency invalidation, identical concurrent builds, interruption, corruption/rejection, and explicit versioned rebuild without overwriting earlier artifacts. Separate per-call limits from whole-build limits and account for every inference operation. Prepare guidelines and charts independently through documented interfaces; pin exact completed versions in assessments and exports. Freeze route/schema amendments during LD-02 before implementation.
+Handle dependency invalidation, identical concurrent builds, interruption, corruption/rejection, and explicit versioned rebuild without overwriting earlier artifacts. Separate per-call limits from whole-build limits and account for every inference operation. Prepare guidelines and charts independently through documented interfaces; pin exact completed versions in assessments and exports. The TR-013 standalone contracts freeze the LD-02 route/schema amendments; implementation evidence is recorded separately.
 
 **Acceptance:** A21 and [WP-19 LD-AC01–LD-AC12](../features/19-long-document-rule-compilation.md#acceptance-checks) verify 100/200-page native-text builds, remote definitions/exceptions, cross-page tables/lists, multiple procedures, omissions/injection, independent reuse, restart/concurrency/budget failures, useful UI/export behavior, and every-call direct-OpenAI routing. Record fixture and live evidence separately. No page count, token budget, correctness score, or completion claim is inferred from this specification.
 

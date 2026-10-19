@@ -28,7 +28,7 @@ These files define the implementation scope and checked work. The contract basel
 | WP-18 | [Release verification and design note](18-release-handoff.md) | Delivery enabler | M6 |
 | WP-19 | [Long-document rule-set compilation](19-long-document-rule-compilation.md) | Product feature and processing enabler | M2–M6 |
 
-WP-19 is the October 18 long-document extension, with BR-013/TR-019/A21 and its own [implementation plan](../plans/long-document-rule-compilation.md). Existing identifiers and historical evidence remain unchanged. Its full section/dependency/coverage workflow is not established by the working-tree page-fold prototype.
+WP-19 is the October 18 long-document extension, with BR-013/TR-019/A21 and its own [implementation plan](../plans/long-document-rule-compilation.md). Existing identifiers and historical evidence remain unchanged. Its [implemented structural workflow](../results/wp19-implementation.md) has controlled checks; live semantic/release acceptance remains open.
 
 ## Start order
 

@@ -200,6 +200,12 @@ class AssessmentResult(VersionedModel):
 
 
 class RunRecord(VersionedModel):
+    requested_policy_build_id: Identifier | None = None
+    requested_chart_build_id: Identifier | None = None
+    policy_build_configuration: ConfigurationProvenance | None = None
+    chart_build_configuration: ConfigurationProvenance | None = None
+    policy_build_id: Identifier | None = None
+    chart_build_id: Identifier | None = None
     run_id: Identifier
     parent_run_id: Identifier | None = None
     policy_document_id: Identifier
@@ -221,6 +227,7 @@ class RunRecord(VersionedModel):
     usage: tuple[StageUsage, ...] = ()
     policy_rule_set_id: Identifier | None = None
     chart_interpretation_id: Identifier | None = None
+    policy_path_id: Identifier | None = None
 
     @model_validator(mode="after")
     def valid_lifecycle(self) -> Self:

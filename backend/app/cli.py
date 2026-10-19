@@ -14,6 +14,8 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from app.assessment.build_config import build_limits_from_environment
+from app.assessment.builds import DocumentBuildService
 from app.assessment.export import render_markdown
 from app.assessment.stages import StageInterpreter
 from app.assessment.workflow import (
@@ -25,6 +27,7 @@ from app.documents import NativePdfConfig, PdfInputError, inspect_pdf
 from app.llm.config import OpenAISettings
 from app.llm.interpreter import OpenAIStageInterpreter, openai_configuration
 from app.llm.openai_adapter import OpenAIAdapter
+from app.policies.compiler import BuildLimits
 from app.schemas import (
     AssessmentExport,
     ConfigurationProvenance,
@@ -58,6 +61,7 @@ async def run_assessment(
     annotations: tuple[MetadataAnnotation, ...] = (),
     parser_config: NativePdfConfig | None = None,
     limits: WorkflowLimits | None = None,
+    build_limits: BuildLimits | None = None,
 ) -> RunRecord:
     """Ingest both PDFs, run the bounded workflow, and return the stopped run."""
     now = datetime.now(UTC)
@@ -80,7 +84,12 @@ async def run_assessment(
     store.put_document(policy_document, policy_raw)
     store.put_document(chart_document, chart_raw)
     engine = WorkflowEngine(
-        store, interpreter, configuration, parser_config=parser_config, limits=limits
+        store,
+        interpreter,
+        configuration,
+        parser_config=parser_config,
+        limits=limits,
+        build_limits=build_limits,
     )
     await engine.start()
     try:
@@ -163,6 +172,9 @@ async def _assess(arguments: argparse.Namespace, settings: OpenAISettings) -> in
                     workflow_parser_fingerprint(NativePdfConfig(), WorkflowLimits()),
                 ),
                 annotations=_annotations(arguments),
+                build_limits=build_limits_from_environment(
+                    env_file=arguments.env_file, output_tokens=settings.max_output_tokens
+                ),
             )
         except PdfInputError as exc:
             print(f"{exc.error.message} {exc.error.action}", file=sys.stderr)
@@ -177,6 +189,49 @@ async def _assess(arguments: argparse.Namespace, settings: OpenAISettings) -> in
             print(f"Wrote {path}")
         return 0 if run.status in (RunStatus.COMPLETED, RunStatus.NEEDS_INPUT) else 1
     finally:
+        await adapter.close()
+
+
+async def _prepare(arguments: argparse.Namespace, settings: OpenAISettings) -> int:
+    adapter = OpenAIAdapter(settings)
+    parser_config = NativePdfConfig()
+    store = LocalStore(arguments.data_dir)
+    builds = DocumentBuildService(
+        store,
+        OpenAIStageInterpreter(adapter),
+        openai_configuration(
+            settings, workflow_parser_fingerprint(parser_config, WorkflowLimits())
+        ),
+        parser_config=parser_config,
+        limits=build_limits_from_environment(
+            env_file=arguments.env_file, output_tokens=settings.max_output_tokens
+        ),
+    )
+    try:
+        raw = arguments.document.read_bytes()
+        doc = inspect_pdf(
+            raw,
+            document_id="doc-" + uuid4().hex,
+            filename=arguments.document.name,
+            role=DocumentRole(arguments.role),
+            created_at=datetime.now(UTC),
+        )
+        store.put_document(doc, raw)
+        await builds.start()
+        record = await builds.wait((await builds.submit(doc.document_id)).build_id)
+        output = arguments.output_dir or arguments.data_dir / "exports" / record.build_id
+        output.mkdir(parents=True, exist_ok=True)
+        target = output / "build.json"
+        target.write_text(record.model_dump_json(indent=2) + "\n")
+        print(f"Build {record.build_id}: {record.status}; saved {target}")
+        if record.error:
+            print(record.error.message, file=sys.stderr)
+        return 0 if record.status == "completed" else 1
+    except (PdfInputError, OSError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    finally:
+        await builds.close()
         await adapter.close()
 
 
@@ -195,6 +250,12 @@ def main(argv: list[str] | None = None) -> int:
         assess.add_argument(
             f"--{date_field.replace('_', '-')}", dest=date_field, type=date.fromisoformat
         )
+    prepare = commands.add_parser("prepare", help="Prepare one policy or chart independently.")
+    prepare.add_argument("--document", type=Path, required=True)
+    prepare.add_argument("--role", choices=("policy", "chart"), required=True)
+    prepare.add_argument("--data-dir", type=Path, default=Path("data/cli"))
+    prepare.add_argument("--output-dir", type=Path, default=None)
+    prepare.add_argument("--env-file", type=Path, default=Path(".env"))
     arguments = parser.parse_args(argv)
     try:
         settings = OpenAISettings.from_environment(env_file=arguments.env_file)
@@ -204,7 +265,11 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    return asyncio.run(_assess(arguments, settings))
+    return asyncio.run(
+        _prepare(arguments, settings)
+        if arguments.command == "prepare"
+        else _assess(arguments, settings)
+    )
 
 
 if __name__ == "__main__":

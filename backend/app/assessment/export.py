@@ -86,6 +86,9 @@ def render_markdown(export: AssessmentExport) -> str:
         f"Run: `{run.run_id}`. Status: `{run.status.value}`.",
         f"Created: {run.created_at.isoformat()}. Exported: {export.exported_at.isoformat()}.",
         f"Input fingerprint: `{run.input_fingerprint}`.",
+        f"Policy build: `{run.policy_build_id or 'legacy'}`. "
+        f"Chart build: `{run.chart_build_id or 'legacy'}`. "
+        f"Selected policy path: `{run.policy_path_id or 'default'}`.",
     ]
     if run.parent_run_id:
         lines.append(f"Previous attempt: `{run.parent_run_id}`.")
@@ -245,6 +248,16 @@ def render_markdown(export: AssessmentExport) -> str:
             json.dumps(
                 {
                     "configuration": run.configuration.model_dump(mode="json"),
+                    "policy_generation_configuration": run.policy_build_configuration.model_dump(
+                        mode="json"
+                    )
+                    if run.policy_build_configuration
+                    else None,
+                    "chart_generation_configuration": run.chart_build_configuration.model_dump(
+                        mode="json"
+                    )
+                    if run.chart_build_configuration
+                    else None,
                     "usage": [usage.model_dump(mode="json") for usage in run.usage],
                     "schema_version": run.schema_version,
                 },

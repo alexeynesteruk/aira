@@ -153,3 +153,7 @@ The final short design note should be written from the implementation and measur
 ## October 18 clarification: independent extraction
 
 The user requires two independent model extraction flows through the configured LiteLLM-compatible transport: whole-guideline interpretation saved as a reusable rule set, and chart-only extraction saved as patient facts. Assessment consumes those artifacts. Changing patient/request/annotations must never rebuild the guideline; changing guideline must not repeat chart extraction. This replaces the earlier request-specific policy prompt and combined chart-extraction/evidence-mapping design. TR-006/TR-007/TR-012, WP-08/WP-09/WP-11, and A09/A17 own implementation and verification. Live quality gates remain open.
+
+## October 19 implementation update
+
+The [WP-19 runtime/check record](results/wp19-implementation.md) covers independent persisted builds, structural extraction, bounded group/scope reconciliation, audits/compiler, recovery, exact assessment pins, preparation UI, API/CLI, and explicit direct-OpenAI/LiteLLM routing. The [work breakdown](work-breakdown.md#wp-19-long-document-rule-set-compilation) separates delivered slices from LD-09/LD-10 live quality/reviewer-release gates. The one-command launch remains; controlled checks do not establish live-model success.

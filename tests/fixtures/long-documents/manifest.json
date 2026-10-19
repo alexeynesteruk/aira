@@ -1,0 +1,13 @@
+{
+  "provenance": "Independently authored fictional rule corpus; extraction in tests is scripted, not model output.",
+  "renderer": "pdf-create html / WeasyPrint 70.0",
+  "construction": "generate.py builds one native-text page per section with one required condition per page; Alpha/Beta scope transition at midpoint; distant D1/E1; injected instruction at last page.",
+  "files": {
+    "guideline-100.pdf": "d66e41f7d57d9c572bba5b2b5f8c59aa0239aff8fd78a13612378ecee510c007",
+    "gold-100.json": "a4f9ccb3be19820474e86912123fe82c05a65975696e8459c58c30257a6c97e4",
+    "guideline-200.html": "e99227c2cdcf24dab4e5658c54b900e0a4530dac65dc61bdddadf242648aafc2",
+    "guideline-200.pdf": "04cfa6cd1ba85125af2dc0ab9fc11d9b4173a3b0bf28174ebef30d2c127f393e",
+    "gold-200.json": "18ad1548531e914ac4fe2b4526538f2ba9593926af286931013cbafef87e4c00",
+    "guideline-100.html": "1e42779373bd02ecef5f6126d34782734ff399d2aea808ca6cf60f382abb171f"
+  }
+}

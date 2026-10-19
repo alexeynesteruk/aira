@@ -137,6 +137,8 @@ class CitationResolver:
         Multiple occurrences, including repeated text within a block, are an
         ambiguity. Ask for a longer quote; never select the first occurrence.
         """
+        if not isinstance(citation, CandidateCitation):
+            citation = CandidateCitation.model_validate(citation)
         document, extraction = self._document(citation.document_id, expected_document_id)
         quote = normalize_whitespace(citation.quote)
         if not quote:

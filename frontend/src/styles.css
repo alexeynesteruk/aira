@@ -98,3 +98,8 @@ mark { border-radius: 2px; }
   margin-left: 0.5em;
   font-weight: normal;
 }
+
+.document-build { margin-top: 1rem; border-top: 1px solid #ccd6d2; padding-top: 1rem; overflow-wrap: anywhere; }
+.document-build select { width: 100%; margin: .5rem 0; }
+.document-build details { margin: 1rem 0; }
+.build-json { max-height: 28rem; overflow: auto; white-space: pre-wrap; font-size: .8rem; }

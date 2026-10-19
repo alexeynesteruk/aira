@@ -24,6 +24,7 @@ from app.documents import PdfInputError, inspect_pdf
 from app.schemas import (
     AssessmentAccepted,
     AssessmentExport,
+    ChartData,
     CreateAssessmentRequest,
     DocumentResponse,
     DocumentRole,
@@ -31,10 +32,20 @@ from app.schemas import (
     ErrorResponse,
     OperationalError,
     PageResponse,
+    Policy,
     RunRecord,
     RunStatus,
 )
-from app.storage import StorageNotFound, StorageReferenceError
+from app.schemas.builds import (
+    AuditCandidate,
+    BuildList,
+    BuildRecord,
+    BuildRequest,
+    BuildStepResponse,
+    ReconciliationCandidate,
+    SectionCandidate,
+)
+from app.storage import StorageConflict, StorageNotFound, StorageReferenceError
 
 router = APIRouter(prefix="/api")
 
@@ -407,6 +418,8 @@ async def create_assessment(request: Request) -> Response:
             )
     try:
         run = await engine.submit(submitted)
+    except StorageNotFound:
+        return _failure(request, 404, ErrorCode.NOT_FOUND, "Selected build does not exist.")
     except StorageReferenceError as exc:
         return _failure(
             request,
@@ -580,3 +593,130 @@ async def approve_policy_rule_set(request: Request, rule_set_id: str) -> Respons
         content=json.dumps({"rule_set_id": rule_set_id, "status": "approved"}),
         media_type="application/json",
     )
+
+
+@router.post(
+    "/documents/{document_id}/builds",
+    status_code=202,
+    responses={
+        202: {"model": BuildRecord},
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
+    openapi_extra={
+        "requestBody": {
+            "required": False,
+            "content": {
+                "application/json": {"schema": {"$ref": "#/components/schemas/BuildRequest"}}
+            },
+        }
+    },
+)
+async def start_document_build(request: Request, document_id: str) -> Response:
+    engine = request.app.state.engine
+    if engine is None:
+        return _unavailable(request)
+    try:
+        raw = await request.body()
+        options = BuildRequest.model_validate_json(raw or b"{}")
+        record = await engine.builds.submit(document_id, options)
+    except ValidationError:
+        return _failure(request, 422, ErrorCode.INVALID_REQUEST, "Invalid document build options.")
+    except StorageNotFound:
+        return _failure(request, 404, ErrorCode.NOT_FOUND, "Document or parent build not found.")
+    except StorageReferenceError as exc:
+        return _failure(request, 422, ErrorCode.INVALID_REQUEST, str(exc))
+    except StorageConflict as exc:
+        full = "queue is full" in str(exc)
+        return _failure(
+            request,
+            429 if full else 409,
+            ErrorCode.QUEUE_FULL if full else ErrorCode.STATE_CONFLICT,
+            str(exc),
+            retryable=full,
+        )
+    return _json(record, 202, headers={"Location": f"/api/builds/{record.build_id}"})
+
+
+@router.get("/documents/{document_id}/builds", responses={200: {"model": BuildList}})
+async def list_document_builds(request: Request, document_id: str) -> Response:
+    store = request.app.state.store
+    if store is None:
+        return _unavailable(request)
+    try:
+        builds = store.list_builds(document_id)
+    except StorageNotFound:
+        return _failure(request, 404, ErrorCode.NOT_FOUND, "Document not found.")
+    return _json(BuildList(builds=builds))
+
+
+@router.get("/builds/{build_id}", responses={200: {"model": BuildRecord}})
+async def get_document_build(request: Request, build_id: str) -> Response:
+    store = request.app.state.store
+    if store is None:
+        return _unavailable(request)
+    try:
+        record = store.get_build(build_id)
+    except StorageNotFound:
+        return _failure(request, 404, ErrorCode.NOT_FOUND, "Document build not found.")
+    return _json(record)
+
+
+@router.post(
+    "/builds/{build_id}/{action}",
+    responses={200: {"model": BuildRecord}, 202: {"model": BuildRecord}},
+)
+async def act_on_document_build(request: Request, build_id: str, action: str) -> Response:
+    engine = request.app.state.engine
+    if engine is None:
+        return _unavailable(request)
+    if action not in {"retry", "rebuild", "approve", "reject"}:
+        return _failure(request, 404, ErrorCode.NOT_FOUND, "Unknown build action.")
+    try:
+        parent = engine.store.get_build(build_id)
+        if action in {"approve", "reject"}:
+            return _json(engine.builds.review(build_id, approve=action == "approve"))
+        record = await engine.builds.submit(
+            parent.document_id, BuildRequest(parent_build_id=build_id, rebuild=action == "rebuild")
+        )
+    except StorageNotFound:
+        return _failure(request, 404, ErrorCode.NOT_FOUND, "Document build not found.")
+    except StorageConflict as exc:
+        return _failure(request, 409, ErrorCode.STATE_CONFLICT, str(exc))
+    return _json(record, 202, headers={"Location": f"/api/builds/{record.build_id}"})
+
+
+@router.get(
+    "/builds/{build_id}/steps/{checkpoint_key}", responses={200: {"model": BuildStepResponse}}
+)
+async def get_build_step(request: Request, build_id: str, checkpoint_key: str) -> Response:
+    store = request.app.state.store
+    if store is None:
+        return _unavailable(request)
+    try:
+        build = store.get_build(build_id)
+        receipt = next(
+            (item for item in build.steps if item.checkpoint_key == checkpoint_key), None
+        )
+        if receipt is None:
+            raise StorageNotFound("Build step not found")
+        types: dict[str, type[BaseModel]] = {
+            "policy_section": SectionCandidate,
+            "policy_reconcile": ReconciliationCandidate,
+            "policy_merge": ReconciliationCandidate,
+            "policy_audit": AuditCandidate,
+            "chart": ChartData,
+            "policy": Policy,
+        }
+        value = store.get_checkpoint(checkpoint_key, types[receipt.name])
+        if value is None:
+            raise StorageNotFound("Build step not found")
+    except StorageNotFound:
+        return _failure(request, 404, ErrorCode.NOT_FOUND, "Build or checkpoint not found.")
+    if not isinstance(
+        value, (SectionCandidate, ReconciliationCandidate, AuditCandidate, ChartData, Policy)
+    ):
+        raise TypeError("Unknown checkpoint output type")
+    return _json(BuildStepResponse(receipt=receipt, value=value))
