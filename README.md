@@ -2,7 +2,7 @@
 
 Take-home project for Aira's Forward Deployed Engineer assessment. The intended product helps clinic staff compare patient chart evidence with an uploaded insurer guideline and identify gaps before submitting a prior authorization request.
 
-The FastAPI/React workspace, strict domain contracts, independently reviewed fixtures, and GitHub Actions checks are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, the OpenAI stage interpreter, the HTTP source API, exports, and the staff review UI are implemented and tested, tracked in the [work breakdown](docs/work-breakdown.md). Live inference is currently blocked by API project quota; the user deferred quota resolution.
+The FastAPI/React workspace, strict domain contracts, independently reviewed fixtures, and a local verification suite are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, the OpenAI stage interpreter, the HTTP source API, exports, and the staff review UI are implemented and tested, tracked in the [work breakdown](docs/work-breakdown.md). Live inference is currently blocked by API project quota; the user deferred quota resolution.
 
 ## Development
 
@@ -13,7 +13,7 @@ make install
 make check
 ```
 
-Start `make dev-api` and `make dev-ui` in separate terminals, then open http://localhost:5173. Alternatively, `npm --prefix frontend run build` followed by `make dev-api` serves the built UI at http://localhost:8000. `/health/live` returns 200; `/health/ready` returns 503 until `OPENAI_API_KEY` and `AIRA_MODEL` are configured (see `.env.example`), since the app then starts the real workflow engine. The application stores its data under `AIRA_DATA_DIR`, defaulting to `data/app`; the `/api` routes accept document uploads, assessment submissions, status polling, source pages, and exports. Submitting an assessment makes billable model calls and remains blocked until quota is restored.
+Start `make dev-api` and `make dev-ui` in separate terminals, then open http://localhost:5173. Alternatively, `npm --prefix frontend run build` followed by `make dev-api` serves the built UI at http://localhost:8000. `/health` and `/health/live` return 200; `/health/ready` returns 503 until `OPENAI_API_KEY` and `AIRA_MODEL` are configured (see `.env.example`), since the app then starts the real workflow engine. The application stores its data under `AIRA_DATA_DIR`, defaulting to `data/app`; the `/api` routes accept document uploads, standalone document preparation (build, retry, rebuild, approve, reject), assessment submissions, status polling, source pages, and exports. Submitting an assessment makes billable model calls and remains blocked until quota is restored.
 
 Run the saved Chromium tests after installing the browser:
 
@@ -60,9 +60,16 @@ uv run --project backend python -m app.cli assess \
 
 It makes billable model calls and remains blocked until quota is restored; run it with a development key only. `run.json`, `export.json`, and `checklist.md` land under `data/cli/exports/` (see the [stage interpreter record](docs/results/stage-interpreter.md)).
 
-## CI
+## Verification
 
-[GitHub Actions](https://github.com/alexeynesteruk/aira/actions/workflows/ci.yml) runs on pull requests and pushes to `main`. Python checks, TypeScript checks, and browser tests run with no model credentials and make no live inference calls.
+Verification is local. There is no hosted CI.
+
+```sh
+make check         # ruff, format, mypy, pytest, wheel/sdist, frontend lint/type/Vitest/build
+make browser-test  # saved Playwright journeys against the built UI
+```
+
+Both targets run with no model credentials and make no live inference calls. `make check` must pass before each implementation package is marked complete.
 
 The local command is `./scripts/launch.sh`. It serves the review UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured. The live A19 upload-to-export workflow remains unverified under the deferred quota.
 
@@ -70,7 +77,7 @@ The local command is `./scripts/launch.sh`. It serves the review UI and API and 
 
 The [WP-19 implementation](docs/results/wp19-implementation.md) uses full-source structural chunks, immutable section outputs, bounded group reconciliation, a final scope merge when needed, source-coverage audits, and deterministic graph compilation. Saved guideline rules and chart facts are independent. A new patient or changed request reuses the policy build; a changed policy reuses chart facts. Failed builds retain completed checkpoints for linked retry. Rebuild creates a new version; it does not replace a saved assessment.
 
-Direct OpenAI uses backend-only `OPENAI_API_KEY`, explicit `AIRA_MODEL`, and `AIRA_LLM_BACKEND=openai` (default). Direct mode always selects the official endpoint and Responses transport, ignoring inherited gateway overrides. To use LiteLLM explicitly, set `AIRA_LLM_BACKEND=litellm`, `OPENAI_BASE_URL`, and optionally `AIRA_LLM_TRANSPORT=chat_completions`. Health displays the active connection/model and never makes inference calls. No API key is sent to the browser.
+Direct OpenAI uses backend-only `OPENAI_API_KEY`, explicit `AIRA_MODEL`, and the official Responses API when `.env` does not set an endpoint. A base URL or transport that exists only in the shell is ignored. To use any OpenAI-compatible `/v1` API (e.g. local Ollama, vLLM, Groq, DeepSeek, Together, OpenRouter, or LiteLLM), set `OPENAI_BASE_URL` and `AIRA_MODEL` in `.env` (and optionally `AIRA_LLM_BACKEND=openai_compatible`). For local endpoints without authentication (such as Ollama or vLLM), `OPENAI_API_KEY` can be omitted. The adapter automatically handles chat completions transport, adaptive fallback between `max_completion_tokens` and `max_tokens`, `json_schema` and `json_object` structured outputs, and strips markdown code fences from model outputs. `AIRA_LLM_BACKEND=litellm` is only needed to take the URL from the process environment instead of the file. Health displays the active connection and model and never makes inference calls. No API key is sent to the browser.
 
 Standalone CLI preparation uses the same service and adapter:
 
@@ -128,20 +135,24 @@ docs/
   work-breakdown.md          Packages, dependencies, and completion evidence
   features/
     README.md                Feature index and start order
-    01-*.md ... 18-*.md       Individual requirements, tasks, and acceptance
+    01-*.md ... 19-*.md       Individual requirements, tasks, and acceptance
   architecture.md            TDD, implemented boundaries, lifecycle, evidence logic
   contracts.md               Schema contract record and amendment history
   evaluation.md              Acceptance scenarios and release gates
   model-provider.md          OpenAI selection and validation status
-  results/                   Verification records for implemented packages
-  reviews/                   Independent reviews of shared inputs
+  decisions.md               Architectural and technical decision record
+  design-note.md             Submission note
   agent-handoff.md           Implementation handoff and current boundaries
   exploration.md             Findings from the supplied documents
   research.md                Online research and proposed implementation
+  plans/                     Long-document execution plan
+  research/                  Dated long-document research log
+  results/                   Verification records for implemented packages
+  reviews/                   Independent reviews of shared inputs
   sources/                   Original assessment materials
 examples/
   charts/                    Supplied fictional chart and future synthetic inputs
   guidelines/                Versioned BCBS Florida policy snapshots
 ```
 
-The [work breakdown](docs/work-breakdown.md) tracks completion evidence. WP-01–WP-04, WP-06, WP-10, and WP-12–WP-14 are complete; WP-07–WP-09/WP-11/WP-15–WP-17 are in progress behind the live-quota boundary; WP-18 is in progress with its design-note draft. Submission requires the working live product, a one-line launch command verified on a clean checkout, and the design note. Code must reach the reviewers one day before the call.
+The [work breakdown](docs/work-breakdown.md) tracks completion evidence. WP-01–WP-04, WP-06, WP-10, and WP-12–WP-14 are complete; WP-07–WP-09/WP-11/WP-15–WP-17 and WP-19 are in progress behind the live-quota boundary; WP-18 is in progress with its design-note draft. Submission requires the working live product, a one-line launch command verified on a clean checkout, and the design note. Code must reach the reviewers one day before the call.

@@ -105,7 +105,7 @@ Measure applicability errors, criterion extraction completeness, citation validi
 
 Use FastAPI, React with TypeScript, Pydantic schemas, and a thin OpenAI Responses API adapter. This aligns with Aira's stated stack while keeping policy logic outside the UI. Local files and SQLite preserve saved runs without additional services. Postgres, retrieval, queues, and agent orchestration require demonstrated needs.
 
-The [implementation plan](implementation-plan.md#planned-repository-structure) owns the folder structure and the one-line launch contract. The backend/frontend foundation and shared contracts are implemented; current package evidence is in the [work breakdown](work-breakdown.md#implementation-evidence). Browser checks pass in GitHub Actions. The complete live workflow still requires clean-checkout verification with documented OpenAI credentials and available API quota.
+The [implementation plan](implementation-plan.md#planned-repository-structure) owns the folder structure and the one-line launch contract. The backend/frontend foundation and shared contracts are implemented; current package evidence is in the [work breakdown](work-breakdown.md#implementation-evidence). Browser checks pass locally through `make browser-test`. The complete live workflow still requires clean-checkout verification with documented OpenAI credentials and available API quota.
 
 ## Extension path
 
@@ -123,4 +123,4 @@ The user requires independent persisted guideline and chart extraction, and comp
 
 The accepted design is structure-aware decomposition, contextual section extraction, explicit dependency reconciliation, coverage/omission auditing, deterministic compilation, and immutable intermediate/final artifacts. A top-k retrieval result or a short page excerpt cannot establish complete coverage. JSON shape, graph validity, and source-faithful interpretation require separate checks.
 
-Implementation is [WP-19](features/19-long-document-rule-compilation.md), with BR-013/TR-019/A21 and a [task-by-task execution plan](plans/long-document-rule-compilation.md). Direct OpenAI using the reviewer's backend key is required; LiteLLM remains optional. These are design/specification findings, not implementation or live accuracy results.
+Implementation is [WP-19](features/19-long-document-rule-compilation.md), with BR-013/TR-019/A21 and a [task-by-task execution plan](plans/long-document-rule-compilation.md). Direct OpenAI using the reviewer's backend key is required; a compatible endpoint remains optional. These are design/specification findings, not implementation or live accuracy results.

@@ -188,6 +188,11 @@ def test_scope_renders_saved_artifacts_without_raw_pages(inputs: StageInputs) ->
     assert packet["input_kind"] == "saved_document_interpretations"
     assert "documents" not in packet
     assert packet["policy"]["title"] == "Hand-built policy"
+    assert (
+        packet["policy"]["criteria"][0]["wording"] == "The measured structure is at least 3.0 mm."
+    )
+    assert "issues" not in packet["policy"]
+    assert "nodes" not in packet["policy"]
     assert packet["chart"]["facts"][0]["fact_id"] == "fact-heart-rate"
     assert packet["selected_request"] is None
     assert packet["staff_annotations"] == []

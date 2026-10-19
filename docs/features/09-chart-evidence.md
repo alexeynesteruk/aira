@@ -20,7 +20,7 @@ Summary assertions retain their summary provenance; a normal-CBC statement canno
 
 ## Implementation tasks
 
-- [x] Implement fact extraction and criterion evidence mapping through the model interpreter plus `app.policies.convert_evidence`, with citation/predicate validation in `backend/app/evidence/`.
+- [x] Implement fact extraction through the chart build (`app.policies.convert_chart`) and criterion evidence mapping onto those saved facts (`app.policies.convert_findings`), with citation/predicate validation in `backend/app/evidence/`.
 - [x] Add versioned prompts, source-bound fact records, and uncertainty handling.
 - [x] Add a must-have chart-evidence completeness check: an assessment with no extracted chart facts receives a blocking review issue and cannot be marked satisfied.
 - [ ] Preserve chronological and anatomical constraints across page-spanning passages.

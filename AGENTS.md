@@ -9,7 +9,7 @@ Read the [BRD and TRD](docs/requirements/README.md), [implementation plan](docs/
 - Keep application logic independent of HTTP, storage, and provider adapters. Add retrieval, queues, or agent frameworks only for a demonstrated requirement.
 - Implement acceptance checks alongside meaningful behavior changes. Use pure tests for policy logic and provenance, integration tests for adapters, and saved browser tests for user journeys. Record live-model evaluations separately from fixtures.
 - Never silently change expected evaluation outcomes to match generated output. Review failures and explain any changed expectation.
-- Inspect the diff and run the relevant actual checks before reporting completion: `make check` and `make browser-test`. GitHub Actions also runs the browser tests. Track implemented scope in the work breakdown; green shell tests do not establish live assessment accuracy.
+- Inspect the diff and run the relevant actual checks before reporting completion: `make check` and `make browser-test`. Track implemented scope in the work breakdown; green shell tests do not establish live assessment accuracy.
 - Keep credentials, runtime data, and private Obsidian/client material out of commits. Store only generic engineering lessons and public/source-provided assessment materials here.
 - For parallel work, assign file ownership and one integration owner. Coordinate shared contracts and evaluate the merged result before calling a milestone complete.
 

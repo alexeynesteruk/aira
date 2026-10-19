@@ -39,10 +39,46 @@ def upload(store, count=100, identity="policy"):
     return document
 
 
-def service(store, interpreter, limits=None):
+def service(store, interpreter, limits=None, section_concurrency=4):
     return DocumentBuildService(
-        store, interpreter, configuration(), parser_config=NativePdfConfig(), limits=limits
+        store,
+        interpreter,
+        configuration(),
+        parser_config=NativePdfConfig(),
+        limits=limits,
+        section_concurrency=section_concurrency,
     )
+
+
+@pytest.mark.anyio
+async def test_a_stopped_worker_fails_a_build_left_in_progress(tmp_path):
+    store = LocalStore(tmp_path / "store")
+    path = Path(__file__).resolve().parents[2] / "examples/synthetic/monitor_policy.pdf"
+    raw = path.read_bytes()
+    document = inspect_pdf(
+        raw,
+        document_id="policy",
+        filename=path.name,
+        role=DocumentRole.POLICY,
+        created_at=CREATED_AT,
+    )
+    store.put_document(document, raw)
+    builds = service(store, StructuralInterpreter(gate=asyncio.Event()))
+    await builds.start()
+    accepted = await builds.submit(document.document_id)
+    for _ in range(100):
+        if store.get_build(accepted.build_id).status == "running":
+            break
+        await asyncio.sleep(0.05)
+    assert builds._worker is not None
+    builds._worker.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await builds._worker
+    result = await builds.wait(accepted.build_id)
+    assert result.status == "failed"
+    assert result.error is not None and result.error.retryable
+    assert "in progress" in result.error.message
+    await builds.close()
 
 
 @pytest.mark.anyio
@@ -114,13 +150,13 @@ async def test_failed_section_retry_reuses_only_valid_completed_checkpoints(tmp_
     store = LocalStore(tmp_path / "store")
     doc = upload(store)
     interpreter = StructuralInterpreter(fail_section="section-0002")
-    builds = service(store, interpreter)
+    builds = service(store, interpreter, section_concurrency=1)
     await builds.start()
     failed = await builds.wait((await builds.submit(doc.document_id)).build_id)
     assert failed.status == "failed" and failed.policy is None and failed.completed_sections == 1
     await builds.close()
     retry_interpreter = StructuralInterpreter()
-    restarted = service(LocalStore(store.root), retry_interpreter)
+    restarted = service(LocalStore(store.root), retry_interpreter, section_concurrency=1)
     await restarted.start()
     try:
         retried = await restarted.wait(

@@ -145,9 +145,31 @@ def test_resolver_does_not_fuzzy_repair(quote: str, code: str) -> None:
 def test_repeated_or_overlapping_quote_is_ambiguous(blocks: tuple[str, ...]) -> None:
     document, extraction = source("chart", DocumentRole.CHART, (blocks,))
     resolver = CitationResolver((document,), (extraction,))
+    quote = "aa" if blocks == ("aaaa",) else "echo"
     with pytest.raises(CitationError) as error:
-        resolver.resolve(citation("chart", "aa" if blocks == ("aaaa",) else "echo"))
+        resolver.resolve(citation("chart", quote))
     assert error.value.code == "ambiguous_quote"
+    assert quote in str(error.value)
+
+
+def test_block_id_selects_one_copy_of_a_repeated_passage() -> None:
+    document, extraction = source("chart", DocumentRole.CHART, (("echo", "echo"), ("aaaa",)))
+    resolver = CitationResolver((document,), (extraction,))
+    span = resolver.resolve(
+        CandidateCitation(document_id="chart", page=1, quote="echo", block_id="p1b1")
+    )
+    assert span.block_id == "p1b1"
+    assert span.excerpt == "echo"
+    with pytest.raises(CitationError) as missing:
+        resolver.resolve(
+            CandidateCitation(document_id="chart", page=1, quote="echo", block_id="missing")
+        )
+    assert missing.value.code == "unknown_block"
+    with pytest.raises(CitationError) as inside:
+        resolver.resolve(
+            CandidateCitation(document_id="chart", page=2, quote="aa", block_id="p2b0")
+        )
+    assert inside.value.code == "ambiguous_quote"
 
 
 def test_quote_cannot_cross_blocks_or_search_another_page() -> None:
@@ -156,8 +178,9 @@ def test_quote_cannot_cross_blocks_or_search_another_page() -> None:
     )
     resolver = CitationResolver((document,), (extraction,))
     for candidate in (citation("chart", "first second"), citation("chart", "elsewhere")):
-        with pytest.raises(CitationError, match="not found"):
+        with pytest.raises(CitationError, match="not found") as error:
             resolver.resolve(candidate)
+        assert candidate.quote in str(error.value)
     assert resolver.resolve(citation("chart", "elsewhere", 2)).page == 2
 
 

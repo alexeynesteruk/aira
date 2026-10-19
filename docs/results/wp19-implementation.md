@@ -31,7 +31,7 @@ The production interpreter implements the structural interface. Explicit injecte
 
 ## Configuration and supported envelope
 
-Direct OpenAI reads backend-only `OPENAI_API_KEY`, explicit `AIRA_MODEL`, and `AIRA_LLM_BACKEND=openai` (default). Direct environment loading pins `https://api.openai.com/v1` and Responses transport, ignoring inherited gateway overrides. LiteLLM requires explicit `AIRA_LLM_BACKEND=litellm` and `OPENAI_BASE_URL`; its default transport is `chat_completions`. Section extraction, reconciliation/merge, audit, chart, scope, evidence, repair, and explicit preflight share the selected adapter. Readiness displays active connection/model and makes no inference calls. Preflight records bind model, backend, transport and endpoint hash; old/different connection verification is unverified for the current configuration. Credentials never enter browser configuration, prompts, exports, or saved provenance.
+Direct OpenAI reads backend-only `OPENAI_API_KEY` and explicit `AIRA_MODEL`. With no env-file `OPENAI_BASE_URL`, loading pins `https://api.openai.com/v1` and Responses transport and ignores a shell-only gateway URL. An env-file `OPENAI_BASE_URL` selects that OpenAI-compatible endpoint; its default transport is `chat_completions`. `AIRA_LLM_BACKEND=litellm` reads the URL from the process environment when the file does not set one. Section extraction, reconciliation/merge, audit, chart, scope, evidence, repair, and explicit preflight share the selected adapter. Readiness displays active connection/model and makes no inference calls. Preflight records bind model, backend, transport and endpoint hash; old/different connection verification is unverified for the current configuration. Credentials never enter browser configuration, prompts, exports, or saved provenance.
 
 `./scripts/launch.sh` / `make run` preserves the local reviewer workflow. Standalone CLI: `uv run --project backend python -m app.cli prepare --role policy --document path/to/guideline.pdf --data-dir data/cli`; use `--role chart` for facts. Preparation/assessment/preflight are explicit billable operations.
 
@@ -58,14 +58,14 @@ An uncached operation reserves up to six transport/repair attempts. Actual provi
 
 The 100-page build uses the 60,000 reservation; the 200-page test explicitly lowers it to 40,000 to force group/merge execution. Repeated builds and duplicate bindings make no new interpretation calls. These counts exercise the real parser, compiler, durable service, and source identities with a scripted interpreter. They do not measure live rule recall, entailment, exception fidelity, injection resistance, latency, or cost.
 
-Coverage includes invalid spans and audit ledgers, omitted/replaced/unknown graph branches, table-header context, unsupported exceptions, source/path isolation, independent reuse and invalidation, restart/interruption, coalescing, corruption, rejection lineage, budget failure, and failed-rebuild resumption. Controlled SDK tests exercise real OpenAI client requests on both direct Responses and explicit LiteLLM Chat Completions routes, including group merge, with destination/key assertions. Saved browser journeys cover standalone preparation/source inspection, exact version selection, rebuild/reload, and linked failed retry.
+Coverage includes invalid spans and audit ledgers, omitted/replaced/unknown graph branches, table-header context, unsupported exceptions, source/path isolation, independent reuse and invalidation, restart/interruption, coalescing, corruption, rejection lineage, budget failure, and failed-rebuild resumption. Controlled SDK tests exercise real OpenAI client requests on both the direct Responses route and an explicit OpenAI-compatible chat-completions route, including group merge, with destination/key assertions. Saved browser journeys cover standalone preparation/source inspection, exact version selection, rebuild/reload, and linked failed retry.
 
 Final integrated verification (working tree; no paid inference):
 
 | Command | Observed result |
 | --- | --- |
-| `make check` | Exit 0: Ruff/format, mypy (44 sources), **490 pytest tests**, wheel/sdist, frontend lint/types, **25 Vitest tests** (7 files), production UI build. Pytest: 119.59 seconds in the recorded run. |
-| `make browser-test` | Exit 0: **14 Playwright tests**, both shell/journeys projects, 18.5 seconds. Includes independent preparation, exact selection/rebuild/reload, and linked failed retry. |
+| `make check` | Exit 0: Ruff/format, mypy (44 sources), **492 pytest tests**, wheel/sdist, frontend lint/types, **26 Vitest tests** (7 files), production UI build. Pytest: 139.26 seconds in the recorded run. |
+| `make browser-test` | Exit 0: **14 Playwright tests**, both shell/journeys projects, 18.9 seconds. Includes independent preparation, exact selection/rebuild/reload, and linked failed retry. |
 | `git diff --check` | Exit 0. |
 | Local documentation links and fixture hashes | All checked links resolve; pinned PDF/HTML/gold hashes match. |
 

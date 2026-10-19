@@ -18,6 +18,20 @@ Verified October 18, 2026 against the working-tree application. [WP-12](../work-
 
 Errors use the versioned `ErrorResponse` envelope (`request_id`, `OperationalError`, optional `run_id`) over the new `not_found`/`invalid_request`/`state_conflict` codes added as an additive contract amendment. Every `/api` response carries `X-Request-ID: req-<hex>`. Strict contract models are parsed with `model_validate_json(await request.body())`: malformed JSON syntax returns 400 `invalid_request`, contract violations return 422 `invalid_request` naming the field locations (matching the TRD's 400-vs-422 rule), and unexpected server failures return a safe 500 `internal_error` with no exception text — server defects are never presented as client errors.
 
+## Build routes
+
+TR-019 added five routes alongside the assessment surface above. Their normative contract is the [TRD endpoint table](../requirements/technical-requirements.md#tr-013-http-and-health-contracts); the behavior, limits, and browser evidence are in the [WP-19 implementation record](wp19-implementation.md).
+
+| Route | Behavior |
+| --- | --- |
+| `POST /api/documents/{document_id}/builds` | Queue a standalone policy or chart build; 202 `BuildRecord`. |
+| `GET /api/documents/{document_id}/builds` | List saved versions for a document. |
+| `GET /api/builds/{build_id}` | Exact persisted manifest, coverage, receipts, configuration, usage, and diagnostics. |
+| `GET /api/builds/{build_id}/steps/{checkpoint_key}` | One source-checked intermediate output plus its generation receipt. |
+| `POST /api/builds/{build_id}/{action}` | `retry`/`rebuild` create a linked attempt; `approve`/`reject` record human review of a completed build. |
+
+These were not exercised by the October 18 `test_api.py` matrix recorded above. Their covered evidence is the saved browser journeys and the build integration checks cited in the WP-19 record.
+
 ## Startup and readiness
 
 `create_app` accepts test seams (`interpreter`, `configuration`, `data_dir`, `env_file`, `parser_config`, `limits`). The lifespan opens `LocalStore(data_dir)` — the `AIRA_DATA_DIR` env var or `data/app` — and, absent an injected interpreter, resolves `OpenAISettings` and builds the real adapter/interpreter/configuration. Missing credentials or an unwritable data directory land in `missing_prerequisites` and readiness returns `ReadinessResponse(ready=false, provider=unverified)` with 503; nothing calls the model at startup or in health checks, and readiness never claims verified provider access. `engine.start()` marks unfinished stored runs interrupted on boot; a set `engine.fatal_error` also makes readiness not-ready.

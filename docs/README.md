@@ -16,7 +16,7 @@ Source: [build case, page 1](sources/Aira_FDE_Build_Case.pdf). The delivery logi
 | Patient input | Accept patient chart PDFs, including patients not seen during development. Synthetic examples are allowed. |
 | Product | A working, narrow MVP that runs end to end on real inputs. Scope is ours to define. |
 | Runtime | A one-line command on the reviewers' machine, tested from a clean checkout. |
-| Stack | Any stack. Aira uses Python, FastAPI, React, TypeScript, and Postgres; these are not mandated. |
+| Stack | Any stack. Aira uses Python, FastAPI, React, TypeScript, and SQLite; these are not mandated. |
 | Submission | Code as a repository or zip, sent one day before the call. |
 | Design note | Explain where judgment lives, what is data versus code, and what breaks first with guideline changes or messy charts. |
 | Discussion | A 45-minute call about the reviewers' findings, assumptions, tradeoffs, failures, and how to extend the MVP. |
@@ -67,13 +67,16 @@ Statuses derive from the [work breakdown](work-breakdown.md): **implemented and 
 | [Extraction record](results/pdf-extraction.md) | Verified native-PDF intake/extraction behavior, limits, and failures. |
 | [Storage record](results/storage.md) | Verified SQLite/immutable-object storage boundary and cache identity. |
 | [Rules record](results/rules.md) | Verified pure provenance validation, bounded predicates, and aggregation. |
+| [Candidate conversion record](results/candidate-conversion.md) | Verified provider-candidate conversion, date-confirmation semantics, and conversion failure phases. |
 | [Workflow record](results/workflow.md) | Controlled-interpreter evidence for the bounded execution engine. |
 | [Stage interpreter record](results/stage-interpreter.md) | Production interpreter and CLI slice over mocked transport; no live calls. |
 | [HTTP API record](results/http-api.md) | API routes, startup/readiness wiring, and export routes under controlled evidence. |
 | [Input limits record](results/input-limits.md) | Declared native-text boundary, parser/API limit evidence, and the open token envelope. |
 | [Review UI record](results/review-ui.md) | Saved staff journeys and unit checks over the fixture interpreter. |
+| [Independent extraction record](results/independent-extraction.md) | Verified separation of guideline and chart document builds, artifact reuse, and saved-fact mapping. |
 | [WP-03 fixture review](reviews/wp03-fixtures.md) | Independent review of the annotated fixture corpus. |
 | [Implementation handoff](agent-handoff.md) | Entry point, current boundaries, and evidence rules. |
+| [Project notes](project-notes.md) | Comprehensive orientation notes: architecture, module map, semantics, limits, status, uncommitted changes, and observed check results. |
 | [Model provider decision](model-provider.md) | OpenAI integration, server-side configuration, and native PDF boundary. |
 | [Model feasibility record](results/model-feasibility.md) | Implemented adapter/CLI, controlled checks, observed quota failure, and commands to resume live validation. |
 | [Long-document feature](features/19-long-document-rule-compilation.md) | BR-013/TR-019/WP-19/A21, LD-01–LD-10 tasks, and LD-AC01–LD-AC12 acceptance. |
@@ -90,4 +93,4 @@ The Obsidian review informs engineering practices such as versioned prompts, ind
 
 Start the long-document work from [WP-19](features/19-long-document-rule-compilation.md) and its [implementation plan](plans/long-document-rule-compilation.md). Implement the LD-01–LD-10 slices and A21 checks before claiming complete long-guideline support. Independent policy/chart preparation and the page-fold prototype are present in the unfinished working tree, with coverage, reconciliation, scoped compilation, durable build/UI integration, and direct-OpenAI acceptance still requiring evidence.
 
-Historical core [completion evidence](work-breakdown.md#implementation-evidence) identifies commits and result records. The [feature index](features/README.md) links each implementation brief. Open no-live-call work remains in the construction ledger (FT-07 runtime counterexamples, FT-13 long-chart distractor variants, and FT-14 multiple-procedure/conflicting-annotation cases) and in WP-16's evaluation-report structure. Earlier live-dependent gates also remain: WP-05 model selection, WP-07–WP-09 semantic acceptance, the WP-11 live CLI run, the WP-15 measured token envelope, WP-16's live evaluation report, and WP-17/WP-18's live launch and clean-checkout checks. Unsupported scans are explicitly rejected in the initial MVP. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.
+Historical core [completion evidence](work-breakdown.md#implementation-evidence) identifies commits and result records. The [feature index](features/README.md) links each implementation brief. All deterministic construction-ledger tasks (including FT-07 runtime counterexamples, FT-13 long-chart distractor variants, and FT-14 multiple-procedure/conflicting-annotation cases) are completed and verified. Earlier live-dependent gates remain deferred under project quota exhaustion: WP-05 model selection, WP-07–WP-09 semantic acceptance, the WP-11 live CLI run, the WP-15 measured token envelope, WP-16's live evaluation report, and WP-17/WP-18's live launch and clean-checkout checks. Unsupported scans are explicitly rejected in the initial MVP. Infrastructure, EHR integration, and payer submission remain outside the take-home scope.

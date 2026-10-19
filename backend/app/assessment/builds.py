@@ -21,11 +21,15 @@ from app.policies.compiler import (
     BuildLimits,
     GuidelineInterpreter,
     ModelStep,
+    assemble_merged,
+    audit_packet,
     compile_policy,
     group_packet,
+    merge_slices,
     namespace_reconciliation,
     plan_sections,
     reconciliation_packet,
+    require_resolutions,
     section_packet,
     token_upper_bound,
     validate_audit,
@@ -66,6 +70,59 @@ from app.storage.identity import canonical_bytes
 
 from .stages import DocumentInputs, InterpretationFailure, StageInterpreter, render_document_input
 
+# Independent model calls for one build. Store updates stay synchronous, so
+# concurrent sections cannot interleave a read-modify-write of the same record.
+_MODEL_CONCURRENCY = 4
+
+
+async def _finish_together(tasks: list[asyncio.Task[None]]) -> None:
+    """Wait for every task, and stop the rest when one fails.
+
+    ``asyncio.gather`` leaves the other tasks running after the first error.
+    """
+    try:
+        await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+
+
+async def _run_bounded(
+    jobs: list[Callable[[], Awaitable[None]]],
+    concurrency: int,
+) -> None:
+    """Run jobs on a bounded pool. A failure starts no further jobs.
+
+    Jobs already in flight finish, so a validated checkpoint can be reused.
+    Tasks start eagerly in this runtime. Creating one task per section would
+    run the whole queue before the first failure could stop it.
+    """
+    if not jobs:
+        return
+    pending: asyncio.Queue[Callable[[], Awaitable[None]]] = asyncio.Queue()
+    for job in jobs:
+        pending.put_nowait(job)
+    failures: list[BaseException] = []
+
+    async def worker() -> None:
+        while not failures:
+            try:
+                job = pending.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            try:
+                await job()
+            except Exception as exc:
+                failures.append(exc)
+                return
+
+    worker_count = max(1, min(concurrency, len(jobs)))
+    await _finish_together([asyncio.create_task(worker()) for _ in range(worker_count)])
+    if failures:
+        raise failures[0]
+
 
 def _error(
     code: ErrorCode, message: str, action: str, *, retryable: bool = False
@@ -84,6 +141,7 @@ class DocumentBuildService:
         *,
         parser_config: NativePdfConfig,
         limits: BuildLimits | None = None,
+        section_concurrency: int = _MODEL_CONCURRENCY,
     ):
         self.store = store
         self.interpreter = interpreter
@@ -99,6 +157,7 @@ class DocumentBuildService:
         self._finished = asyncio.Condition()
         self._worker: asyncio.Task[None] | None = None
         self._reserved: dict[str, tuple[int, int]] = {}
+        self._section_concurrency = section_concurrency
         self.fatal_error: OperationalError | None = None
 
     async def start(self) -> None:
@@ -209,16 +268,60 @@ class DocumentBuildService:
             self._queue.put_nowait(identity)
             return record
 
-    async def wait(self, build_id: str) -> BuildRecord:
-        async with self._finished:
-            while (record := self.store.get_build(build_id)).status in ("queued", "running"):
-                if self.fatal_error:
-                    raise StorageError(self.fatal_error.message)
-                await self._finished.wait()
+    def _fail_abandoned(self, build_id: str, message: str) -> BuildRecord:
+        record = self.store.get_build(build_id)
+        if record.status not in ("queued", "running"):
             return record
+        return self._update(
+            build_id,
+            status="failed",
+            error=_error(
+                ErrorCode.TIMEOUT,
+                message,
+                "Retry the assessment. This attempt is kept.",
+                retryable=True,
+            ),
+        )
+
+    def _unattended(self, record: BuildRecord) -> BuildRecord:
+        """A running build with no live worker is not progress."""
+        if record.status not in ("queued", "running"):
+            return record
+        worker_stopped = self._worker is None or self._worker.done() or self.fatal_error is not None
+        idle_for = (datetime.now(UTC) - record.updated_at).total_seconds()
+        stalled = idle_for > self.limits.call_timeout_seconds + 30
+        if not worker_stopped and not stalled:
+            return record
+        message = (
+            "Document preparation stopped while this build was still in progress."
+            if worker_stopped
+            else "The model request made no progress before its deadline."
+        )
+        return self._fail_abandoned(record.build_id, message)
+
+    async def wait(
+        self,
+        build_id: str,
+        on_progress: Callable[[BuildRecord], None] | None = None,
+    ) -> BuildRecord:
+        async with self._finished:
+            while (record := self._unattended(self.store.get_build(build_id))).status in (
+                "queued",
+                "running",
+            ):
+                if on_progress is not None:
+                    on_progress(record)
+                try:
+                    await asyncio.wait_for(self._finished.wait(), timeout=2)
+                except TimeoutError:
+                    continue
+            return self.store.get_build(build_id)
 
     async def prepare(
-        self, document: DocumentRecord, pinned_build_id: str | None = None
+        self,
+        document: DocumentRecord,
+        pinned_build_id: str | None = None,
+        on_progress: Callable[[BuildRecord], None] | None = None,
     ) -> BuildRecord:
         if pinned_build_id is not None:
             result = self.store.require_usable_build(pinned_build_id)
@@ -227,7 +330,9 @@ class DocumentBuildService:
             if result.status != "completed" or result.review_status == "rejected":
                 raise StorageConflict("The selected build is unavailable or rejected")
             return result
-        result = await self.wait((await self.submit(document.document_id)).build_id)
+        result = await self.wait(
+            (await self.submit(document.document_id)).build_id, on_progress=on_progress
+        )
         if result.status != "completed":
             raise InterpretationFailure(
                 result.error
@@ -261,6 +366,10 @@ class DocumentBuildService:
             except asyncio.CancelledError:
                 raise
             except Exception:
+                self._fail_abandoned(
+                    identity,
+                    "Document preparation stopped while this build was still in progress.",
+                )
                 self.fatal_error = _error(
                     ErrorCode.INTERNAL_ERROR,
                     "Document build state could not be persisted.",
@@ -362,11 +471,10 @@ class DocumentBuildService:
             )
         groups: list[ReconciliationGroup] = []
         for index, batch in enumerate(batches):
-            # Context-only trailing batches attach to the nearest rule-bearing group.
+            # Definitions and bibliography have no local graph. Their references stay
+            # in the merge ledger; a model call here cannot compile a policy path.
             if not any(section.policy for section in batch):
-                raise ValueError(
-                    "Reconciliation batch has no rules; increase the bounded input budget"
-                )
+                continue
 
             async def call(
                 current: tuple[SectionResult, ...] = batch,
@@ -395,6 +503,8 @@ class DocumentBuildService:
                 )
             )
         saved = tuple(groups)
+        if not saved:
+            raise ValueError("Reconciliation batch has no rules; increase the bounded input budget")
 
         def combined(value: ReconciliationCandidate) -> ReconciliationCandidate:
             return value.model_copy(
@@ -406,18 +516,50 @@ class DocumentBuildService:
                 }
             )
 
-        def validate_merge(value: ReconciliationCandidate) -> None:
-            self._validate_reconciliation(inputs, sections, combined(value))
-
-        merged = await self._step(
-            record,
-            "policy_merge",
-            group_packet(saved, sections),
-            ReconciliationCandidate,
-            lambda: interpreter.merge(inputs, saved, sections),
-            validate_merge,
+        slices = merge_slices(
+            saved,
+            sections,
+            lambda packet: (
+                self._request_size(packet, ReconciliationCandidate) <= self.limits.input_tokens
+            ),
         )
-        return combined(merged)
+        parts: list[ReconciliationCandidate] = []
+        for slice_groups, slice_sections in slices:
+            expected = {
+                section.section_id + ":" + reference.reference_id
+                for section in slice_sections
+                for reference in section.candidate.dependencies
+            }
+
+            async def merge_call(
+                current_groups: tuple[ReconciliationGroup, ...] = slice_groups,
+                current_sections: tuple[SectionResult, ...] = slice_sections,
+            ) -> ModelStep[ReconciliationCandidate]:
+                return await interpreter.merge(inputs, current_groups, current_sections)
+
+            def validate_merge(
+                value: ReconciliationCandidate,
+                current_expected: set[str] = expected,
+                complete: bool = len(slices) == 1,
+            ) -> None:
+                if complete:
+                    self._validate_reconciliation(inputs, sections, combined(value))
+                else:
+                    require_resolutions(value, current_expected)
+
+            parts.append(
+                await self._step(
+                    record,
+                    "policy_merge",
+                    group_packet(slice_groups, slice_sections),
+                    ReconciliationCandidate,
+                    merge_call,
+                    validate_merge,
+                )
+            )
+        if len(parts) == 1:
+            return combined(parts[0])
+        return assemble_merged(saved, tuple(parts))
 
     def _receipt(
         self,
@@ -575,56 +717,71 @@ class DocumentBuildService:
         interpreter = cast(GuidelineInterpreter, self.interpreter)
         plans = plan_sections(inputs.extraction, self.limits)
         self._update(record.build_id, phase="extracting_sections", total_sections=len(plans))
-        sections = []
-        for index, plan in enumerate(plans):
+        section_slots: list[SectionResult | None] = [None] * len(plans)
 
-            async def section_call(current: SectionPlan = plan) -> ModelStep[SectionCandidate]:
-                return await interpreter.section(inputs, current)
+        def section_job(index: int, plan: SectionPlan) -> Callable[[], Awaitable[None]]:
+            async def run_section() -> None:
+                async def section_call() -> ModelStep[SectionCandidate]:
+                    return await interpreter.section(inputs, plan)
 
-            def validate_candidate(value: SectionCandidate, current: SectionPlan = plan) -> object:
-                return validate_section(inputs.document, inputs.extraction, current, value)
+                def validate_candidate(value: SectionCandidate) -> object:
+                    return validate_section(inputs.document, inputs.extraction, plan, value)
 
-            candidate = await self._step(
-                record,
-                "policy_section",
-                section_packet(inputs.document, plan),
-                SectionCandidate,
-                section_call,
-                validate_candidate,
-            )
-            sections.append(validate_section(inputs.document, inputs.extraction, plan, candidate))
-            self._update(record.build_id, completed_sections=index + 1)
-        section_results = tuple(sections)
+                candidate = await self._step(
+                    record,
+                    "policy_section",
+                    section_packet(inputs.document, plan),
+                    SectionCandidate,
+                    section_call,
+                    validate_candidate,
+                )
+                section_slots[index] = validate_section(
+                    inputs.document, inputs.extraction, plan, candidate
+                )
+                # Synchronous read-modify-write: another section cannot run until
+                # this task next awaits, so the saved count cannot be lost.
+                saved = sum(item is not None for item in section_slots)
+                self._update(record.build_id, completed_sections=saved)
+
+            return run_section
+
+        await _run_bounded(
+            [section_job(index, plan) for index, plan in enumerate(plans)],
+            self._section_concurrency,
+        )
+        section_results = tuple(cast(list[SectionResult], section_slots))
         self._update(record.build_id, phase="reconciling")
 
         reconciliation = await self._reconcile(record, inputs, section_results, interpreter)
         self._update(record.build_id, phase="auditing")
-        audits = []
-        for section in section_results:
+        audit_slots: list[AuditCandidate | None] = [None] * len(section_results)
 
-            async def audit_call(current: SectionResult = section) -> ModelStep[AuditCandidate]:
-                return await interpreter.audit(inputs, current, reconciliation)
+        def audit_job(index: int, section: SectionResult) -> Callable[[], Awaitable[None]]:
+            async def run_audit() -> None:
+                async def audit_call() -> ModelStep[AuditCandidate]:
+                    return await interpreter.audit(inputs, section, reconciliation)
 
-            packet = {
-                "source": section_packet(inputs.document, section.plan),
-                "interpretation": section.model_dump(mode="json"),
-                "reconciliation": reconciliation.model_dump(mode="json"),
-            }
+                packet = audit_packet(inputs.document, section, reconciliation)
 
-            def validate_audit_candidate(
-                value: AuditCandidate, current: SectionResult = section
-            ) -> None:
-                validate_audit(current, value)
+                def validate_audit_candidate(value: AuditCandidate) -> None:
+                    validate_audit(section, value)
 
-            audit = await self._step(
-                record,
-                "policy_audit",
-                packet,
-                AuditCandidate,
-                audit_call,
-                validate_audit_candidate,
-            )
-            audits.append(audit)
+                audit_slots[index] = await self._step(
+                    record,
+                    "policy_audit",
+                    packet,
+                    AuditCandidate,
+                    audit_call,
+                    validate_audit_candidate,
+                )
+
+            return run_audit
+
+        await _run_bounded(
+            [audit_job(index, section) for index, section in enumerate(section_results)],
+            self._section_concurrency,
+        )
+        audits = cast(list[AuditCandidate], audit_slots)
         self._update(record.build_id, phase="compiling")
         policy, coverage = compile_policy(
             inputs.document,
@@ -748,6 +905,7 @@ class DocumentBuildService:
                     code,
                     "Document build failed source, coverage, or rule validation: " + str(exc)[:300],
                     "Inspect the source and build diagnostics; retry with corrected inputs.",
+                    retryable=True,
                 ),
             )
         except StorageError:

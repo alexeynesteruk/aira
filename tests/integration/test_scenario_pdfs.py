@@ -6,10 +6,11 @@ pins the manifest against the source registry, proves every PDF passes the
 real intake gates, and proves every expected excerpt resolves through the real
 CitationResolver — so reviewed expectations bind to PDF layout, not Markdown.
 
-Known limit, asserted rather than hidden: a multi-line excerpt spans several
-blocks, and a citation never spans blocks, so the six multi-line section
-sources in evals/expected/policies.json cannot resolve. They are listed in
-UNRESOLVABLE so any change in their count is reviewed, not silent.
+Resolution update: wrapped-line block merging in app.documents.native merges
+consecutive lines of paragraphs into single blocks, so all six previously
+unresolvable multi-line section sources in evals/expected/policies.json now
+resolve cleanly into exact single-block source spans. UNRESOLVABLE is now empty
+to assert that 100% of rendered selectors resolve exactly once.
 """
 
 import json
@@ -31,14 +32,7 @@ EXPECTED_PATHS = (
     ROOT / "evals" / "expected" / "policies.json",
 )
 
-UNRESOLVABLE = {
-    ("venous_policy_v1", 1, "Policy identifier: FIX-VENOUS-001."),
-    ("venous_policy_v1", 1, "The following requirements all apply"),
-    ("venous_policy_v2", 1, "Policy identifier: FIX-VENOUS-001."),
-    ("venous_policy_v2", 1, "The following requirements all apply"),
-    ("monitor_policy", 1, "Policy identifier: FIX-MONITOR-001."),
-    ("monitor_policy", 1, "All three conditions are required"),
-}
+UNRESOLVABLE: set[tuple[str, int, str]] = set()
 
 REGISTRY = json.loads(REGISTRY_PATH.read_text())["sources"]
 MANIFEST = json.loads(MANIFEST_PATH.read_text())["sources"]

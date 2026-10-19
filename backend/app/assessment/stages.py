@@ -198,6 +198,21 @@ def render_document_input(inputs: DocumentInputs) -> str:
     )
 
 
+def _scope_policy(policy: Policy) -> dict[str, object]:
+    """Paths and criterion wording for applicability.
+
+    The compiled review ledger and executable nodes repeat quotes already stored
+    on the paths and criteria. Sending those copies pushes a full guideline past
+    the stage character limit. Evaluation still applies every saved review issue.
+    """
+    rendered = _sourced(policy.model_dump(mode="json"))
+    if not isinstance(rendered, dict):
+        raise ValueError("A policy rendering must be an object")
+    for name in ("issues", "nodes", "sections"):
+        rendered.pop(name, None)
+    return rendered
+
+
 def render_stage_input(
     inputs: StageInputs | DocumentInputs, stage: StageName, policy: Policy | None = None
 ) -> str:
@@ -234,7 +249,7 @@ def render_stage_input(
             "documents": documents,
         }
         if selected_policy is not None:
-            packet["policy"] = _sourced(selected_policy.model_dump(mode="json"))
+            packet["policy"] = _scope_policy(selected_policy)
         return json.dumps(packet, ensure_ascii=False, separators=(",", ":"))
     if stage == "evidence" and inputs.chart is None and selected_policy is not None:
         return json.dumps(
@@ -259,7 +274,7 @@ def render_stage_input(
         "chart": _sourced(inputs.chart.model_dump(mode="json")),
     }
     if stage == "scope":
-        packet["policy"] = _sourced(selected_policy.model_dump(mode="json"))
+        packet["policy"] = _scope_policy(selected_policy)
     else:
         packet["criteria"] = [_criterion(item) for item in selected_policy.criteria]
     return json.dumps(packet, ensure_ascii=False, separators=(",", ":"))

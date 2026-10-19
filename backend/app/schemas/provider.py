@@ -13,6 +13,8 @@ class CandidateCitation(StrictModel):
     document_id: str
     page: int
     quote: str
+    # Disambiguates a passage that is copied in more than one block on the page.
+    block_id: str | None = None
 
 
 class CandidateRequest(StrictModel):

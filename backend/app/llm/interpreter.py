@@ -487,14 +487,31 @@ class OpenAIStageInterpreter:
         from app.policies.compiler import ModelStep, group_packet
         from app.schemas.builds import ReconciliationCandidate
 
+        packet = group_packet(groups, sections)
+        raw_references = packet["references"]
+        if not isinstance(raw_references, list):
+            raise InterpretationFailure(_unexpected(RunPhase.INTERPRETING_POLICY))
+        expected = {
+            str(item["reference_id"])
+            for item in raw_references
+            if isinstance(item, dict) and item.get("reference_id") is not None
+        }
+
         def convert(value: BaseModel) -> ReconciliationCandidate:
             if not isinstance(value, ReconciliationCandidate):
                 raise InterpretationFailure(_unexpected(RunPhase.INTERPRETING_POLICY))
+            found = [item.reference_id for item in value.resolutions]
+            if len(found) != len(set(found)) or set(found) != expected:
+                raise CandidateConversionError(
+                    ErrorCode.INVALID_OUTPUT,
+                    RunPhase.INTERPRETING_POLICY,
+                    "Every extracted dependency requires exactly one resolution",
+                )
             return value
 
         value, usage = await self._once(
             "policy_merge",
-            json.dumps(group_packet(groups, sections), ensure_ascii=False, separators=(",", ":")),
+            json.dumps(packet, ensure_ascii=False, separators=(",", ":")),
             convert,
         )
         return ModelStep(value, usage)
@@ -505,14 +522,10 @@ class OpenAIStageInterpreter:
         section: "SectionResult",
         reconciliation: "ReconciliationCandidate",
     ) -> "ModelStep[AuditCandidate]":
-        from app.policies.compiler import ModelStep, section_packet
+        from app.policies.compiler import ModelStep, audit_packet
         from app.schemas.builds import AuditCandidate
 
-        packet = {
-            "source": section_packet(inputs.document, section.plan),
-            "interpretation": section.model_dump(mode="json"),
-            "reconciliation": reconciliation.model_dump(mode="json"),
-        }
+        packet = audit_packet(inputs.document, section, reconciliation)
 
         def convert(value: BaseModel) -> AuditCandidate:
             if not isinstance(value, AuditCandidate):

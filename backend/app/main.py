@@ -1,6 +1,7 @@
 """HTTP entry point. Domain modules must not import this module."""
 
 import hashlib
+import json
 import os
 import sqlite3
 from collections.abc import AsyncIterator
@@ -206,6 +207,28 @@ def create_app(
         ),
     )
 
+    @application.get("/v1/models")
+    async def models() -> Response:
+        """OpenAI-style discovery for the one configured model. No provider call."""
+        settings = application.state.openai_settings
+        data = (
+            []
+            if settings is None
+            else [
+                {
+                    "id": settings.model,
+                    "object": "model",
+                    "created": 0,
+                    "owned_by": settings.backend,
+                }
+            ]
+        )
+        return Response(
+            content=json.dumps({"object": "list", "data": data}),
+            media_type="application/json",
+        )
+
+    @application.get("/health", responses={200: {"model": LivenessResponse}})
     @application.get("/health/live", responses={200: {"model": LivenessResponse}})
     async def live() -> Response:
         return Response(

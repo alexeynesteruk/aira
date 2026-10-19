@@ -81,7 +81,7 @@ class VerificationStatus(StrEnum):
 
 
 class ProviderVerification(StrictModel):
-    backend: Literal["openai", "litellm"] | None = None
+    backend: Literal["openai", "litellm", "openai_compatible", "custom"] | None = None
     transport: Literal["responses", "chat_completions"] | None = None
     endpoint_sha256: Sha256 | None = None
     status: VerificationStatus = VerificationStatus.UNVERIFIED

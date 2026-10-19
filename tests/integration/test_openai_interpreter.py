@@ -56,6 +56,7 @@ from app.schemas import (
     ExtractionRecord,
     ModelProvider,
     PolicyCandidate,
+    RequestField,
     RunPhase,
     RunStatus,
 )
@@ -597,23 +598,33 @@ async def test_an_invented_scope_quote_fails_as_citation_invalid(
 
 
 @pytest.mark.anyio
-async def test_an_uncited_request_field_fails_as_invalid_output(
+async def test_an_uncited_request_field_is_dropped_and_a_cited_mismatch_stands(
     inputs: StageInputs,
 ) -> None:
+    """A cited mismatch is not an operational failure when field quotes are absent.
+
+    The values are removed and named for staff. Scope quotes are not copied onto
+    them, and the stage does not spend a repair call.
+    """
     candidate = _scope_candidate(POLICY_ID, CHART_ID, "mismatch")
-    candidate["field_sources"] = []  # non-null request fields lose their citations
+    candidate["field_sources"] = []
     adapter = _adapter({"ScopeCandidate": candidate}, [])
     interpreter = OpenAIStageInterpreter(adapter)
     try:
-        with pytest.raises(InterpretationFailure) as error:
-            await interpreter.scope(inputs)
+        interpreted = await interpreter.scope(inputs)
     finally:
         await adapter.close()
 
-    assert error.value.error.code == ErrorCode.INVALID_OUTPUT
-    assert error.value.error.stage == RunPhase.CHECKING_APPLICABILITY
-    assert error.value.error.retryable is True
-    assert error.value.usage is not None and error.value.usage.attempts == 2
+    assert interpreted.applicability.status == ApplicabilityStatus.MISMATCH
+    assert interpreted.request.procedure is None
+    assert interpreted.request.payer is None
+    assert interpreted.request.plan is None
+    assert set(interpreted.request.unresolved_fields) == {
+        RequestField.PROCEDURE,
+        RequestField.PAYER,
+        RequestField.PLAN,
+    }
+    assert interpreted.usage is not None and interpreted.usage.attempts == 1
 
 
 @pytest.mark.anyio
@@ -809,6 +820,134 @@ async def test_an_invented_evidence_quote_fails_after_policy_was_saved(
         connection.close()
     assert RunPhase.INTERPRETING_POLICY.value in {str(phase) for (phase,) in saved}
     assert RunPhase.EXTRACTING_CHART.value not in {str(phase) for (phase,) in saved}
+
+
+@pytest.mark.anyio
+async def test_a_wrong_page_scope_quote_fails_as_citation_invalid(
+    inputs: StageInputs,
+) -> None:
+    candidate = _scope_candidate(POLICY_ID, CHART_ID, "mismatch")
+    candidate["citations"][1] = _citation(CHART_ID, (2, CHART_SCOPE_QUOTE[1]))
+    adapter = _adapter({"ScopeCandidate": candidate}, [])
+    interpreter = OpenAIStageInterpreter(adapter)
+    try:
+        with pytest.raises(InterpretationFailure) as error:
+            await interpreter.scope(inputs)
+    finally:
+        await adapter.close()
+
+    assert error.value.error.code == ErrorCode.CITATION_INVALID
+    assert error.value.error.stage == RunPhase.CHECKING_APPLICABILITY
+    assert error.value.error.retryable is True
+
+
+@pytest.mark.anyio
+async def test_a_wrong_document_citation_fails_as_citation_invalid(
+    inputs: StageInputs,
+) -> None:
+    candidate = _scope_candidate(POLICY_ID, CHART_ID, "mismatch")
+    candidate["field_sources"][0]["citations"] = [_citation(POLICY_ID, POLICY_SCOPE_QUOTE)]
+    adapter = _adapter({"ScopeCandidate": candidate}, [])
+    interpreter = OpenAIStageInterpreter(adapter)
+    try:
+        with pytest.raises(InterpretationFailure) as error:
+            await interpreter.scope(inputs)
+    finally:
+        await adapter.close()
+
+    assert error.value.error.code == ErrorCode.CITATION_INVALID
+    assert error.value.error.stage == RunPhase.CHECKING_APPLICABILITY
+
+
+@pytest.mark.anyio
+async def test_a_real_irrelevant_quote_fails_predicate_validation_and_is_not_satisfied(
+    store: LocalStore,
+) -> None:
+    def findings_body(packet: dict[str, object]) -> dict[str, object]:
+        return {
+            "schema_version": "0.1.0",
+            "findings": [
+                {
+                    "criterion_id": packet["criteria"][0]["criterion_id"],
+                    "status": "met",
+                    "rationale": "Model claims the vital sign entry satisfies the requirement.",
+                    "evidence": [{"fact_id": "heart-rate", "relation": "supporting"}],
+                    "unresolved_reasons": [],
+                }
+            ],
+        }
+
+    chart_candidate = {
+        "schema_version": "0.1.0",
+        "facts": [
+            {
+                "fact_id": "heart-rate",
+                "proposition": "Heart rate entry.",
+                "citations": [_citation(CHART_ID, CHART_FACT_QUOTE)],
+                "polarity": "affirmed",
+                "provenance": "direct",
+                "value": None,
+                "unit": None,
+                "event_date": None,
+                "documentation_date": None,
+                "anatomical_target": None,
+                "laterality": None,
+                "context": ["vein"],
+                "uncertainty": [],
+                "conflicting_fact_ids": [],
+            }
+        ],
+        "interpretation_issues": [],
+    }
+
+    def section_body(packet: dict[str, object]) -> dict[str, object]:
+        units = packet["primary"]
+        matching = [unit for unit in units if POLICY_CRITERION_QUOTE[1] in unit["text"]]
+        document_id = packet["document_id"]
+        policy = _policy_candidate(str(document_id))
+        policy["criteria"][0]["context"] = ["vein"]
+        fragment = policy if matching else None
+        return dict(
+            schema_version="0.1.0",
+            fragment=fragment,
+            definitions=[],
+            dependencies=[],
+            issues=[],
+            dispositions=[
+                dict(
+                    unit_id=unit["unit_id"],
+                    kind="requirements" if unit in matching else "context",
+                    explanation="Scripted full-block classification.",
+                )
+                for unit in units
+            ],
+        )
+
+    adapter = _adapter(
+        {
+            "ScopeCandidate": _scope_candidate(POLICY_ID, CHART_ID, "applicable"),
+            "SectionCandidate": section_body,
+            "PolicyCandidate": _policy_candidate(POLICY_ID),
+            "ChartCandidate": chart_candidate,
+            "FindingsCandidate": findings_body,
+        },
+        [],
+    )
+    configuration, limits = _configuration()
+    engine = WorkflowEngine(store, OpenAIStageInterpreter(adapter), configuration, limits=limits)
+    await engine.start()
+    try:
+        run = await engine.wait((await engine.submit(_submission())).run_id)
+    finally:
+        await engine.close()
+        await adapter.close()
+
+    assert run.status == RunStatus.COMPLETED
+    assert run.result is not None
+    finding = run.result.findings[0]
+    assert finding.status.value == "needs_review"
+    assert "unverified_required_context" in finding.unresolved_reasons
+    assert run.result.outcome != AssessmentOutcome.DOCUMENTED_REQUIREMENTS_SATISFIED
 
 
 @pytest.mark.anyio

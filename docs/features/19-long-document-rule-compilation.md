@@ -21,7 +21,7 @@ Exclude automatic external-policy discovery, payer submission, new infrastructur
 2. Inspect the guideline inventory, source-linked rules, unresolved dependencies, and coverage report. A technically validated draft is distinct from a human-approved artifact.
 3. Assess patients using that saved rule-set version. New patients, request metadata, and annotations do not rebuild it.
 4. Inspect a failed build, retry in a new linked attempt using compatible completed section artifacts, or explicitly rebuild a new version. Earlier results remain unchanged.
-5. Use a backend OpenAI API key and explicit model directly; optionally configure a LiteLLM endpoint. Display active backend/model and configuration errors without revealing secrets.
+5. Use a backend OpenAI API key and explicit model directly; optionally configure an OpenAI-compatible `/v1` endpoint. Display active backend/model and configuration errors without revealing secrets.
 
 ## Task breakdown
 
@@ -36,7 +36,7 @@ The [implementation record](../results/wp19-implementation.md) maps delivered ru
 | LD-05 | Explicit definition/reference resolution and hierarchical record reconciliation without rewriting the whole rule set per page. | LD-04, WP-10 | Remote exceptions/definitions bind correctly; ambiguity, cycles, conflicts, and missing material remain visible. |
 | LD-06 | Coverage audit and deterministic compiler for scoped rule paths, with review blockers and source-to-rule mapping. | LD-05 | Known omissions block satisfaction; JSON/graph validity is tested separately from annotated source fidelity. |
 | LD-07 | Atomic intermediate/final storage, stage-specific reuse keys, build budgets, single-flight execution, and linked retry/rebuild. | LD-02, LD-04, LD-06, WP-06 | Restart, simultaneous builds, corruption, rejection, configuration changes, and dependency invalidation are verified. |
-| LD-08 | Standalone preparation, progress/review/retry UI, exact artifact pinning in assessments/exports, and complete provider routing. | LD-07, WP-12, WP-13, WP-14 | Saved browser journeys and controlled direct-OpenAI/LiteLLM adapter checks. |
+| LD-08 | Standalone preparation, progress/review/retry UI, exact artifact pinning in assessments/exports, and complete provider routing. | LD-07, WP-12, WP-13, WP-14 | Saved browser journeys and controlled direct-OpenAI/compatible-endpoint adapter checks. |
 | LD-09 | Integrated deterministic and live evaluation over the reviewed long-document corpus and two policy families. | LD-08, WP-15 | A21 evidence with counts/errors, rule and edge recall, timings, attempts, tokens, and limitations. |
 | LD-10 | Clean-checkout direct-OpenAI demonstration, input-limit publication, design note, and completion record. | LD-09, WP-17 | Live upload/build/reuse/assessment/source/export evidence; no local gateway dependency. |
 
@@ -56,7 +56,7 @@ All checks map to [A21 and existing scenarios](../evaluation.md). Record actual 
 | LD-AC08 | Concurrent identical requests coalesce into one active build. Retry/rebuild preserves lineage and immutable prior outputs; exactly-once remote billing is not promised. |
 | LD-AC09 | Controlled negative tests reject fabricated source spans, logical-edge mutations, injected document instructions, lost mandatory conditions, and assessment attempts to introduce facts. |
 | LD-AC10 | The reviewer can prepare the guideline with no chart, inspect real progress/coverage/issues, select a saved version, retry a failed build, and inspect matching UI/export source identities. |
-| LD-AC11 | Every inference operation uses the selected backend, including inventory, extraction, reference repair, audit, assessment, and explicit preflight. Direct OpenAI works with backend-only key/model configuration and no running LiteLLM service. |
+| LD-AC11 | Every inference operation uses the selected backend, including inventory, extraction, reference repair, audit, assessment, and explicit preflight. Direct OpenAI works with backend-only key/model configuration and no running proxy service. |
 | LD-AC12 | Independent live evaluation reports source fidelity and repeatability separately from deterministic test success. No expected outcome is rewritten to agree with generated rules. |
 
 ## Evidence and dependencies

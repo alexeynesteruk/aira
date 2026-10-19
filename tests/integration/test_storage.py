@@ -1,6 +1,7 @@
 """Real SQLite/filesystem tests using fictional bytes, without PDF or model calls."""
 
 import hashlib
+import json
 import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -43,6 +44,7 @@ from app.storage import (
     assessment_fingerprint,
     fingerprint,
 )
+from app.storage.identity import canonical_bytes
 
 NOW = datetime(2026, 10, 18, 12, tzinfo=UTC)
 PHASE = RunPhase.CHECKING_APPLICABILITY
@@ -356,6 +358,74 @@ def test_restart_marks_queued_and_running_once_without_mutating_stopped_attempts
     assert reopened.get_run(running.run_id).phase == PHASE
     assert reopened.interrupt_unfinished() == ()
     assert reopened.run_history(running.run_id)[-2] == running
+
+
+def _omit_later_optional_fields(store, run_id):
+    """Rewrite the latest snapshot as JSON saved before later optional run fields."""
+    payload = json.loads(canonical_bytes(store.get_run(run_id)))
+    for key in (
+        "requested_policy_build_id",
+        "requested_chart_build_id",
+        "policy_build_configuration",
+        "chart_build_configuration",
+        "policy_build_id",
+        "chart_build_id",
+        "policy_rule_set_id",
+        "chart_interpretation_id",
+        "policy_path_id",
+    ):
+        payload.pop(key, None)
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    digest = hashlib.sha256(raw).hexdigest()
+    (store.root / "objects" / digest).write_bytes(raw)
+    connection = sqlite3.connect(store.database_path)
+    try:
+        connection.execute(
+            """UPDATE run_snapshots SET payload_sha256=?
+               WHERE run_id=? AND revision=(SELECT revision FROM runs WHERE run_id=?)""",
+            (digest, run_id, run_id),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    loaded = store.get_run(run_id)
+    assert fingerprint(loaded) != digest
+    return loaded
+
+
+def test_older_snapshot_missing_optional_fields_can_still_be_updated_and_interrupted(
+    prepared,
+):
+    store, policy, chart, _ = prepared
+    queued = new_run(store, policy, chart, name="legacy-queued")
+    running = start(store, new_run(store, policy, chart, name="legacy-running"))
+    reloaded_queued = _omit_later_optional_fields(store, queued.run_id)
+    reloaded_running = _omit_later_optional_fields(store, running.run_id)
+    assert reloaded_queued == queued and reloaded_running == running
+    stale = store.run_history(running.run_id)[0]
+    with pytest.raises(StorageConflict, match="changed since"):
+        store.update_run(
+            replace(
+                reloaded_running,
+                phase=RunPhase.VALIDATING,
+                updated_at=NOW + timedelta(seconds=2),
+            ),
+            expected=stale,
+        )
+    advanced = store.update_run(
+        replace(
+            reloaded_queued,
+            status=RunStatus.RUNNING,
+            phase=PHASE,
+            updated_at=NOW + timedelta(seconds=2),
+        ),
+        expected=reloaded_queued,
+    )
+    assert advanced.status == RunStatus.RUNNING
+    interrupted = store.interrupt_unfinished(at=NOW + timedelta(seconds=3))
+    assert {record.run_id for record in interrupted} == {queued.run_id, running.run_id}
+    assert all(record.status == RunStatus.INTERRUPTED for record in interrupted)
+    assert store.run_history(running.run_id)[-2] == running
 
 
 def test_compatible_completed_stage_reuses_actual_saved_output_after_failed_attempt(

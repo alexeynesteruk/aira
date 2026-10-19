@@ -1,6 +1,6 @@
 # Aira evaluation and release checks
 
-Evaluate evidence correctness and useful failure handling before optimizing presentation or adding infrastructure. Expected outcomes come from annotated source passages and policy logic; they do not come from the same model response being tested. The acceptance matrix describes the full target. Deterministic foundation, contract, controlled-interpreter, and fixture browser checks have passed locally and in GitHub Actions; see the [implementation evidence](work-breakdown.md#implementation-evidence). No live semantic benchmark has run. An OpenAI access probe failed with insufficient quota; its [experiment record](results/model-feasibility.md) preserves that limitation.
+Evaluate evidence correctness and useful failure handling before optimizing presentation or adding infrastructure. Expected outcomes come from annotated source passages and policy logic; they do not come from the same model response being tested. The acceptance matrix describes the full target. Deterministic foundation, contract, controlled-interpreter, and fixture browser checks have passed locally; see the [implementation evidence](work-breakdown.md#implementation-evidence). No live semantic benchmark has run. An OpenAI access probe failed with insufficient quota; its [experiment record](results/model-feasibility.md) preserves that limitation.
 
 ## Case design
 

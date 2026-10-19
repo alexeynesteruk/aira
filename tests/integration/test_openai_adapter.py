@@ -10,7 +10,13 @@ from openai import AsyncOpenAI
 from pydantic import SecretStr, ValidationError
 
 from app.llm.config import OpenAISettings
-from app.llm.openai_adapter import ModelFailure, OpenAIAdapter, strict_output_schema
+from app.llm.openai_adapter import (
+    ModelFailure,
+    OpenAIAdapter,
+    _extract_json_payload,
+    strict_output_schema,
+    transport_timeout,
+)
 from app.llm.preflight import AccessProbe
 from app.schemas import (
     ErrorCode,
@@ -28,6 +34,14 @@ def anyio_backend():
 
 def settings(**overrides):
     return OpenAISettings(api_key=SecretStr("test-key-not-real"), model="test-model", **overrides)
+
+
+def test_a_stuck_send_fails_before_the_model_read_budget():
+    deadline = transport_timeout(settings(request_timeout_seconds=600))
+    assert deadline.connect == deadline.write == deadline.pool == 60
+    assert deadline.read == 600
+    short = transport_timeout(settings(request_timeout_seconds=30))
+    assert short.write == short.read == 30
 
 
 def wire_response(*, text='{"result":"aira_access_verified"}', status="completed", refusal=False):
@@ -152,11 +166,36 @@ async def test_chat_transport_sends_strict_schema_and_records_response_identity(
     assert body["response_format"]["json_schema"]["schema"]["required"] == ["result"]
     assert body["max_completion_tokens"] == 4096
     assert "tools" not in body and "temperature" not in body
+    # The official endpoint rejects LiteLLM's per-request timeout extension.
+    assert "timeout" not in body
     assert result.value.result == "aira_access_verified"
     assert result.metrics.attempts == 1
     assert (result.metrics.input_tokens, result.metrics.output_tokens) == (31, 9)
     assert result.metrics.request_ids == ("req_chat",)
     assert result.metrics.response_ids == ("chatcmpl_test",)
+
+
+@pytest.mark.anyio
+async def test_compatible_gateway_receives_the_per_request_timeout():
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json=wire_chat_response())
+
+    instance = adapter(
+        respond,
+        backend="litellm",
+        base_url="https://gateway.example/v1",
+        transport="chat_completions",
+        request_timeout_seconds=45,
+    )
+    try:
+        await interpret(instance)
+    finally:
+        await instance.close()
+    body = json.loads(requests[0].content)
+    assert body["timeout"] == 45
 
 
 @pytest.mark.anyio
@@ -576,3 +615,194 @@ def test_direct_mode_ignores_inherited_gateway_settings(tmp_path):
                 "AIRA_LLM_BACKEND": "litellm",
             },
         )
+
+
+def test_env_file_selects_any_openai_compatible_endpoint(tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            (
+                "OPENAI_API_KEY=local-proxy-key",
+                "AIRA_MODEL=proxy-model",
+                "AIRA_LLM_BACKEND=openai",
+                "OPENAI_BASE_URL=http://127.0.0.1:4000/v1",
+                "AIRA_LLM_TRANSPORT=chat_completions",
+                "AIRA_REQUEST_TIMEOUT_SECONDS=600",
+                "AIRA_STAGE_TIMEOUT_SECONDS=1200",
+            )
+        )
+    )
+    selected = OpenAISettings.from_environment(
+        env_file=env_file,
+        environ={
+            "OPENAI_API_KEY": "local-proxy-key",
+            "AIRA_MODEL": "proxy-model",
+            "OPENAI_BASE_URL": "http://personal-gateway:4000/v1",
+            "AIRA_LLM_TRANSPORT": "responses",
+        },
+    )
+    assert selected.base_url == "http://127.0.0.1:4000/v1"
+    assert selected.transport == "chat_completions"
+    assert selected.backend == "litellm"
+    assert selected.request_timeout_seconds == 600
+    assert selected.stage_timeout_seconds == 1200
+
+    implied = tmp_path / "implied.env"
+    implied.write_text(
+        "OPENAI_API_KEY=local-proxy-key\nAIRA_MODEL=proxy-model\n"
+        "OPENAI_BASE_URL=http://127.0.0.1:8000/v1\n"
+    )
+    chat = OpenAISettings.from_environment(env_file=implied, environ={})
+    assert chat.base_url == "http://127.0.0.1:8000/v1"
+    assert chat.transport == "chat_completions"
+    assert chat.backend == "litellm"
+
+    responses = tmp_path / "responses.env"
+    responses.write_text(
+        "OPENAI_API_KEY=local-proxy-key\nAIRA_MODEL=proxy-model\n"
+        "OPENAI_BASE_URL=https://example.invalid/v1\n"
+        "AIRA_LLM_TRANSPORT=responses\n"
+    )
+    explicit = OpenAISettings.from_environment(env_file=responses, environ={})
+    assert explicit.transport == "responses"
+    assert explicit.backend == "litellm"
+
+
+def test_extract_json_payload_clean_and_fenced():
+    assert _extract_json_payload('{"key": "value"}') == '{"key": "value"}'
+    assert _extract_json_payload('```json\n{"key": "value"}\n```') == '{"key": "value"}'
+    assert _extract_json_payload('```\n{"key": "value"}\n```') == '{"key": "value"}'
+    assert (
+        _extract_json_payload('Here is the json:\n```json\n{"key": "value"}\n```\nHope that helps!')
+        == '{"key": "value"}'
+    )
+    assert _extract_json_payload('Sure! {"key": "value"}') == '{"key": "value"}'
+    assert _extract_json_payload("invalid text") == "invalid text"
+
+
+@pytest.mark.anyio
+async def test_chat_transport_handles_markdown_fence_in_completion():
+    fenced_text = '```json\n{"result": "aira_access_verified"}\n```'
+    instance = adapter(
+        lambda request: httpx.Response(200, json=wire_chat_response(text=fenced_text)),
+        transport="chat_completions",
+    )
+    try:
+        result = await interpret(instance)
+    finally:
+        await instance.close()
+    assert result.value.result == "aira_access_verified"
+
+
+@pytest.mark.anyio
+async def test_chat_transport_falls_back_from_max_completion_tokens_to_max_tokens():
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        body = json.loads(request.content)
+        if "max_completion_tokens" in body:
+            return httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "message": "unsupported parameter: 'max_completion_tokens'",
+                        "type": "invalid_request_error",
+                    }
+                },
+            )
+        assert "max_tokens" in body
+        return httpx.Response(200, json=wire_chat_response())
+
+    instance = adapter(respond, transport="chat_completions")
+    try:
+        result = await interpret(instance)
+    finally:
+        await instance.close()
+    assert len(calls) == 2
+    assert result.value.result == "aira_access_verified"
+    assert instance._use_max_tokens is True
+
+
+@pytest.mark.anyio
+async def test_chat_transport_falls_back_from_json_schema_to_json_object():
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        body = json.loads(request.content)
+        if body.get("response_format", {}).get("type") == "json_schema":
+            return httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "message": "response_format 'json_schema' is not supported",
+                        "type": "invalid_request_error",
+                    }
+                },
+            )
+        assert body.get("response_format", {}).get("type") == "json_object"
+        return httpx.Response(200, json=wire_chat_response())
+
+    instance = adapter(respond, transport="chat_completions")
+    try:
+        result = await interpret(instance)
+    finally:
+        await instance.close()
+    assert len(calls) == 2
+    assert result.value.result == "aira_access_verified"
+    assert instance._use_json_object is True
+
+
+@pytest.mark.anyio
+async def test_chat_transport_falls_back_when_both_tokens_and_schema_unsupported():
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        body = json.loads(request.content)
+        if "max_completion_tokens" in body:
+            return httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "message": "unsupported parameter: max_completion_tokens",
+                        "type": "invalid_request_error",
+                    }
+                },
+            )
+        if body.get("response_format", {}).get("type") == "json_schema":
+            return httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "message": "json_schema is not supported",
+                        "type": "invalid_request_error",
+                    }
+                },
+            )
+        return httpx.Response(200, json=wire_chat_response())
+
+    instance = adapter(respond, transport="chat_completions")
+    try:
+        result = await interpret(instance)
+    finally:
+        await instance.close()
+    assert len(calls) == 3
+    assert result.value.result == "aira_access_verified"
+    assert instance._use_max_tokens is True
+    assert instance._use_json_object is True
+
+
+def test_configuration_defaults_api_key_for_custom_endpoint_without_key(tmp_path):
+    env_file = tmp_path / "custom.env"
+    env_file.write_text(
+        "OPENAI_BASE_URL=http://localhost:11434/v1\n"
+        "AIRA_MODEL=llama3.1:8b\n"
+        "AIRA_LLM_BACKEND=openai_compatible\n"
+    )
+    s = OpenAISettings.from_environment(env_file=env_file, environ={})
+    assert s.base_url == "http://localhost:11434/v1"
+    assert s.api_key.get_secret_value() == "not-needed"
+    assert s.backend == "openai_compatible"
+    assert s.transport == "chat_completions"

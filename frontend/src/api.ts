@@ -32,7 +32,7 @@ export interface VersionReference {
 }
 
 export interface ProviderVerification {
-  backend?: 'openai' | 'litellm' | null
+  backend?: 'openai' | 'litellm' | 'openai_compatible' | 'custom' | null
   transport?: string | null
   status: string
   provider: string

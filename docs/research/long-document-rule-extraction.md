@@ -6,7 +6,7 @@ Researched October 18, 2026 through the `web-headed` skill's real browser. This 
 
 How should Aira turn a 100–200-page insurer guideline into a detailed, sourced, reusable rule set without relying on a single document-sized model response?
 
-Adopt structure-aware decomposition, contextual section extraction, explicit dependency reconciliation, coverage auditing, and deterministic compilation. Persist intermediate artifacts and the resulting versioned rule set. Policy processing remains independent of charts and requests. Chart processing remains independent of policies. Direct OpenAI access using the reviewer's backend API key is required; LiteLLM remains optional.
+Adopt structure-aware decomposition, contextual section extraction, explicit dependency reconciliation, coverage auditing, and deterministic compilation. Persist intermediate artifacts and the resulting versioned rule set. Policy processing remains independent of charts and requests. Chart processing remains independent of policies. Direct OpenAI access using the reviewer's backend API key is required; a compatible endpoint remains optional.
 
 ## Primary sources inspected
 

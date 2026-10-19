@@ -504,3 +504,125 @@ async def test_an_identical_submission_reuses_saved_work(store: LocalStore) -> N
     third_attempts = {usage.phase: usage.attempts for usage in third.usage}
     assert third_attempts[RunPhase.INTERPRETING_POLICY] == 0
     assert third_attempts[RunPhase.EXTRACTING_CHART] == 0
+
+
+@pytest.mark.anyio
+async def test_multiple_procedure_conflict_and_child_resolution_completes(
+    store: LocalStore,
+) -> None:
+    from support import CHART_FACT_QUOTE, CHART_SCOPE_QUOTE, POLICY_SCOPE_QUOTE, quote
+
+    from app.assessment.stages import ScopeInterpretation
+    from app.evidence import CitationResolver
+    from app.schemas import (
+        ApplicabilityResult,
+        CandidateCitation,
+        FieldSources,
+        RequestContext,
+    )
+
+    proc_quote = (3, "ambulatory Holter monitor")
+
+    class MultipleProcedureInterpreter(ControlledInterpreter):
+        async def scope(self, inputs) -> ScopeInterpretation:
+            await self._enter("scope", RunPhase.CHECKING_APPLICABILITY)
+            policy_span = quote(inputs, inputs.policy_document, *POLICY_SCOPE_QUOTE)
+            chart_scope_span = quote(inputs, inputs.chart_document, *CHART_SCOPE_QUOTE)
+            proc_span1 = quote(inputs, inputs.chart_document, *proc_quote)
+            proc_span2 = quote(inputs, inputs.chart_document, *CHART_FACT_QUOTE)
+
+            procedure_annotation = next(
+                (ann for ann in inputs.annotations if ann.field == RequestField.PROCEDURE.value),
+                None,
+            )
+            if procedure_annotation is None:
+                return ScopeInterpretation(
+                    request=RequestContext(
+                        procedure=None,
+                        payer="Fixture payer",
+                        field_sources=(
+                            FieldSources(
+                                field=RequestField.PROCEDURE,
+                                sources=(proc_span1, proc_span2),
+                            ),
+                        ),
+                        unresolved_fields=(RequestField.PROCEDURE,),
+                    ),
+                    applicability=ApplicabilityResult(
+                        status=ApplicabilityStatus.UNRESOLVED,
+                        rationale="Multiple procedures documented; staff selection required.",
+                        sources=(policy_span, chart_scope_span),
+                        unresolved_fields=(RequestField.PROCEDURE,),
+                    ),
+                )
+            else:
+                return ScopeInterpretation(
+                    request=RequestContext(
+                        procedure=str(procedure_annotation.value),
+                        payer="Fixture payer",
+                        unresolved_fields=(),
+                    ),
+                    applicability=ApplicabilityResult(
+                        status=ApplicabilityStatus.APPLICABLE,
+                        rationale="Staff-selected procedure matches guideline scope.",
+                        sources=(policy_span, chart_scope_span),
+                        unresolved_fields=(),
+                    ),
+                )
+
+    interpreter = MultipleProcedureInterpreter()
+    engine = await started(store, interpreter)
+    try:
+        parent = await engine.wait((await engine.submit(submission())).run_id)
+        assert parent.status == RunStatus.NEEDS_INPUT
+        assert parent.applicability is not None
+        assert parent.applicability.status == ApplicabilityStatus.UNRESOLVED
+        assert parent.applicability.unresolved_fields == (RequestField.PROCEDURE,)
+        assert parent.result is None
+        assert parent.parent_run_id is None
+
+        chart_doc = store.get_document("chart-doc")
+        chart_ext = store.list_extractions("chart-doc")[0]
+        resolver = CitationResolver((chart_doc,), (chart_ext,))
+        span1 = resolver.resolve(
+            CandidateCitation(document_id="chart-doc", page=proc_quote[0], quote=proc_quote[1])
+        )
+        span2 = resolver.resolve(
+            CandidateCitation(
+                document_id="chart-doc", page=CHART_FACT_QUOTE[0], quote=CHART_FACT_QUOTE[1]
+            )
+        )
+
+        annotation = TextAnnotation(
+            annotation_id="resolve-procedure",
+            field="procedure",
+            value="endovenous vein ablation",
+            created_at=CREATED_AT,
+            resolves_conflict=True,
+            resolution_reason="Staff selected the intended procedure among documented options.",
+            original_sources=(span1, span2),
+        )
+
+        child = await engine.wait(
+            (
+                await engine.submit(
+                    submission(parent_run_id=parent.run_id, annotations=(annotation,))
+                )
+            ).run_id
+        )
+    finally:
+        await engine.close()
+
+    assert child.status == RunStatus.COMPLETED
+    assert child.run_id != parent.run_id
+    assert child.parent_run_id == parent.run_id
+    assert child.request_context is not None
+    assert child.request_context.procedure == "endovenous vein ablation"
+    assert child.annotations == (annotation,)
+    assert child.result is not None
+    assert child.result.outcome == AssessmentOutcome.DOCUMENTED_REQUIREMENTS_SATISFIED
+
+    parent_stored = store.get_run(parent.run_id)
+    assert parent_stored.status == RunStatus.NEEDS_INPUT
+    assert parent_stored.parent_run_id is None
+    assert parent_stored.result is None

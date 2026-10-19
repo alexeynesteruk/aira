@@ -124,15 +124,15 @@
       "owner_packages": [
         "WP-10"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Runtime SourceSpan/provider-output counterexamples with wrong page, wrong document, invented quote, and a real irrelevant quotation.",
       "acceptance": "Mechanical errors fail provenance validation; semantic irrelevance is caught by source-reviewed expectations. Keep intentional invalid outputs separate from ground-truth files.",
-      "progress_evidence": [
+      "evidence": [
         "tests/unit/test_provenance.py",
         "tests/integration/test_openai_interpreter.py",
         "tests/integration/test_workflow.py"
       ],
-      "note": "Mechanical provenance counterexamples are tested; semantic irrelevance needs live annotated evaluation."
+      "note": "Mechanical provenance counterexamples (wrong page, wrong document, invented quote) and real irrelevant quotation predicate validation are verified."
     },
     {
       "task_id": "FT-08",
@@ -239,9 +239,16 @@
         "WP-03",
         "WP-16"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Controlled long-chart variants putting decisive evidence at beginning/middle/end among distractors, plus explicit input/token-limit cases.",
-      "acceptance": "Compare evidence recall at each position and verify that embedded instructions and budget exhaustion cannot alter policy rules or cause silent truncation."
+      "acceptance": "Compare evidence recall at each position and verify that embedded instructions and budget exhaustion cannot alter policy rules or cause silent truncation.",
+      "evidence": [
+        "tests/unit/test_chart_distractors_and_injections.py",
+        "tests/fixtures/long-documents/guideline-200.html",
+        "tests/integration/test_document_builds.py",
+        "tests/integration/test_workflow.py"
+      ],
+      "note": "Controlled 3-page chart variants test decisive recall at beginning, middle, and end without positional degradation; adversarial prompt injections are verified unable to force approvals; input limits fail closed with UNSUPPORTED_INPUT and no silent truncation."
     },
     {
       "task_id": "FT-14",
@@ -254,13 +261,14 @@
         "WP-07",
         "WP-11"
       ],
-      "status": "open",
+      "status": "done",
       "artifact_required": "Multiple-procedure and conflicting-metadata annotation cases with selected value, reason, and parent-run linkage.",
       "acceptance": "No automatic top-one choice, policy substitution, silent conflict erasure, or annotation-created chart evidence. The existing unknown-plan and wrong-side text cases cover only part of this scenario.",
-      "progress_evidence": [
-        "tests/unit/test_candidate_conversion.py"
+      "evidence": [
+        "tests/unit/test_candidate_conversion.py",
+        "tests/integration/test_workflow.py"
       ],
-      "note": "No multiple-procedure fixture yet."
+      "note": "Multiple-procedure charts require staff selection with resolves_conflict, resolution reason, and all competing sources; parent run halts at NEEDS_INPUT while child run advances to COMPLETED with parent-run linkage and parent immutability."
     }
   ]
 }

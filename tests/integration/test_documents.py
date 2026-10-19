@@ -237,6 +237,23 @@ def test_mixed_document_keeps_failed_and_blank_pages_in_original_order() -> None
         source_span(extraction, page=2, block_id="p0002.b00000")
 
 
+def test_wrapped_guideline_lines_remain_one_exact_quote() -> None:
+    """A sentence split by the PDF line wrap is one block, so an exact quote can match."""
+    _document, extraction = parse(POLICIES / "bcbs_fl_02-33000-31_2025-08-15.pdf")
+    sentence = (
+        "Conservative medical treatment consists of elevation of the extremities, "
+        "graded compression, and wound care when indicated."
+    )
+    page = extraction.pages[0]
+    assert page.quality == PageQuality.USABLE
+    matches = [block.text for block in page.blocks if sentence in block.text]
+    assert len(matches) == 1
+    assert not any(
+        "POSITION STATEMENT:" in block.text and "Great or Small" in block.text
+        for block in page.blocks
+    )
+
+
 def test_blank_page_is_allowed_when_other_pages_are_usable() -> None:
     document, extraction = parse(FIXTURES / "native-with-blank.pdf")
     assert [page.quality for page in extraction.pages] == [PageQuality.USABLE, PageQuality.BLANK]

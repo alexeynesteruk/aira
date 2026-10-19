@@ -3,10 +3,12 @@
 import asyncio
 import json
 import random
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
 from openai import (
     APIConnectionError,
     APIResponseValidationError,
@@ -70,21 +72,149 @@ def strict_output_schema(output_type: type[BaseModel]) -> dict[str, Any]:
     return schema
 
 
+def transport_timeout(settings: OpenAISettings) -> httpx.Timeout:
+    """Bound a stuck send separately from a slow model response.
+
+    A full request budget on the write lets a proxy that stops reading the body
+    leave the assessment in progress for the entire generation deadline.
+    """
+    budget = settings.request_timeout_seconds
+    handshake = min(60.0, budget)
+    return httpx.Timeout(connect=handshake, read=budget, write=handshake, pool=handshake)
+
+
+def _extract_json_payload(raw: str) -> str:
+    """Extract valid JSON from raw model output that may contain markdown fences or commentary."""
+    text = raw.strip()
+    if not text:
+        return text
+    fence_match = re.search(r"^```(?:json)?\s*\n?(.*?)\n?```$", text, re.DOTALL | re.IGNORECASE)
+    if fence_match:
+        return fence_match.group(1).strip()
+    inner_fence = re.search(r"```(?:json)?\s*\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE)
+    if inner_fence:
+        candidate = inner_fence.group(1).strip()
+        try:
+            json.loads(candidate)
+            return candidate
+        except Exception:
+            pass
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        candidate = text[first_brace : last_brace + 1].strip()
+        try:
+            json.loads(candidate)
+            return candidate
+        except Exception:
+            pass
+    return text
+
+
 class OpenAIAdapter:
     def __init__(self, settings: OpenAISettings, *, client: AsyncOpenAI | None = None):
         self.settings = settings
         # One retry owner. Never inherit an author's gateway or SDK retry multiplier.
+        self._deadline = transport_timeout(settings)
         self._client = client or AsyncOpenAI(
             api_key=settings.api_key.get_secret_value(),
             base_url=settings.base_url,
             max_retries=0,
-            timeout=settings.request_timeout_seconds,
+            timeout=self._deadline,
         )
         if self._client.max_retries != 0:
             raise ValueError("The injected SDK client must disable SDK retries")
+        self._use_max_tokens: bool = False
+        self._use_json_object: bool = False
+        self._no_response_format: bool = False
 
     async def close(self) -> None:
         await self._client.close()
+
+    async def _call_chat_completions(
+        self,
+        *,
+        instructions: str,
+        source_text: str,
+        output_type: type[BaseModel],
+    ) -> Any:
+        while True:
+            extra_instructions = ""
+            fmt: dict[str, Any] | None = None
+            if self._no_response_format:
+                extra_instructions = (
+                    f"\n\nYou must respond with only a valid JSON object matching this schema:\n"
+                    f"{json.dumps(strict_output_schema(output_type), indent=2)}"
+                )
+                fmt = None
+            elif self._use_json_object:
+                extra_instructions = (
+                    f"\n\nYou must respond with a valid JSON object matching this schema:\n"
+                    f"{json.dumps(strict_output_schema(output_type), indent=2)}"
+                )
+                fmt = {"type": "json_object"}
+            else:
+                fmt = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": output_type.__name__,
+                        "schema": strict_output_schema(output_type),
+                        "strict": True,
+                    },
+                }
+
+            token_kwargs: dict[str, Any]
+            if self._use_max_tokens:
+                token_kwargs = {"max_tokens": self.settings.max_output_tokens}
+            else:
+                token_kwargs = {"max_completion_tokens": self.settings.max_output_tokens}
+
+            extra_body = (
+                {"timeout": self.settings.request_timeout_seconds}
+                if self.settings.backend == "litellm"
+                else None
+            )
+
+            kwargs: dict[str, Any] = {
+                "model": self.settings.model,
+                "messages": [
+                    {"role": "system", "content": f"{instructions}{extra_instructions}"},
+                    {"role": "user", "content": source_text},
+                ],
+                "timeout": self._deadline,
+                "extra_body": extra_body,
+                **token_kwargs,
+            }
+            if fmt is not None:
+                kwargs["response_format"] = fmt
+
+            try:
+                return await self._client.chat.completions.create(**kwargs)
+            except APIStatusError as exc:
+                if exc.status_code == 400:
+                    err_text = f"{exc.message} {getattr(exc, 'body', '')}".lower()
+                    if "max_completion_tokens" in err_text and not self._use_max_tokens:
+                        self._use_max_tokens = True
+                        continue
+                    if (
+                        (
+                            "json_schema" in err_text
+                            or "response_format" in err_text
+                            or "schema" in err_text
+                        )
+                        and not self._use_json_object
+                        and not self._no_response_format
+                    ):
+                        self._use_json_object = True
+                        continue
+                    if (
+                        ("response_format" in err_text or "format" in err_text)
+                        and self._use_json_object
+                        and not self._no_response_format
+                    ):
+                        self._no_response_format = True
+                        continue
+                raise
 
     async def interpret[T: BaseModel](
         self,
@@ -136,28 +266,15 @@ class OpenAIAdapter:
                 for attempt in range(1, self.settings.max_attempts + 1):
                     attempts = attempt
                     try:
+                        response: Any
                         if self.settings.transport == "chat_completions":
-                            response = await self._client.chat.completions.create(
-                                model=self.settings.model,
-                                messages=[
-                                    {"role": "system", "content": instructions},
-                                    {"role": "user", "content": source_text},
-                                ],
-                                response_format={
-                                    "type": "json_schema",
-                                    "json_schema": {
-                                        "name": output_type.__name__,
-                                        "schema": strict_output_schema(output_type),
-                                        "strict": True,
-                                    },
-                                },
-                                max_completion_tokens=self.settings.max_output_tokens,
-                                timeout=self.settings.request_timeout_seconds,
-                                # LiteLLM-style gateways bound upstream calls per request.
-                                extra_body={"timeout": self.settings.request_timeout_seconds},
+                            response = await self._call_chat_completions(
+                                instructions=instructions,
+                                source_text=source_text,
+                                output_type=output_type,
                             )
                         else:
-                            response = await self._client.responses.create(  # type: ignore[assignment]
+                            response = await self._client.responses.create(
                                 model=self.settings.model,
                                 instructions=instructions,
                                 input=source_text,
@@ -172,7 +289,7 @@ class OpenAIAdapter:
                                 max_output_tokens=self.settings.max_output_tokens,
                                 store=False,
                                 truncation="disabled",
-                                timeout=self.settings.request_timeout_seconds,
+                                timeout=self._deadline,
                             )
                     except (APIConnectionError, APIStatusError) as exc:
                         code, message, action, retryable = _classify_error(exc)
@@ -279,7 +396,8 @@ class OpenAIAdapter:
                                 )
                         output_text = response.output_text
                     try:
-                        candidate = output_type.model_validate_json(output_text)
+                        clean_payload = _extract_json_payload(output_text)
+                        candidate = output_type.model_validate_json(clean_payload)
                     except (ValidationError, ValueError):
                         raise failure(
                             ErrorCode.INVALID_OUTPUT,

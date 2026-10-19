@@ -750,8 +750,10 @@ class LocalStore:
     def _update_run(
         self, connection: sqlite3.Connection, record: RunRecord, expected: RunRecord
     ) -> RunRecord:
-        current, revision, current_digest = self._run(connection, record.run_id)
-        if fingerprint(expected) != current_digest:
+        current, revision, _ = self._run(connection, record.run_id)
+        # Compare the validated snapshot. Older payloads omit optional fields
+        # added later; re-hashing the loaded record would treat that as a change.
+        if expected != current:
             raise StorageConflict("Run changed since it was read; reload before updating")
         if record == current:
             return current

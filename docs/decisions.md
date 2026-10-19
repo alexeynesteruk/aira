@@ -61,7 +61,7 @@ The original experiment used page-ordered native text within explicit limits. Th
 ## Technical
 
 **TD-01 · Stack and tooling**
-Python 3.13 / FastAPI / strict frozen Pydantic v2 (schema 0.1.0); React/TypeScript/Vite; uv + npm lockfiles; ruff, mypy strict, pytest, Vitest, Playwright. GitHub Actions runs the Python, TypeScript, and browser checks.
+Python 3.13 / FastAPI / strict frozen Pydantic v2 (schema 0.1.0); React/TypeScript/Vite; uv + npm lockfiles; ruff, mypy strict, pytest, Vitest, Playwright. Verification is the local `make check` and `make browser-test` targets; there is no hosted CI.
 - Why: deterministic contract, typed boundary, reproducible builds and checks.
 - Status: Accepted.
 
@@ -122,5 +122,5 @@ Build whole-guideline rules and chart facts in independent document-only flows. 
 - Owner: [BR-013/TR-019](requirements/technical-requirements.md#tr-019-long-document-rule-set-compilation), [WP-19 plan](plans/long-document-rule-compilation.md). Status: Accepted design, implementation pending.
 
 **AD-11 · Direct OpenAI is a required reviewer path**
-Accept a backend OpenAI API key and explicit model. Every model operation follows the chosen endpoint/transport, including repair, audit, and preflight. LiteLLM is optional and must not be an author-specific prerequisite or a silent fallback.
+Accept a backend OpenAI API key and explicit model. Every model operation follows the chosen endpoint/transport, including repair, audit, and preflight. Direct OpenAI needs no proxy. An OpenAI-compatible `/v1` base URL is optional and must be set in the env file; a shell-only gateway is not a silent fallback.
 - Owner: [model provider contract](model-provider.md). Status: Accepted design; end-to-end live verification pending.

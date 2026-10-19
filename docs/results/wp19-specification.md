@@ -9,7 +9,7 @@ October 18, 2026. This record covers the documentation task requested by the use
 - [Implementation plan](../plans/long-document-rule-compilation.md): target contracts, source/section planning, contextual extraction, dependency reconciliation, coverage audit, compilation, persistence/invalidation, budgets, UI/provider integration, and delivery sequence.
 - BR-013, TR-019, and A21 added without renumbering earlier requirements; related architecture, provider, decision, feature, index, handoff, and backlog documents updated.
 
-Direct OpenAI using a reviewer-provided backend key/model is a required path. LiteLLM is optional. Independent guideline/chart preparation and immutable reuse are prerequisites to assessment; unsupported semantics and incomplete operational work retain distinct states. The 100/200-page envelope remains an acceptance target until measured.
+Direct OpenAI using a reviewer-provided backend key/model is a required path. A compatible endpoint is optional. Independent guideline/chart preparation and immutable reuse are prerequisites to assessment; unsupported semantics and incomplete operational work retain distinct states. The 100/200-page envelope remains an acceptance target until measured.
 
 ## Observed checks
 

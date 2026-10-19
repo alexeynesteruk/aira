@@ -25,7 +25,7 @@ flowchart TD
     M --> E[Deterministic validation and evaluation]
 ```
 
-All stages use explicit Python orchestration and typed boundaries. Concurrency is optional and bounded. No autonomous-agent framework, retrieval server, new queue service, or cloud deployment is required. Use the current adapter to call direct OpenAI or an explicitly configured LiteLLM endpoint.
+All stages use explicit Python orchestration and typed boundaries. Concurrency is optional and bounded. No autonomous-agent framework, retrieval server, new queue service, or cloud deployment is required. Use the current adapter to call direct OpenAI or an explicitly configured OpenAI-compatible `/v1` endpoint.
 
 ## Contracts to implement in LD-02
 
@@ -86,9 +86,9 @@ Measure criterion and logical-edge/exception recall against reviewed annotations
 
 ## Direct OpenAI reviewer path
 
-Document backend-only `.env` settings `OPENAI_API_KEY` and explicit `AIRA_MODEL`, with `AIRA_LLM_BACKEND=openai` for direct mode. The loader pins the official endpoint and Responses transport. LiteLLM requires explicit `AIRA_LLM_BACKEND=litellm` and `OPENAI_BASE_URL`. Optional LiteLLM settings must be explicit and cannot silently override direct mode through inherited personal gateway configuration. Inventory, extraction, reconciliation, repair, audit, assessment, and preflight all use the same selected adapter configuration.
+Document backend-only `.env` settings `OPENAI_API_KEY` and explicit `AIRA_MODEL`. With no `OPENAI_BASE_URL`, the loader uses the official endpoint and Responses transport. An env-file `OPENAI_BASE_URL` selects that OpenAI-compatible endpoint and defaults to chat completions. `AIRA_LLM_BACKEND=litellm` reads the URL from the process environment only when the file does not set one. A shell-only gateway URL cannot silently override direct mode. Inventory, extraction, reconciliation, repair, audit, assessment, and preflight all use the same selected adapter configuration.
 
-Controlled transport tests verify destination, credentials, error categories, and secret omission without paid calls. Health/status endpoints never probe inference. UI exposes configuration state without credentials. The clean-checkout live check must succeed without a running LiteLLM service before this path is declared release-verified. Respect the recorded quota deferral; label unavailable live evidence as pending.
+Controlled transport tests verify destination, credentials, error categories, and secret omission without paid calls. Health/status endpoints never probe inference. UI exposes configuration state without credentials. The clean-checkout live check must succeed without a running proxy service before this path is declared release-verified. Respect the recorded quota deferral; label unavailable live evidence as pending.
 
 ## Completion evidence
 

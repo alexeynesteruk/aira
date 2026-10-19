@@ -48,7 +48,7 @@ from app.schemas import (
     TextBlock,
 )
 
-ADAPTER_VERSION = "0.1.1"
+ADAPTER_VERSION = "0.1.2"
 PARSER_VERSION = f"{pdfplumber.__version__}+aira.{ADAPTER_VERSION}"
 UNMAPPED_GLYPH = re.compile(r"\(cid:\d+\)|\ufffd")
 type Box = tuple[float, float, float, float]
@@ -280,6 +280,53 @@ def _characters(text: str) -> Counter[str]:
     return Counter(character for character in text if not character.isspace())
 
 
+def _wrapped_continuation(previous: TextBlock, line: TextBlock) -> bool:
+    """A visual line wrap, not a new paragraph, heading, or column.
+
+    ``previous`` is the last visual line. A block already joined from several
+    lines is taller than one line, and using that height makes the gap
+    threshold swallow the next paragraph and heading.
+    """
+    if previous.table_id is not None or line.table_id is not None:
+        return False
+    if previous.bbox is None or line.bbox is None:
+        return False
+    if abs(line.bbox.x0 - previous.bbox.x0) > 8:
+        return False
+    gap = line.bbox.y0 - previous.bbox.y1
+    height = line.bbox.y1 - line.bbox.y0
+    return -1 <= gap <= max(5.0, 0.5 * height)
+
+
+def _join_lines(previous: TextBlock, line: TextBlock) -> TextBlock:
+    assert previous.bbox is not None and line.bbox is not None
+    return previous.model_copy(
+        update={
+            "text": f"{previous.text} {line.text}".strip(),
+            "bbox": BoundingBox(
+                x0=min(previous.bbox.x0, line.bbox.x0),
+                y0=min(previous.bbox.y0, line.bbox.y0),
+                x1=max(previous.bbox.x1, line.bbox.x1),
+                y1=max(previous.bbox.y1, line.bbox.y1),
+            ),
+        }
+    )
+
+
+def _merge_wrapped_lines(lines: list[TextBlock]) -> list[TextBlock]:
+    if not lines:
+        return lines
+    merged: list[TextBlock] = [lines[0]]
+    last_line = lines[0]
+    for line in lines[1:]:
+        if _wrapped_continuation(last_line, line):
+            merged[-1] = _join_lines(merged[-1], line)
+        else:
+            merged.append(line)
+        last_line = line
+    return merged
+
+
 def _line_blocks(page: Page, config: NativePdfConfig, excluded_cells: list[Box]) -> list[TextBlock]:
     filtered = page.filter(lambda obj: not any(_inside(obj, box) for box in excluded_cells))
     words = filtered.extract_words(
@@ -324,7 +371,7 @@ def _line_blocks(page: Page, config: NativePdfConfig, excluded_cells: list[Box])
                 bbox=_geometry(bounds, page),
             )
         )
-    return result
+    return _merge_wrapped_lines(result)
 
 
 def _extract_blocks(page: Page, config: NativePdfConfig) -> tuple[TextBlock, ...]:

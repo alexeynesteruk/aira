@@ -517,6 +517,27 @@ class WorkflowEngine:
             StageUsage(phase=phase, attempts=0, duration_ms=0.0, input_tokens=0, output_tokens=0),
         )
 
+    def _report_build(self, run_id: str, build: "BuildRecord", label: str) -> None:
+        total = build.total_sections
+        done = build.completed_sections
+        if build.phase == "extracting_sections" and total:
+            activity = f"{label}: {done} of {total} sections saved."
+            if done < total:
+                activity += " More sections are with the model."
+        elif build.phase == "auditing" and total:
+            audited = sum(1 for step in build.steps if step.name == "policy_audit")
+            activity = f"{label}: {audited} of {total} audits saved."
+            if audited < total:
+                activity += " More audits are with the model."
+        elif build.phase:
+            activity = f"{label} preparation is {build.phase.replace('_', ' ')}."
+        else:
+            activity = f"{label} preparation is in progress."
+        current = self.store.get_run(run_id)
+        if current.progress.activity == activity:
+            return
+        self._update(run_id, progress=current.progress.model_copy(update={"activity": activity}))
+
     def _build_usage(self, run_id: str, phase: RunPhase, build: "BuildRecord") -> None:
         measured = build.usage
         self._usage(
@@ -545,7 +566,11 @@ class WorkflowEngine:
     ) -> tuple[Policy, str, ExtractionRecord]:
         phase = RunPhase.INTERPRETING_POLICY
         run = self._phase(run_id, phase)
-        build = await self.builds.prepare(inputs.policy_document, run.policy_build_id)
+        build = await self.builds.prepare(
+            inputs.policy_document,
+            run.policy_build_id,
+            on_progress=lambda record: self._report_build(run_id, record, "Guideline"),
+        )
         if build.policy is None or build.extraction is None:
             raise EvidenceValidationError("Completed guideline build has no policy/extraction")
         policy = build.policy
@@ -576,7 +601,11 @@ class WorkflowEngine:
     ) -> tuple[ChartData, str, ExtractionRecord]:
         phase = RunPhase.EXTRACTING_CHART
         run = self._phase(run_id, phase)
-        build = await self.builds.prepare(document, run.chart_build_id)
+        build = await self.builds.prepare(
+            document,
+            run.chart_build_id,
+            on_progress=lambda record: self._report_build(run_id, record, "Chart"),
+        )
         if build.chart is None or build.extraction is None:
             raise EvidenceValidationError("Completed chart build has no chart facts")
         self._update(

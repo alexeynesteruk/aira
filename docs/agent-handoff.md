@@ -16,7 +16,7 @@ The feature files supply the task and acceptance checklists; the work-breakdown 
 
 [WP-19 runtime](results/wp19-implementation.md) is delivered with controlled checks. Use its [plan](plans/long-document-rule-compilation.md), [feature](features/19-long-document-rule-compilation.md), and [research log](research/long-document-rule-extraction.md). Continue LD-09 independent semantic evaluation and LD-10 reviewer-release evidence after quota is available. The production path is `DocumentBuildService` plus structural compiler; `_policy_by_page` is removed. Preserve other working-tree changes and reviewed expectations.
 
-Direct OpenAI using the reviewer's backend key/model is mandatory; LiteLLM is optional. All inventory/extraction/reconciliation/audit/repair/assessment calls must use the selected adapter. Respect the deferred quota and record fixture versus live evidence separately.
+Direct OpenAI using the reviewer's backend key/model is mandatory; a compatible endpoint is optional. All inventory/extraction/reconciliation/audit/repair/assessment calls must use the selected adapter. Respect the deferred quota and record fixture versus live evidence separately.
 
 ## Current boundaries
 
@@ -25,7 +25,7 @@ Direct OpenAI using the reviewer's backend key/model is mandatory; LiteLLM is op
 | PDF intake and extraction | `app.documents.inspect_pdf`, `extract_pdf`, `require_usable_extraction`, `source_span`; [verified limits](results/pdf-extraction.md). | Persist original bytes and extraction revisions. Call the complete-input gate before every interpretation path, including cache reuse. |
 | Domain records | Public types in `app.schemas`; [contract notes and amendments](contracts.md). | Use strict JSON validation at wire boundaries. Create validated new snapshots instead of unchecked mutation. |
 | Provider transport | `app.llm.OpenAIAdapter` implementation, versioned `PROMPTS`, preflight, experiment CLI; [feasibility record](results/model-feasibility.md). | Connect typed candidates to source validation and workflow stage results. Never treat transport success as semantic success. |
-| Candidate conversion | `app.policies.convert_scope`, `convert_policy`, `convert_evidence` are implemented with 52 checks. | Consumers must surface `CandidateConversionError` as an operational stage failure. Chart request fields need individual sources or explicit staff annotations. |
+| Candidate conversion | `app.policies.convert_scope`, `convert_policy`, `convert_chart`, `convert_findings` are implemented with 53 checks. | Consumers must surface `CandidateConversionError` as an operational stage failure. Chart request fields need individual sources or explicit staff annotations. |
 | Mechanical validation | `app.evidence.CitationResolver`, `validate_findings`, `check_predicate`; [supported comparisons](results/rules.md#supported-comparisons). | Pass exactly one extraction revision per input and the selected request/cutoff. Convert errors into operational failure. |
 | Rule evaluation | `app.assessment.evaluate_policy`; [aggregation semantics](results/rules.md#aggregation-and-independent-blockers). | Supply one validated finding per criterion, retain traces and independent blockers. |
 | Persistence | `app.storage.LocalStore`, `assessment_fingerprint`; [storage API](results/storage.md#integration-api). | Publish validated stages after files exist; preserve stopped runs and original input identity. |
@@ -67,7 +67,7 @@ git diff --check
 
 During development, run the relevant test file named in the feature steps. A package is complete only after its actual dependent behavior is checked. A pure library package can finish before the application uses it; its report must state that boundary. Live quality and release gates cannot finish with controlled outputs.
 
-For each completed package, record the implementing commit, requirement/acceptance IDs, exact command, observed result, and remaining limits in its result file and the work breakdown. Update task checkboxes only for tested behavior. Keep test counts attached to the revision/check they describe. Commit only the package's owned, reviewed files; inspect staged paths and ensure `.env`, runtime data, and private vault material are excluded. Push as the user requested, then inspect the actual GitHub Actions outcome.
+For each completed package, record the implementing commit, requirement/acceptance IDs, exact command, observed result, and remaining limits in its result file and the work breakdown. Update task checkboxes only for tested behavior. Keep test counts attached to the revision/check they describe. Commit only the package's owned, reviewed files; inspect staged paths and ensure `.env`, runtime data, and private vault material are excluded. Push as the user requested, then inspect the actual check outcome locally before calling the package complete.
 
 ## Stable decisions and change control
 

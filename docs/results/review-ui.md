@@ -30,11 +30,11 @@ The shell spec still proves the unconfigured application explains missing prereq
 
 | Command | Result |
 | --- | --- |
-| `npm --prefix frontend test` | 23 checks across 7 files pass. |
+| `npm --prefix frontend test` | 26 checks across 7 files pass. |
 | `npx playwright test` (`shell` + `journeys`) | 11 checks pass (2 shell, 9 journeys). |
 | `make check` | Backend checks pass; frontend lint/typecheck/Vitest/build pass. |
 
-Unit coverage: outcome/finding label maps (five distinct finding labels and an unsatisfied `review_required`), the all/any policy tree in node order, a missing finding without a chart citation, conflict-resolution vs plain clarification annotations, the failed-run view with its action and retry, readiness prerequisites plus `provider.detail`, code-point-accurate citation highlighting through an astral-plane character, the OR-path traversal (nested `all` inside an unused `any` branch → all descendants not needed; a false `any` → nothing), and the failed-run failed-page explanation (document filename plus per-page quality/issues). Group headings carry the evaluated state from `trace.logical_value`; the UI never re-evaluates rules.
+Unit coverage: outcome/finding label maps (five distinct finding labels and an unsatisfied `review_required`), the all/any policy tree in node order, a missing finding without a chart citation, conflict-resolution vs plain clarification annotations, the failed-run view with its action and retry, readiness prerequisites plus `provider.detail`, the connection label (an `openai` backend reads "Direct OpenAI"; any other backend reads "OpenAI-compatible API" and never claims direct OpenAI access), code-point-accurate citation highlighting through an astral-plane character, the OR-path traversal (nested `all` inside an unused `any` branch → all descendants not needed; a false `any` → nothing), and the failed-run failed-page explanation (document filename plus per-page quality/issues). Group headings carry the evaluated state from `trace.logical_value`; the UI never re-evaluates rules.
 
 ## Limitations
 

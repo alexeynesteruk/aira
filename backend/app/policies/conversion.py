@@ -36,7 +36,6 @@ from app.schemas import (
     DatePredicate,
     DocumentRole,
     ErrorCode,
-    EvidenceCandidate,
     EvidenceReference,
     EvidenceRelation,
     EvidenceStatus,
@@ -92,16 +91,45 @@ def _guard(phase: RunPhase) -> Iterator[None]:
             ErrorCode.CITATION_INVALID, phase, "Candidate citation failed: " + error.code
         ) from error
     except ValidationError as error:
-        locations = ", ".join(
-            ".".join(str(part) for part in item["loc"]) for item in error.errors()
-        )
+        details: list[str] = []
+        for item in error.errors()[:8]:
+            location = ".".join(str(part) for part in item["loc"])
+            detail = f"{location}: {item['msg']}"
+            bad = item.get("input")
+            if bad is not None and not isinstance(bad, (dict, list, tuple)):
+                text = str(bad)
+                if len(text) > 80:
+                    text = text[:77] + "..."
+                detail += f" (received {text!r})"
+            details.append(detail)
         raise CandidateConversionError(
             ErrorCode.INVALID_OUTPUT,
             phase,
-            "Candidate violates the domain contract at: " + locations,
+            "Candidate violates the domain contract at: " + "; ".join(details),
         ) from error
     except ValueError as error:
         raise CandidateConversionError(ErrorCode.INVALID_OUTPUT, phase, str(error)) from error
+
+
+# A model date that is not literal YYYY-MM-DD is staff work, not a failed extraction.
+DATE_CONFIRMATION = (
+    "This condition depends on a date, and that date was not given as a literal "
+    "calendar date (YYYY-MM-DD)."
+)
+DATE_CONFIRMATION_ACTION = (
+    "Confirm the calendar date (YYYY-MM-DD) from the cited text. "
+    "This condition stays unresolved until that date is explicit."
+)
+POLICY_DATE_CONFIRMATION = (
+    "A guideline revision or effective date was not given as a literal calendar date (YYYY-MM-DD)."
+)
+POLICY_DATE_ACTION = (
+    "Confirm that date from the guideline metadata before relying on the policy version."
+)
+CHART_DATE_CONFIRMATION = (
+    "Chart fact {fact_id} uses a date that was not given as a literal calendar date "
+    "(YYYY-MM-DD). Confirm that date from the chart before a date comparison can use it."
+)
 
 
 def _date(value: str | None, field: str) -> date | None:
@@ -113,6 +141,16 @@ def _date(value: str | None, field: str) -> date | None:
         return date.fromisoformat(value)
     except ValueError as error:
         raise ValueError(field + " is not a valid calendar date") from error
+
+
+def _literal_date(value: str | None) -> tuple[date | None, bool]:
+    """Read one optional date. The second value is true when text was not usable."""
+    if value is None:
+        return None, False
+    try:
+        return _date(value, "date"), False
+    except ValueError:
+        return None, True
 
 
 def _citations(
@@ -127,6 +165,48 @@ def _citations(
     return tuple(
         resolver.resolve(candidate, expected_document_id=document_id) for candidate in candidates
     )
+
+
+def _scope_span(
+    candidate: CandidateCitation,
+    resolver: CitationResolver,
+    document_id: str | None,
+) -> SourceSpan | None:
+    """Resolve one applicability citation without trusting an invented block id.
+
+    Saved scope input shows the quote and page, not the block id. A block id that
+    is not on that page is ignored once, and the same quote is resolved on that
+    same page. A unique match keeps the real block. A quote that is missing or
+    still ambiguous is omitted. Other citation failures still raise. This does
+    not search another page or join blocks.
+    """
+    try:
+        return resolver.resolve(candidate, expected_document_id=document_id)
+    except CitationError as error:
+        if error.code != "unknown_block" or not candidate.block_id:
+            raise
+    try:
+        return resolver.resolve(
+            candidate.model_copy(update={"block_id": None}),
+            expected_document_id=document_id,
+        )
+    except CitationError as error:
+        if error.code in {"quote_not_found", "ambiguous_quote"}:
+            return None
+        raise
+
+
+def _scope_spans(
+    candidates: Sequence[CandidateCitation],
+    resolver: CitationResolver,
+    document_id: str | None,
+) -> tuple[SourceSpan, ...]:
+    spans: list[SourceSpan] = []
+    for candidate in candidates:
+        span = _scope_span(candidate, resolver, document_id)
+        if span is not None:
+            spans.append(span)
+    return tuple(spans)
 
 
 def _clarification(value: str) -> ClarificationField:
@@ -176,6 +256,34 @@ def _request_values(
     return values, tuple(unreadable)
 
 
+def _field_label(field: RequestField) -> str:
+    labels = {
+        RequestField.PROCEDURE: "procedure",
+        RequestField.PROCEDURE_CODE: "procedure code",
+        RequestField.ANATOMICAL_TARGET: "anatomical target",
+        RequestField.LATERALITY: "laterality",
+        RequestField.PAYER: "payer",
+        RequestField.PLAN: "plan",
+        RequestField.SERVICE_DATE: "service date",
+        RequestField.ASSESSMENT_CUTOFF: "assessment cutoff",
+    }
+    return labels[field]
+
+
+def _unsourced_field_message(fields: Sequence[RequestField]) -> str:
+    names = [_field_label(field) for field in fields]
+    if len(names) == 1:
+        return (
+            f"The {names[0]} was not kept because it had no chart citation. "
+            "Confirm it from the chart to continue."
+        )
+    listed = " and ".join(names)
+    return (
+        f"The {listed} were not kept because they had no chart citation. "
+        "Confirm them from the chart to continue."
+    )
+
+
 def _unreadable_date_message(fields: Sequence[ClarificationField]) -> str:
     labels: dict[ClarificationField, str] = {
         RequestField.SERVICE_DATE: "service date",
@@ -205,10 +313,16 @@ def convert_scope(
 ) -> ScopeConversion:
     """Convert scoped request metadata, preserving source and staff provenance.
 
-    Every extracted non-null field needs its own chart citations. A candidate
-    value may instead exactly match an explicit staff annotation without a chart
-    citation; it then remains absent from extracted_request. A changed cited value
-    invalidates the candidate scope judgment and requires scope reassessment.
+    Every kept chart-derived field needs its own chart citations. A value with
+    none is dropped and named for staff; scope quotes are not copied onto it.
+    A candidate value may instead exactly match an explicit staff annotation
+    without a chart citation; it then remains absent from extracted_request.
+    A changed cited value invalidates the candidate scope judgment and requires
+    scope reassessment. An applicable judgment cannot stand on a dropped field.
+    A cited mismatch can. Unreadable dates and unsourced fields remain on the
+    request, and they do not replace that mismatch. A block id that is not on
+    the cited page is not a source address: the quote is kept only when it
+    occurs once on that page.
     """
     with _guard(RunPhase.CHECKING_APPLICABILITY):
         chart_id = resolver.document_id_for_role(DocumentRole.CHART)
@@ -231,26 +345,39 @@ def convert_scope(
                 resolver.validate(source, expected_document_id=chart_id)
         sources: list[FieldSources] = []
         seen: set[RequestField] = set()
+        claimed: set[RequestField] = set()
         for record in candidate.field_sources:
             field = RequestField(record.field)
-            if field in seen:
+            if field in claimed:
                 raise ValueError("Request field sources must be grouped once per field")
+            claimed.add(field)
+            if not record.citations:
+                raise ValueError("This domain record requires its own source citations")
+            # An unknown block id is recovered or omitted inside _scope_spans.
+            # A field whose quotes then have no remaining citation is unsourced.
+            resolved = _scope_spans(record.citations, resolver, chart_id)
+            if not resolved:
+                continue
             seen.add(field)
             if selected[field.value] is None and field not in unresolved:
                 raise ValueError("A null cited field must be explicitly unresolved")
-            sources.append(
-                FieldSources(field=field, sources=_citations(record.citations, resolver, chart_id))
-            )
+            sources.append(FieldSources(field=field, sources=resolved))
         by_source = {record.field.value: record.sources for record in sources}
+        # A value with no chart citation is not kept, and the scope quotes are not
+        # borrowed to supply one. Staff can confirm the field. A cited mismatch can stand.
+        unsourced: list[RequestField] = []
         for field in RequestField:
             value = selected[field.value]
-            if value is not None and field not in seen:
-                staff_value = annotation_by_field.get(field.value)
-                if staff_value is None or not _same_value(value, staff_value.value):
-                    raise ValueError(
-                        "An extracted request value lacks field-level source citations"
-                    )
+            if value is None or field in seen:
+                continue
+            staff_value = annotation_by_field.get(field.value)
+            if staff_value is not None and _same_value(value, staff_value.value):
                 original[field.value] = None
+                continue
+            selected[field.value] = None
+            original[field.value] = None
+            unsourced.append(field)
+        unresolved = tuple(dict.fromkeys((*unresolved, *unsourced)))
         changed_fields: list[RequestField] = []
         for annotation in annotations:
             field = RequestField(annotation.field)
@@ -293,7 +420,7 @@ def convert_scope(
         request = RequestContext.model_validate(
             {**selected, "field_sources": tuple(sources), "unresolved_fields": request_unresolved}
         )
-        scope_sources = _citations(candidate.citations, resolver, None, required=False)
+        scope_sources = _scope_spans(candidate.citations, resolver, None)
         if candidate.status != "unresolved":
             if policy_id not in {source.document_id for source in scope_sources}:
                 raise ValueError("A resolved scope judgment requires cited policy scope")
@@ -309,14 +436,7 @@ def convert_scope(
             sources=scope_sources,
             unresolved_fields=open_unresolved if candidate.status == "unresolved" else (),
         )
-        if pending_dates:
-            applicability = ApplicabilityResult(
-                status=ApplicabilityStatus.UNRESOLVED,
-                rationale=_unreadable_date_message(pending_dates),
-                sources=scope_sources,
-                unresolved_fields=open_unresolved,
-            )
-        elif changed_fields:
+        if changed_fields:
             applicability = ApplicabilityResult(
                 status=ApplicabilityStatus.UNRESOLVED,
                 rationale=(
@@ -324,6 +444,22 @@ def convert_scope(
                 ),
                 sources=scope_sources,
                 unresolved_fields=tuple(dict.fromkeys((*open_unresolved, *changed_fields))),
+            )
+        elif pending_dates and candidate.status != "mismatch":
+            # A missing calendar date cannot turn a cited procedure or payer
+            # mismatch back into an open request. Applicable scope still waits.
+            applicability = ApplicabilityResult(
+                status=ApplicabilityStatus.UNRESOLVED,
+                rationale=_unreadable_date_message(pending_dates),
+                sources=scope_sources,
+                unresolved_fields=open_unresolved,
+            )
+        elif unsourced and candidate.status == "applicable":
+            applicability = ApplicabilityResult(
+                status=ApplicabilityStatus.UNRESOLVED,
+                rationale=_unsourced_field_message(unsourced),
+                sources=scope_sources,
+                unresolved_fields=tuple(dict.fromkeys((*open_unresolved, *unsourced))),
             )
         if applicability.status == ApplicabilityStatus.APPLICABLE and request.procedure is None:
             raise ValueError("Applicable scope requires one selected procedure")
@@ -336,33 +472,55 @@ def convert_scope(
 
 
 def _predicate(candidate: CandidateCriterion) -> tuple[Predicate | None, str | None]:
-    boundary = _date(candidate.date_boundary, "date_boundary")
+    boundary, unreadable_date = _literal_date(candidate.date_boundary)
+    if unreadable_date:
+        # Keep the cited condition. Staff confirm the date; the other rules continue.
+        return None, DATE_CONFIRMATION
     if candidate.predicate_kind == "unsupported":
         return None, "The policy condition has unsupported semantics and requires interpretation."
     if candidate.predicate_kind == "narrative":
-        if any(
-            value is not None
-            for value in (
-                candidate.operator,
-                candidate.threshold,
-                candidate.unit,
-                candidate.date_boundary,
-                candidate.date_role,
+        hidden = [
+            name
+            for name, value in (
+                ("operator", candidate.operator),
+                ("threshold", candidate.threshold),
+                ("unit", candidate.unit),
+                ("date_boundary", candidate.date_boundary),
+                ("date_role", candidate.date_role),
             )
-        ):
-            raise ValueError(
-                "A narrative predicate must not carry hidden numeric or date operators"
+            if value is not None
+        ]
+        # Structured output often fills every slot. Do not apply those values,
+        # and do not discard the cited requirement.
+        note = None
+        if hidden:
+            note = (
+                f"Criterion {candidate.criterion_id} was labeled narrative but also set "
+                f"{', '.join(hidden)}. Those fields were not applied. Review the cited "
+                "wording before treating this as a numeric or date rule."
             )
-        return NarrativePredicate(question=candidate.interpretation), None
+        return NarrativePredicate(question=candidate.interpretation), note
     if not candidate.context:
         return None, "The comparison has no explicit source-bound context."
     if candidate.predicate_kind == "numeric":
-        if candidate.date_boundary is not None or candidate.date_role is not None:
-            raise ValueError("A numeric predicate must not carry date parameters")
         if candidate.operator not in {"gt", "gte", "lt", "lte", "eq"}:
             return None, "The numeric comparison operator is unsupported."
         if candidate.threshold is None or candidate.unit is None:
             return None, "The numeric comparison lacks an explicit threshold or unit."
+        stray_dates = [
+            name
+            for name, value in (
+                ("date_boundary", candidate.date_boundary),
+                ("date_role", candidate.date_role),
+            )
+            if value is not None
+        ]
+        note = None
+        if stray_dates:
+            note = (
+                f"Criterion {candidate.criterion_id} is numeric but also set "
+                f"{', '.join(stray_dates)}. Those date fields were not applied."
+            )
         return NumericPredicate.model_validate(
             {
                 "operator": candidate.operator,
@@ -370,13 +528,22 @@ def _predicate(candidate: CandidateCriterion) -> tuple[Predicate | None, str | N
                 "unit": candidate.unit,
                 "context": candidate.context[0],
             }
-        ), None
-    if candidate.threshold is not None or candidate.unit is not None:
-        raise ValueError("A date predicate must not carry numeric parameters")
+        ), note
+    stray_numbers = [
+        name
+        for name, value in (("threshold", candidate.threshold), ("unit", candidate.unit))
+        if value is not None
+    ]
     if candidate.operator not in {"before", "on_or_before", "after", "on_or_after", "on"}:
         return None, "The date comparison operator is unsupported."
     if boundary is None or candidate.date_role is None:
         return None, "The date comparison lacks an explicit boundary or role."
+    note = None
+    if stray_numbers:
+        note = (
+            f"Criterion {candidate.criterion_id} is a date comparison but also set "
+            f"{', '.join(stray_numbers)}. Those numeric fields were not applied."
+        )
     return DatePredicate.model_validate(
         {
             "operator": candidate.operator,
@@ -384,7 +551,7 @@ def _predicate(candidate: CandidateCriterion) -> tuple[Predicate | None, str | N
             "date_role": candidate.date_role,
             "context": candidate.context[0],
         }
-    ), None
+    ), note
 
 
 def convert_policy(
@@ -416,7 +583,12 @@ def convert_policy(
                         message=unsupported
                         or "Unsupported or unverified policy predicate: " + ", ".join(reasons),
                         action=(
-                            "Review the cited governing condition before using a favorable result."
+                            DATE_CONFIRMATION_ACTION
+                            if unsupported == DATE_CONFIRMATION
+                            else (
+                                "Review the cited governing condition before using a "
+                                "favorable result."
+                            )
                         ),
                         blocks_readiness=True,
                         sources=sources,
@@ -434,9 +606,17 @@ def convert_policy(
                         node_id=node.node_id, criterion_id=node.criterion_id, sources=sources
                     )
                 )
+            elif not node.children and node.criterion_id is not None:
+                # The kind says group, but the only link is a criterion.
+                nodes.append(
+                    CriterionNode(
+                        node_id=node.node_id, criterion_id=node.criterion_id, sources=sources
+                    )
+                )
             else:
-                if node.criterion_id is not None:
-                    raise ValueError("A logical group cannot also identify a criterion")
+                if not node.children:
+                    raise ValueError("A logical group needs at least one child")
+                # Models often fill criterion_id on an AND/OR node. The kind is the group.
                 node_class = AllNode if node.kind == "all" else AnyNode
                 nodes.append(
                     node_class(node_id=node.node_id, children=node.children, sources=sources)
@@ -472,16 +652,38 @@ def convert_policy(
         )
         if not criteria:
             raise ValueError("An interpreted policy must contain at least one criterion")
+        revision_date, revision_unreadable = _literal_date(candidate.revision_date)
+        effective_from, effective_from_unreadable = _literal_date(candidate.effective_from)
+        effective_to, effective_to_unreadable = _literal_date(candidate.effective_to)
+        if revision_unreadable or effective_from_unreadable or effective_to_unreadable:
+            issues.append(
+                ReviewIssue(
+                    issue_id="conversion-policy-date",
+                    category=IssueCategory.INTERPRETATION,
+                    message=POLICY_DATE_CONFIRMATION,
+                    action=POLICY_DATE_ACTION,
+                    blocks_readiness=True,
+                    # The candidate carries no citation for the metadata field, so
+                    # do not attach an unrelated criterion passage to this issue.
+                    sources=(),
+                )
+            )
         policy = Policy(
             policy_id=policy_id,
             document_id=document_id,
             document_sha256=criteria[0].sources[0].document_sha256,
             title=candidate.title,
             scope_summary=candidate.scope_summary,
-            identifier=candidate.identifier,
-            revision_date=_date(candidate.revision_date, "revision_date"),
-            effective_from=_date(candidate.effective_from, "effective_from"),
-            effective_to=_date(candidate.effective_to, "effective_to"),
+            # The prompt forbids empty strings where null belongs. A blank policy
+            # number is not an identifier; it must not fail an otherwise valid section.
+            identifier=(
+                candidate.identifier
+                if candidate.identifier and candidate.identifier.strip()
+                else None
+            ),
+            revision_date=revision_date,
+            effective_from=effective_from,
+            effective_to=effective_to,
             criteria=tuple(criteria),
             nodes=tuple(nodes),
             root_id=candidate.root_id,
@@ -503,70 +705,50 @@ def convert_policy(
 
 
 def _facts(
-    candidates: Sequence[CandidateFact], resolver: CitationResolver
-) -> tuple[ChartFact, ...]:
-    chart_id = resolver.document_id_for_role(DocumentRole.CHART)
-    return tuple(
-        ChartFact(
-            fact_id=item.fact_id,
-            proposition=item.proposition,
-            sources=_citations(item.citations, resolver, chart_id),
-            polarity=FactPolarity(item.polarity),
-            provenance=FactProvenance(item.provenance),
-            value=item.value,
-            unit=item.unit,
-            event_date=_date(item.event_date, "event_date"),
-            documentation_date=_date(item.documentation_date, "documentation_date"),
-            anatomical_target=item.anatomical_target,
-            laterality=item.laterality,
-            context=item.context,
-            uncertainty=item.uncertainty,
-            conflicting_fact_ids=item.conflicting_fact_ids,
-        )
-        for item in candidates
-    )
-
-
-def convert_evidence(
-    candidate: EvidenceCandidate,
-    policy: Policy,
+    candidates: Sequence[CandidateFact],
     resolver: CitationResolver,
-    request: RequestContext | None = None,
-) -> EvidenceConversion:
-    """Convert source-grounded facts and validate findings without staff clinical edits."""
-    with _guard(RunPhase.MAPPING_EVIDENCE):
-        facts = _facts(candidate.facts, resolver)
-        findings = tuple(
-            Finding(
-                criterion_id=item.criterion_id,
-                status=EvidenceStatus(item.status),
-                rationale=item.rationale,
-                evidence=tuple(
-                    EvidenceReference(
-                        fact_id=reference.fact_id, relation=EvidenceRelation(reference.relation)
-                    )
-                    for reference in item.evidence
-                ),
-                unresolved_reasons=item.unresolved_reasons,
+) -> tuple[tuple[ChartFact, ...], tuple[str, ...]]:
+    chart_id = resolver.document_id_for_role(DocumentRole.CHART)
+    facts: list[ChartFact] = []
+    notes: list[str] = []
+    for item in candidates:
+        event_date, event_unreadable = _literal_date(item.event_date)
+        documentation_date, documentation_unreadable = _literal_date(item.documentation_date)
+        if event_unreadable or documentation_unreadable:
+            notes.append(CHART_DATE_CONFIRMATION.format(fact_id=item.fact_id))
+        facts.append(
+            ChartFact(
+                fact_id=item.fact_id,
+                proposition=item.proposition,
+                sources=_citations(item.citations, resolver, chart_id),
+                polarity=FactPolarity(item.polarity),
+                provenance=FactProvenance(item.provenance),
+                value=item.value,
+                unit=item.unit,
+                event_date=event_date,
+                documentation_date=documentation_date,
+                anatomical_target=item.anatomical_target,
+                laterality=item.laterality,
+                context=item.context,
+                uncertainty=item.uncertainty,
+                conflicting_fact_ids=item.conflicting_fact_ids,
             )
-            for item in candidate.findings
         )
-        validated = validate_findings(policy, facts, findings, resolver, request)
-        return EvidenceConversion(facts=facts, findings=validated, candidate_findings=findings)
+    return tuple(facts), tuple(dict.fromkeys(notes))
 
 
 def convert_chart(
     candidate: ChartCandidate, resolver: CitationResolver, *, document_sha256: str
 ) -> ChartData:
     with _guard(RunPhase.EXTRACTING_CHART):
-        facts = _facts(candidate.facts, resolver)
+        facts, date_notes = _facts(candidate.facts, resolver)
         document = resolver.document_id_for_role(DocumentRole.CHART)
         # Resolve the original hash even when the chart contains no facts.
         return ChartData(
             document_id=document,
             document_sha256=document_sha256,
             facts=facts,
-            interpretation_issues=candidate.interpretation_issues,
+            interpretation_issues=(*candidate.interpretation_issues, *date_notes),
         )
 
 

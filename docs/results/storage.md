@@ -8,7 +8,7 @@ Verified October 18, 2026 against the working-tree storage package. [WP-06](../w
 
 Files are written to a temporary path, flushed, and atomically published without replacing an existing object. Metadata is committed afterward. An interruption may leave an unreferenced complete object, but it cannot create a reusable artifact record before its files exist. Reads verify content hashes. Missing or corrupt cache objects never return a cache hit. There is no background garbage collector.
 
-Run updates use an expected previous snapshot as an optimistic concurrency check. Each successful change adds a revision; stopped runs are immutable. Retry and clarification create new queued runs with `parent_run_id`. `interrupt_unfinished()` explicitly marks queued/running work interrupted at application startup; constructing a second store does not change execution state.
+Run updates use an expected previous snapshot as an optimistic concurrency check. The check compares the validated record, so an older snapshot that omits optional fields added later still matches the snapshot that was read. Each successful change adds a revision; stopped runs are immutable. Retry and clarification create new queued runs with `parent_run_id`. `interrupt_unfinished()` explicitly marks queued/running work interrupted at application startup; constructing a second store does not change execution state.
 
 ## Integration API
 

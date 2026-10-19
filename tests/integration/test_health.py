@@ -1,3 +1,4 @@
+import json
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -24,8 +25,25 @@ def _shell(tmp_path: Path, monkeypatch):
 def test_liveness_is_available_without_credentials(monkeypatch, tmp_path):
     with _shell(tmp_path, monkeypatch) as client:
         response = client.get("/health/live")
-    assert response.status_code == 200
-    assert response.json() == {"status": "alive"}
+        alias = client.get("/health")
+        models = client.get("/v1/models")
+    assert response.status_code == alias.status_code == 200
+    assert response.json() == alias.json() == {"status": "alive"}
+    assert models.status_code == 200
+    assert models.json() == {"object": "list", "data": []}
+
+
+def test_model_list_names_the_configured_model_without_the_key(monkeypatch, tmp_path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_API_KEY=local-test-key\nAIRA_MODEL=proxy-model\n")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("AIRA_MODEL", raising=False)
+    with TestClient(
+        create_app(frontend_dir=tmp_path, data_dir=tmp_path / "data", env_file=env_file)
+    ) as client:
+        body = client.get("/v1/models").json()
+    assert [item["id"] for item in body["data"]] == ["proxy-model"]
+    assert "local-test-key" not in json.dumps(body)
 
 
 def test_unconfigured_application_never_reports_ready(monkeypatch, tmp_path):

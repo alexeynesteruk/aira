@@ -39,6 +39,26 @@ describe('workspace availability', () => {
     expect(screen.getByRole('button', { name: 'Start assessment' })).toBeDisabled()
   })
 
+  it('names an OpenAI-compatible endpoint without calling it direct OpenAI', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({
+        ready: true,
+        missing_prerequisites: [],
+        provider: {
+          status: 'unverified',
+          backend: 'litellm',
+          transport: 'chat_completions',
+          model_id: 'proxy-model',
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )))
+    render(<App />)
+    expect(await screen.findByText(/OpenAI-compatible API/)).toBeVisible()
+    expect(screen.getByText(/proxy-model/)).toBeVisible()
+    expect(screen.queryByText(/Direct OpenAI/)).toBeNull()
+  })
+
   it.each(['network', 'invalid-json', 'unexpected-status'])(
     'makes a %s failure actionable', async (failure) => {
       const fetchMock = failure === 'network'

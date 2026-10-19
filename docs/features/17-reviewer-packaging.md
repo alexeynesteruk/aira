@@ -23,7 +23,7 @@ Work package: [WP-17](../work-breakdown.md#wp-17-packaging-and-reviewer-setup). 
 - [ ] Verify credentials with the documented preflight command and ensure setup failures remain understandable in the UI.
 - [ ] Exercise a new upload, source inspection, and export through live inference.
 
-- [ ] Demonstrate direct OpenAI with reviewer-supplied backend key/model and no running LiteLLM service; all preparation, reconciliation, audit, repair, and assessment calls must follow the selected configuration ([WP-19](19-long-document-rule-compilation.md)).
+- [ ] Demonstrate direct OpenAI with reviewer-supplied backend key/model and no running proxy service; all preparation, reconciliation, audit, repair, and assessment calls must follow the selected configuration ([WP-19](19-long-document-rule-compilation.md)).
 
 ## Acceptance criteria
 

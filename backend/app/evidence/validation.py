@@ -143,8 +143,16 @@ class CitationResolver:
         quote = normalize_whitespace(citation.quote)
         if not quote:
             raise CitationError("empty_quote", "Citation quote must contain non-whitespace text")
+        blocks = self._blocks(extraction, citation.page)
+        if citation.block_id:
+            blocks = tuple(block for block in blocks if block.block_id == citation.block_id)
+            if not blocks:
+                raise CitationError(
+                    "unknown_block",
+                    f"Citation block {citation.block_id} is not on page {citation.page}",
+                )
         matches: list[SourceSpan] = []
-        for block in self._blocks(extraction, citation.page):
+        for block in blocks:
             normalized, starts, ends = _normalized_offsets(block.text)
             search_from = 0
             while (position := normalized.find(quote, search_from)) != -1:
@@ -163,12 +171,22 @@ class CitationResolver:
                     )
                 )
                 if len(matches) > 1:
+                    preview = quote if len(quote) <= 180 else quote[:177] + "..."
                     raise CitationError(
-                        "ambiguous_quote", "Quote occurs more than once on its page"
+                        "ambiguous_quote",
+                        "Quote occurs more than once on page "
+                        f"{citation.page}. Set block_id to the source block and quote "
+                        f"only text inside that block: {preview}",
                     )
                 search_from = position + 1
         if not matches:
-            raise CitationError("quote_not_found", "Exact quote was not found on the cited page")
+            preview = quote if len(quote) <= 180 else quote[:177] + "..."
+            raise CitationError(
+                "quote_not_found",
+                "Exact quote was not found on the cited page "
+                f"{citation.page}. Copy the quote from a single supplied text field, "
+                f"not across blocks: {preview}",
+            )
         return matches[0]
 
     def validate(self, span: SourceSpan, *, expected_document_id: str | None = None) -> SourceSpan:
