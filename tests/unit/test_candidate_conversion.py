@@ -15,6 +15,7 @@ from app.policies import (
     convert_policy,
     convert_scope,
 )
+from app.policies.conversion import chart_omission_issue
 from app.schemas import (
     ApplicabilityStatus,
     AssessmentOutcome,
@@ -53,6 +54,7 @@ from app.schemas import (
     TextAnnotation,
     TextBlock,
 )
+from app.schemas.provider import CandidatePolicyPath
 
 NOW = datetime(2026, 10, 18, tzinfo=UTC)
 POLICY = (
@@ -930,6 +932,49 @@ def test_policy_metadata_dates_and_supported_predicate_survive_conversion(
 
 
 @pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_policy_title_keeps_the_section_and_blocks_a_favorable_result(
+    resolver: CitationResolver, blank: str
+) -> None:
+    converted = convert_policy(
+        changed(policy_candidate(), title=blank, scope_summary=blank),
+        resolver,
+        policy_id="policy-interpretation-1",
+    )
+    assert converted.title == "Diameter"
+    assert converted.scope_summary == "The section scope was not extracted."
+    label = next(issue for issue in converted.issues if issue.issue_id == "conversion-policy-label")
+    assert label.blocks_readiness is True
+    assert converted.criteria[0].wording == "Right vein diameter must be at least 3.0 mm."
+
+
+def test_blank_path_label_keeps_the_cited_path(resolver: CitationResolver) -> None:
+    converted = convert_policy(
+        policy_candidate().model_copy(
+            update={
+                "paths": (
+                    CandidatePolicyPath(
+                        path_id="vein",
+                        title="",
+                        scope="   ",
+                        root_id="root",
+                        citations=(citation("Right vein diameter must be at least 3.0 mm."),),
+                    ),
+                )
+            }
+        ),
+        resolver,
+        policy_id="policy-interpretation-1",
+    )
+    assert converted.title == "Fixture policy"
+    assert converted.paths[0].title == "vein"
+    assert converted.paths[0].scope == "The path scope was not extracted."
+    label = next(
+        issue for issue in converted.issues if issue.issue_id == "conversion-path-label-0000"
+    )
+    assert label.blocks_readiness is True
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
 def test_blank_policy_identifier_is_unset_not_a_contract_failure(
     resolver: CitationResolver, blank: str
 ) -> None:
@@ -1035,6 +1080,97 @@ def test_unreadable_policy_dates_ask_staff_and_keep_the_guideline(
     # not borrow the first criterion's passage as if it supported the date.
     assert date_issue.sources == ()
     assert date_issue.criterion_ids == ()
+
+
+def test_chart_unknown_block_keeps_the_unique_quote(resolver: CitationResolver) -> None:
+    fact = evidence_candidate().facts[0]
+    converted = convert_chart(
+        ChartCandidate(
+            facts=(
+                changed(
+                    fact,
+                    citations=(changed(fact.citations[0], block_id="p0007.b0099"),),
+                ),
+            )
+        ),
+        resolver,
+        document_sha256="b" * 64,
+    )
+    assert converted.facts[0].sources[0].block_id == "p1"
+    assert converted.interpretation_issues == ()
+
+
+def test_chart_unknown_block_drops_a_quote_that_is_not_on_the_page(
+    resolver: CitationResolver,
+) -> None:
+    fact = evidence_candidate().facts[0]
+    missing = changed(
+        fact,
+        fact_id="missing",
+        citations=(changed(fact.citations[0], quote="not on the page", block_id="invented"),),
+    )
+    kept = changed(fact, fact_id="kept", conflicting_fact_ids=("missing",))
+    converted = convert_chart(
+        ChartCandidate(facts=(missing, kept)),
+        resolver,
+        document_sha256="b" * 64,
+    )
+    assert [item.fact_id for item in converted.facts] == ["kept"]
+    assert converted.facts[0].conflicting_fact_ids == ()
+    assert any("was not kept" in note for note in converted.facts[0].uncertainty)
+    assert any(
+        "missing" in note and "cited page" in note for note in converted.interpretation_issues
+    )
+    assert chart_omission_issue(converted.interpretation_issues) is not None
+
+
+def test_blank_chart_anatomy_is_absent_not_a_contract_failure(
+    resolver: CitationResolver,
+) -> None:
+    fact = evidence_candidate().facts[0]
+    converted = convert_chart(
+        ChartCandidate(
+            facts=(
+                changed(
+                    fact,
+                    anatomical_target="",
+                    laterality="   ",
+                    unit="",
+                    context=("", "right vein"),
+                    uncertainty=(" ",),
+                ),
+            )
+        ),
+        resolver,
+        document_sha256="b" * 64,
+    )
+    saved = converted.facts[0]
+    assert saved.proposition == fact.proposition
+    assert saved.anatomical_target is None
+    assert saved.laterality is None
+    assert saved.unit is None
+    assert saved.value == fact.value
+    assert saved.context == ("right vein",)
+    assert saved.uncertainty == ()
+
+
+def test_chart_quote_without_a_block_id_must_still_match(resolver: CitationResolver) -> None:
+    fact = evidence_candidate().facts[0]
+    with pytest.raises(CandidateConversionError) as error:
+        convert_chart(
+            ChartCandidate(
+                facts=(
+                    changed(
+                        fact,
+                        citations=(changed(fact.citations[0], quote="not on the page"),),
+                    ),
+                )
+            ),
+            resolver,
+            document_sha256="b" * 64,
+        )
+    assert error.value.error.code == ErrorCode.CITATION_INVALID
+    assert "quote_not_found" in error.value.error.message
 
 
 def test_unreadable_chart_date_asks_staff_and_keeps_the_fact(resolver: CitationResolver) -> None:

@@ -27,6 +27,7 @@ from app.evidence import (
     validate_findings,
 )
 from app.policies.compiler import BuildLimits, select_policy_path
+from app.policies.conversion import chart_omission_issue
 from app.policies.pages import PageSelection
 from app.schemas import (
     ApplicabilityResult,
@@ -840,7 +841,13 @@ class WorkflowEngine:
 
             phase = RunPhase.EVALUATING
             self._phase(run_id, phase)
-            evaluation = evaluate_policy(policy, findings, scope.applicability, evidence.issues)
+            issues = evidence.issues
+            omission = chart_omission_issue(chart.interpretation_issues)
+            if omission is not None and all(
+                issue.issue_id != omission.issue_id for issue in issues
+            ):
+                issues = (*issues, omission)
+            evaluation = evaluate_policy(policy, findings, scope.applicability, issues)
             if evaluation.outcome is None or evaluation.logical_value is None:
                 raise EvidenceValidationError("An applicable assessment needs an evaluated outcome")
             result = AssessmentResult(
@@ -850,7 +857,7 @@ class WorkflowEngine:
                 facts=evidence.facts,
                 findings=findings,
                 logical_value=evaluation.logical_value,
-                issues=evidence.issues,
+                issues=issues,
                 evaluation=evaluation,
             )
             self.store.put_validated_artifact(

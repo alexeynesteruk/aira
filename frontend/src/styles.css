@@ -70,6 +70,17 @@ code { font-size: 12px; color: #4a5d54; }
 .annotations { list-style: none; padding: 0; }
 .annotations li { padding: 4px 0; font-size: 14px; }
 .exports a { display: inline-block; margin-right: 14px; color: #153d36; font-weight: 600; }
+.exports button { background: none; border: 0; padding: 0; font: inherit; font-size: inherit; font-weight: 600; color: #153d36; cursor: pointer; text-decoration: underline; margin-right: 14px; }
+.exports button:hover { color: #2c5347; }
+.exports button:disabled { color: #7b8b83; cursor: not-allowed; text-decoration: none; }
+.checklist-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 16px 0 12px; }
+.filter-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-tab { padding: 4px 12px; border-radius: 999px; border: 1px solid #c8d4cc; background: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; color: #4a5d54; }
+.filter-tab:hover { background: #eef4f0; }
+.filter-tab.active { background: #153d36; color: #fff; border-color: #153d36; }
+.search-input { padding: 6px 12px; border-radius: 8px; border: 1px solid #c8d4cc; font: inherit; font-size: 13px; min-width: 200px; flex: 1; max-width: 320px; }
+.search-input:focus { outline: 2px solid #153d36; border-color: transparent; }
+.empty-filter-note { color: #4a5d54; font-style: italic; margin: 16px 0; }
 .provenance { margin-top: 16px; }
 .provenance dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; }
 .provenance dt { font-weight: 600; }

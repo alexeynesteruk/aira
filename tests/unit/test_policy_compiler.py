@@ -176,6 +176,24 @@ def test_compiler_keeps_conflicting_metadata_as_a_blocking_issue():
     assert any(issue.blocks_readiness and "identifier" in issue.message for issue in policy.issues)
 
 
+def test_rules_without_a_requirements_label_stay_in_the_build():
+    doc, extraction, sections, _, _ = source()
+    plan = sections[0].plan
+    candidate = sections[0].candidate
+    dispositions = tuple(
+        item.model_copy(update={"kind": "context"}) for item in candidate.dispositions
+    )
+    result = validate_section(
+        doc,
+        extraction,
+        plan,
+        candidate.model_copy(update={"dispositions": dispositions}),
+    )
+    assert result.policy is not None
+    assert result.policy.criteria
+    assert any("not marked as requirements" in issue for issue in result.candidate.issues)
+
+
 def test_a_requirements_section_without_rules_stays_in_the_build():
     doc, extraction, sections, _, _ = source()
     plan = sections[0].plan

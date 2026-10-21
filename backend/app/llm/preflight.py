@@ -12,6 +12,8 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Literal
 
+import httpx
+from openai import AsyncOpenAI
 from pydantic import ValidationError
 
 from app.runtime import default_data_dir
@@ -114,6 +116,38 @@ async def verify(
         await adapter.close()
 
 
+async def list_models(
+    settings: OpenAISettings,
+    *,
+    client: AsyncOpenAI | None = None,
+) -> int:
+    """Query accessible models from the configured endpoint without billable inference."""
+    owned_client = client is None
+    sdk_client = client or AsyncOpenAI(
+        api_key=settings.api_key.get_secret_value(),
+        base_url=settings.base_url,
+        max_retries=0,
+        timeout=httpx.Timeout(connect=15.0, read=15.0, write=15.0, pool=15.0),
+    )
+    try:
+        response = await sdk_client.models.list()
+        model_ids = sorted([model.id for model in response.data])
+        print(f"Endpoint: {settings.base_url} ({settings.backend})")
+        print(f"Found {len(model_ids)} accessible model(s):")
+        for model_id in model_ids:
+            marker = " [configured]" if model_id == settings.model else ""
+            print(f"  • {model_id}{marker}")
+        return 0
+    except Exception as exc:
+        status = getattr(exc, "status_code", None)
+        detail = type(exc).__name__ if status is None else f"{type(exc).__name__} HTTP {status}"
+        print(f"Failed to query models from {settings.base_url}: {detail}", file=sys.stderr)
+        return 1
+    finally:
+        if owned_client:
+            await sdk_client.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
@@ -126,7 +160,30 @@ def main() -> int:
             "defaults to AIRA_DATA_DIR or data/app."
         ),
     )
+    parser.add_argument(
+        "--list-models",
+        action="store_true",
+        help="List accessible models from the configured endpoint without billable inference.",
+    )
     args = parser.parse_args()
+    if args.list_models:
+        environ = dict(os.environ)
+        if "AIRA_MODEL" not in environ:
+            from dotenv import dotenv_values
+
+            file_values = dotenv_values(args.env_file) if args.env_file.is_file() else {}
+            if not file_values.get("AIRA_MODEL"):
+                environ["AIRA_MODEL"] = "probe-placeholder"
+        try:
+            settings = OpenAISettings.from_environment(env_file=args.env_file, environ=environ)
+        except ValidationError:
+            print(
+                "Configure OPENAI_API_KEY and AIRA_MODEL in the environment or .env.",
+                file=sys.stderr,
+            )
+            return 2
+        return asyncio.run(list_models(settings))
+
     try:
         settings = OpenAISettings.from_environment(env_file=args.env_file)
     except ValidationError:

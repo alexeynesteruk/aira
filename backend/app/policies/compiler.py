@@ -285,7 +285,17 @@ def validate_section(
     if fragment is not None:
         policy = convert_policy(fragment, resolver, policy_id=plan.section_id)
         if not any(item.kind == "requirements" for item in candidate.dispositions):
-            raise ValueError("Extracted rules require a requirements disposition")
+            # Cited rules stay visible. A missing requirements label blocks a
+            # favorable result; it does not discard the section.
+            candidate = candidate.model_copy(
+                update={
+                    "issues": (
+                        *candidate.issues,
+                        "Extracted rules were not marked as requirements. "
+                        "Review that section before using a favorable result.",
+                    )
+                }
+            )
         allowed = (*plan.primary, *plan.context)
         for span in policy._sources():
             if not any(

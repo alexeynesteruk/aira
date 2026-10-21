@@ -172,13 +172,14 @@ def _scope_span(
     resolver: CitationResolver,
     document_id: str | None,
 ) -> SourceSpan | None:
-    """Resolve one applicability citation without trusting an invented block id.
+    """Resolve one scope or chart citation without trusting an invented block id.
 
-    Saved scope input shows the quote and page, not the block id. A block id that
-    is not on that page is ignored once, and the same quote is resolved on that
-    same page. A unique match keeps the real block. A quote that is missing or
-    still ambiguous is omitted. Other citation failures still raise. This does
-    not search another page or join blocks.
+    Those packets show the quote and page, not a reliable block id. A block id
+    that is not on that page is ignored once, and the same quote is resolved on
+    that same page. A unique match keeps the real block. A quote that is missing
+    or still ambiguous is omitted. Other citation failures still raise. This does
+    not search another page or join blocks. Policy rules still use strict
+    resolution.
     """
     try:
         return resolver.resolve(candidate, expected_document_id=document_id)
@@ -254,6 +255,51 @@ def _request_values(
         else:
             values[field.value] = raw
     return values, tuple(unreadable)
+
+
+_OMITTED_CITATION = (
+    "A cited chart statement was not kept because its quote did not match one block "
+    "on the cited page."
+)
+
+
+def chart_omission_issue(notes: Sequence[str]) -> ReviewIssue | None:
+    """A dropped chart statement must block a favorable checklist.
+
+    Date confirmations stay non-blocking. A fact that was removed, or kept
+    without one of its citations or conflict partners, is a completeness gap.
+    """
+    if not any("was not kept" in note for note in notes):
+        return None
+    return ReviewIssue(
+        issue_id="chart-facts-not-kept",
+        category=IssueCategory.COMPLETENESS,
+        message=(
+            "One or more chart statements were not kept because a citation did not "
+            "match one block on the cited page. Review the chart before using a "
+            "favorable result."
+        ),
+        action="Open the cited page and confirm the omitted statement.",
+        blocks_readiness=True,
+    )
+
+
+def _optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _present_text(values: Sequence[str]) -> tuple[str, ...]:
+    return tuple(text for value in values if (text := value.strip()))
+
+
+def _filled(value: str, fallback: str) -> tuple[str, bool]:
+    text = value.strip()
+    if text:
+        return text, False
+    return fallback, True
 
 
 def _field_label(field: RequestField) -> str:
@@ -621,17 +667,40 @@ def convert_policy(
                 nodes.append(
                     node_class(node_id=node.node_id, children=node.children, sources=sources)
                 )
-        sections = tuple(
-            PolicySection(
-                section_id=item.section_id,
-                heading=item.heading,
-                sources=_citations(item.citations, resolver, document_id),
-                disposition=item.disposition,
-                criterion_ids=item.criterion_ids,
-                explanation=item.explanation,
+        built_sections: list[PolicySection] = []
+        for index, section in enumerate(candidate.sections):
+            heading, heading_missing = _filled(section.heading, "Untitled section")
+            explanation, explanation_missing = _filled(
+                section.explanation, "The section explanation was not extracted."
             )
-            for item in candidate.sections
-        )
+            if heading_missing or explanation_missing:
+                issues.append(
+                    ReviewIssue(
+                        issue_id=f"conversion-section-label-{index:04d}",
+                        category=IssueCategory.INTERPRETATION,
+                        message=(
+                            f"Section {section.section_id} did not include a heading or "
+                            "explanation. A placeholder was kept with its citations."
+                        ),
+                        action=(
+                            "Confirm the section heading from the guideline before using "
+                            "a favorable result."
+                        ),
+                        blocks_readiness=True,
+                        sources=_citations(section.citations, resolver, document_id),
+                    )
+                )
+            built_sections.append(
+                PolicySection(
+                    section_id=section.section_id,
+                    heading=heading,
+                    sources=_citations(section.citations, resolver, document_id),
+                    disposition=section.disposition,
+                    criterion_ids=section.criterion_ids,
+                    explanation=explanation,
+                )
+            )
+        sections = tuple(built_sections)
         covered = {
             criterion_id
             for section in sections
@@ -652,6 +721,36 @@ def convert_policy(
         )
         if not criteria:
             raise ValueError("An interpreted policy must contain at least one criterion")
+        heading = next(
+            (item.heading.strip() for item in candidate.sections if item.heading.strip()),
+            "",
+        )
+        title, title_missing = _filled(candidate.title, heading or "Untitled extracted section")
+        scope_summary, scope_missing = _filled(
+            candidate.scope_summary, "The section scope was not extracted."
+        )
+        if title_missing or scope_missing:
+            missing = [
+                name
+                for name, absent in (("title", title_missing), ("scope", scope_missing))
+                if absent
+            ]
+            issues.append(
+                ReviewIssue(
+                    issue_id="conversion-policy-label",
+                    category=IssueCategory.INTERPRETATION,
+                    message=(
+                        "The extracted section did not include a "
+                        + " and ".join(missing)
+                        + ". A placeholder was kept so the cited rules remain reviewable."
+                    ),
+                    action=(
+                        "Confirm the section label from the guideline before using "
+                        "a favorable result."
+                    ),
+                    blocks_readiness=True,
+                )
+            )
         revision_date, revision_unreadable = _literal_date(candidate.revision_date)
         effective_from, effective_from_unreadable = _literal_date(candidate.effective_from)
         effective_to, effective_to_unreadable = _literal_date(candidate.effective_to)
@@ -668,12 +767,46 @@ def convert_policy(
                     sources=(),
                 )
             )
+        paths: list[PolicyPath] = []
+        for index, path in enumerate(candidate.paths):
+            path_title, path_title_missing = _filled(
+                path.title, path.path_id.strip() or f"Untitled path {index + 1}"
+            )
+            path_scope, path_scope_missing = _filled(
+                path.scope, "The path scope was not extracted."
+            )
+            if path_title_missing or path_scope_missing:
+                issues.append(
+                    ReviewIssue(
+                        issue_id=f"conversion-path-label-{index:04d}",
+                        category=IssueCategory.INTERPRETATION,
+                        message=(
+                            f"Policy path {path.path_id or index + 1} did not include a "
+                            "title or scope. A placeholder was kept with its citations."
+                        ),
+                        action=(
+                            "Confirm the path label from the guideline before using "
+                            "a favorable result."
+                        ),
+                        blocks_readiness=True,
+                        sources=_citations(path.citations, resolver, document_id),
+                    )
+                )
+            paths.append(
+                PolicyPath(
+                    path_id=path.path_id,
+                    title=path_title,
+                    scope=path_scope,
+                    root_id=path.root_id,
+                    sources=_citations(path.citations, resolver, document_id),
+                )
+            )
         policy = Policy(
             policy_id=policy_id,
             document_id=document_id,
             document_sha256=criteria[0].sources[0].document_sha256,
-            title=candidate.title,
-            scope_summary=candidate.scope_summary,
+            title=title,
+            scope_summary=scope_summary,
             # The prompt forbids empty strings where null belongs. A blank policy
             # number is not an identifier; it must not fail an otherwise valid section.
             identifier=(
@@ -689,16 +822,7 @@ def convert_policy(
             root_id=candidate.root_id,
             sections=sections,
             issues=tuple(issues),
-            paths=tuple(
-                PolicyPath(
-                    path_id=item.path_id,
-                    title=item.title,
-                    scope=item.scope,
-                    root_id=item.root_id,
-                    sources=_citations(item.citations, resolver, document_id),
-                )
-                for item in candidate.paths
-            ),
+            paths=tuple(paths),
         )
         resolver.validate_policy(policy)
         return policy
@@ -709,29 +833,62 @@ def _facts(
     resolver: CitationResolver,
 ) -> tuple[tuple[ChartFact, ...], tuple[str, ...]]:
     chart_id = resolver.document_id_for_role(DocumentRole.CHART)
-    facts: list[ChartFact] = []
     notes: list[str] = []
+    kept: list[
+        tuple[CandidateFact, tuple[SourceSpan, ...], str, date | None, date | None, bool]
+    ] = []
     for item in candidates:
+        if not item.citations:
+            raise ValueError("This domain record requires its own source citations")
+        sources = _scope_spans(item.citations, resolver, chart_id)
+        omitted = len(item.citations) - len(sources)
+        if not sources:
+            notes.append(
+                f"Chart fact {item.fact_id} was not kept because its citation did not "
+                "match one block on the cited page."
+            )
+            continue
+        if omitted:
+            notes.append(
+                f"Chart fact {item.fact_id} was not kept in full because a citation did not "
+                "match one block on the cited page."
+            )
+        proposition = item.proposition.strip()
+        if not proposition:
+            notes.append(f"Chart fact {item.fact_id} was not kept because it had no statement.")
+            continue
         event_date, event_unreadable = _literal_date(item.event_date)
         documentation_date, documentation_unreadable = _literal_date(item.documentation_date)
         if event_unreadable or documentation_unreadable:
             notes.append(CHART_DATE_CONFIRMATION.format(fact_id=item.fact_id))
+        kept.append((item, sources, proposition, event_date, documentation_date, omitted > 0))
+    candidate_fact_ids = {item.fact_id for item in candidates}
+    for item in candidates:
+        if not set(item.conflicting_fact_ids) <= candidate_fact_ids:
+            raise ValueError("Conflict fact references an unknown candidate fact")
+    kept_ids = {item.fact_id for item, *_ in kept}
+    facts = []
+    for item, sources, proposition, event_date, documentation_date, omitted_citation in kept:
+        uncertainty = list(_present_text(item.uncertainty))
+        conflicts = tuple(fact_id for fact_id in item.conflicting_fact_ids if fact_id in kept_ids)
+        if omitted_citation or len(conflicts) != len(item.conflicting_fact_ids):
+            uncertainty.append(_OMITTED_CITATION)
         facts.append(
             ChartFact(
                 fact_id=item.fact_id,
-                proposition=item.proposition,
-                sources=_citations(item.citations, resolver, chart_id),
+                proposition=proposition,
+                sources=sources,
                 polarity=FactPolarity(item.polarity),
                 provenance=FactProvenance(item.provenance),
                 value=item.value,
-                unit=item.unit,
+                unit=_optional_text(item.unit),
                 event_date=event_date,
                 documentation_date=documentation_date,
-                anatomical_target=item.anatomical_target,
-                laterality=item.laterality,
-                context=item.context,
-                uncertainty=item.uncertainty,
-                conflicting_fact_ids=item.conflicting_fact_ids,
+                anatomical_target=_optional_text(item.anatomical_target),
+                laterality=_optional_text(item.laterality),
+                context=_present_text(item.context),
+                uncertainty=tuple(dict.fromkeys(uncertainty)),
+                conflicting_fact_ids=conflicts,
             )
         )
     return tuple(facts), tuple(dict.fromkeys(notes))

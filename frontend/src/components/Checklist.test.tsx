@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Policy, SourceSpan } from '../api'
@@ -102,5 +102,35 @@ describe('Checklist', () => {
     expect(within(card).getByText(/Supporting:/)).toBeVisible()
     expect(within(card).getByText('Documented heart rate.')).toBeVisible()
     expect(within(card).getByRole('button', { name: /Chart, page 3/ })).toBeVisible()
+  })
+
+  it('filters criteria when clicking Gaps only tab', () => {
+    render(<Checklist policy={policy} findings={findings} facts={[]} onCite={vi.fn()} />)
+    expect(screen.getByLabelText('Finding: crit-a')).toBeVisible()
+    expect(screen.getByLabelText('Finding: crit-b')).toBeVisible()
+    expect(screen.getByLabelText('Finding: crit-c')).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: /Needs review/ }))
+    expect(screen.queryByLabelText('Finding: crit-a')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Finding: crit-b')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Finding: crit-c')).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: /Gaps only/ }))
+    expect(screen.queryByLabelText('Finding: crit-a')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Finding: crit-b')).toBeVisible()
+    expect(screen.queryByLabelText('Finding: crit-c')).not.toBeInTheDocument()
+  })
+
+  it('filters criteria when searching text query', () => {
+    render(<Checklist policy={policy} findings={findings} facts={[]} onCite={vi.fn()} />)
+    const searchInput = screen.getByLabelText('Search criteria wording')
+    fireEvent.change(searchInput, { target: { value: 'interp B' } })
+
+    expect(screen.queryByLabelText('Finding: crit-a')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Finding: crit-b')).toBeVisible()
+    expect(screen.queryByLabelText('Finding: crit-c')).not.toBeInTheDocument()
+
+    fireEvent.change(searchInput, { target: { value: 'nonexistent match' } })
+    expect(screen.getByText('No criteria match this search.')).toBeVisible()
   })
 })

@@ -33,7 +33,9 @@ def anyio_backend():
 
 
 def settings(**overrides):
-    return OpenAISettings(api_key=SecretStr("test-key-not-real"), model="test-model", **overrides)
+    base = {"api_key": SecretStr("test-key-not-real"), "model": "test-model"}
+    base.update(overrides)
+    return OpenAISettings(**base)
 
 
 def test_a_stuck_send_fails_before_the_model_read_budget():
@@ -655,6 +657,11 @@ def test_env_file_selects_any_openai_compatible_endpoint(tmp_path):
     chat = OpenAISettings.from_environment(env_file=implied, environ={})
     assert chat.base_url == "http://127.0.0.1:8000/v1"
     assert chat.transport == "chat_completions"
+    shell_transport = OpenAISettings.from_environment(
+        env_file=implied, environ={"AIRA_LLM_TRANSPORT": "responses"}
+    )
+    assert shell_transport.base_url == "http://127.0.0.1:8000/v1"
+    assert shell_transport.transport == "chat_completions"
     assert chat.backend == "litellm"
 
     responses = tmp_path / "responses.env"
@@ -806,3 +813,34 @@ def test_configuration_defaults_api_key_for_custom_endpoint_without_key(tmp_path
     assert s.api_key.get_secret_value() == "not-needed"
     assert s.backend == "openai_compatible"
     assert s.transport == "chat_completions"
+
+
+@pytest.mark.anyio
+async def test_preflight_list_models(capsys):
+    from app.llm.preflight import list_models
+
+    def respond(request):
+        return httpx.Response(
+            200,
+            json={
+                "object": "list",
+                "data": [
+                    {"id": "llama3.1:8b", "object": "model", "created": 1, "owned_by": "ollama"},
+                    {"id": "qwen2.5:14b", "object": "model", "created": 1, "owned_by": "ollama"},
+                ],
+            },
+        )
+
+    test_settings = settings(model="llama3.1:8b", base_url="http://localhost:11434/v1")
+    client = AsyncOpenAI(
+        api_key="test-key-not-real",
+        base_url="http://localhost:11434/v1",
+        max_retries=0,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(respond)),
+    )
+    code = await list_models(test_settings, client=client)
+    assert code == 0
+    captured = capsys.readouterr().out
+    assert "Found 2 accessible model(s):" in captured
+    assert "llama3.1:8b [configured]" in captured
+    assert "qwen2.5:14b" in captured

@@ -69,7 +69,7 @@ class OpenAISettings(BaseModel):
 
         if file_transport:
             transport = file_transport
-        elif custom_backend_requested and shell_transport:
+        elif custom_backend_requested and shell_transport and not file_base:
             transport = shell_transport
         elif custom_endpoint or custom_backend_requested:
             transport = "chat_completions"

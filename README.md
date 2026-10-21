@@ -2,7 +2,7 @@
 
 Take-home project for Aira's Forward Deployed Engineer assessment. The intended product helps clinic staff compare patient chart evidence with an uploaded insurer guideline and identify gaps before submitting a prior authorization request.
 
-The FastAPI/React workspace, strict domain contracts, independently reviewed fixtures, and a local verification suite are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, the OpenAI stage interpreter, the HTTP source API, exports, and the staff review UI are implemented and tested, tracked in the [work breakdown](docs/work-breakdown.md). Live inference is currently blocked by API project quota; the user deferred quota resolution.
+The FastAPI/React workspace, strict domain contracts, independently reviewed fixtures, and a local verification suite are implemented. Native PDF extraction, versioned local storage, pure provenance/rule evaluation, provider-candidate conversion, the assessment workflow engine, the OpenAI stage interpreter, the HTTP source API, exports, and the staff review UI are implemented and tested, tracked in the [work breakdown](docs/work-breakdown.md). A configured OpenAI-compatible endpoint has completed the supplied chart and vein guideline as an applicability mismatch. Direct OpenAI still needs a project with quota.
 
 ## Development
 
@@ -13,7 +13,7 @@ make install
 make check
 ```
 
-Start `make dev-api` and `make dev-ui` in separate terminals, then open http://localhost:5173. Alternatively, `npm --prefix frontend run build` followed by `make dev-api` serves the built UI at http://localhost:8000. `/health` and `/health/live` return 200; `/health/ready` returns 503 until `OPENAI_API_KEY` and `AIRA_MODEL` are configured (see `.env.example`), since the app then starts the real workflow engine. The application stores its data under `AIRA_DATA_DIR`, defaulting to `data/app`; the `/api` routes accept document uploads, standalone document preparation (build, retry, rebuild, approve, reject), assessment submissions, status polling, source pages, and exports. Submitting an assessment makes billable model calls and remains blocked until quota is restored.
+Start `make dev-api` and `make dev-ui` in separate terminals, then open http://localhost:5173. Alternatively, `npm --prefix frontend run build` followed by `make dev-api` serves the built UI at http://localhost:8000. `/health` and `/health/live` return 200; `/health/ready` returns 503 until `OPENAI_API_KEY` and `AIRA_MODEL` are configured (see `.env.example`), since the app then starts the real workflow engine. The application stores its data under `AIRA_DATA_DIR`, defaulting to `data/app`; the `/api` routes accept document uploads, standalone document preparation (build, retry, rebuild, approve, reject), assessment submissions, status polling, source pages, and exports. Submitting an assessment makes billable model calls. The first read of the sample guideline takes tens of minutes; a later assessment reuses the saved rule set.
 
 Run the saved Chromium tests after installing the browser:
 
@@ -30,12 +30,12 @@ Prerequisites: uv and Node 24/npm. No OpenAI key is needed to boot the applicati
 
 1. `cp .env.example .env` and set `OPENAI_API_KEY` and `AIRA_MODEL` (server-side only — the key never reaches the browser).
 2. `./scripts/launch.sh` — installs locked dependencies, builds the UI, and serves everything at http://localhost:8000.
-3. Optionally verify model access once: `uv run --project backend python -m app.llm.preflight` — it writes the verification record into the data directory, so readiness reports it.
+3. Optionally verify model access once: `uv run --project backend python -m app.llm.preflight` — it writes the verification record into the data directory, so readiness reports it. To list accessible models from an OpenAI-compatible endpoint without billable calls, run `uv run --project backend python -m app.llm.preflight --list-models`.
 4. Upload a policy and use **Prepare document** to build its reusable rule set without a chart. Inspect coverage, extraction steps, issues, and saved versions. Prepare a chart independently, or let **Start assessment** prepare both automatically. Select saved versions, fill optional request metadata, and assess. Results retain their exact build IDs and export JSON or Markdown.
 
 Synthetic fictional PDFs for development cases live in [examples/synthetic](examples/synthetic/README.md).
 
-Application data persists under `data/app` (overridable with `AIRA_DATA_DIR`). Intake accepts native-text PDFs up to 10 MiB / 250 pages and 2,000,000 extracted characters; each call/build also has explicit budgets. Controlled tests complete 100/200-page fictional guidelines; this does not establish live model quality on arbitrary documents. Image-only pages fail explicitly by default. OCR is an opt-in parser configuration requiring Tesseract. Password-protected, unsupported annotated, rotated, or fillable-form inputs fail rather than silently lose content. On first run without credentials the UI explains the missing configuration and stays usable for uploads; readiness never claims verified model access, and live assessment calls remain blocked until the deferred API quota is restored.
+Application data persists under `data/app` (overridable with `AIRA_DATA_DIR`). Intake accepts native-text PDFs up to 10 MiB / 250 pages and 2,000,000 extracted characters; each call/build also has explicit budgets. Controlled tests complete 100/200-page fictional guidelines; this does not establish live model quality on arbitrary documents. Image-only pages fail explicitly by default. OCR is an opt-in parser configuration requiring Tesseract. Password-protected, unsupported annotated, rotated, or fillable-form inputs fail rather than silently lose content. On first run without credentials the UI explains the missing configuration and stays usable for uploads. Readiness never claims verified model access until preflight has recorded it.
 
 To exercise the review journeys without credentials, `npm --prefix frontend run build` then `make browser-test` starts the local app plus a labeled fixture server and replays the saved staff journeys, including independent preparation and recovery.
 
@@ -47,7 +47,7 @@ Prepare an isolated development-text experiment without API calls:
 uv run --project backend python -m app.llm.experiment --case venous_matched --stage scope
 ```
 
-The output under ignored `data/model-experiments/` contains the prompt, schema, page-tagged inputs, and source hashes. After quota is restored, `python -m app.llm.preflight` (through `uv run --project backend`) explicitly tests access; add `--live` to the experiment command to make a billable stage call. No health endpoint or CI job invokes inference. See the [feasibility record](docs/results/model-feasibility.md) for observed failures, comparison commands, and validation limits.
+The output under ignored `data/model-experiments/` contains the prompt, schema, page-tagged inputs, and source hashes. `python -m app.llm.preflight` (through `uv run --project backend`) explicitly tests access; add `--live` to the experiment command to make a billable stage call. No health endpoint or CI job invokes inference. See the [feasibility record](docs/results/model-feasibility.md) for observed failures, comparison commands, and validation limits.
 
 The workflow CLI runs a full assessment over real PDFs through the production interpreter:
 
@@ -58,7 +58,7 @@ uv run --project backend python -m app.cli assess \
   --data-dir data/cli
 ```
 
-It makes billable model calls and remains blocked until quota is restored; run it with a development key only. `run.json`, `export.json`, and `checklist.md` land under `data/cli/exports/` (see the [stage interpreter record](docs/results/stage-interpreter.md)).
+It makes billable model calls. Run it only with a configured key and model. The first guideline preparation takes tens of minutes. `run.json`, `export.json`, and `checklist.md` land under `data/cli/exports/` (see the [stage interpreter record](docs/results/stage-interpreter.md)).
 
 ## Verification
 
@@ -71,7 +71,7 @@ make browser-test  # saved Playwright journeys against the built UI
 
 Both targets run with no model credentials and make no live inference calls. `make check` must pass before each implementation package is marked complete.
 
-The local command is `./scripts/launch.sh`. It serves the review UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured. The live A19 upload-to-export workflow remains unverified under the deferred quota.
+The local command is `./scripts/launch.sh`. It serves the review UI and API and starts processing once `OPENAI_API_KEY`/`AIRA_MODEL` are configured. The supplied pair has been run live to an applicability mismatch. That is not a scored checklist and not a claim that every guideline is complete.
 
 ## Long-document preparation
 

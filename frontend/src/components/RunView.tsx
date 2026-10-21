@@ -265,6 +265,28 @@ function Issues({ run }: { run: RunRecord }) {
 }
 
 function ExportLinks({ runId }: { runId: string }) {
+  const [copied, setCopied] = useState(false)
+  const [copying, setCopying] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      setCopying(true)
+      setCopied(false)
+      setCopyFailed(false)
+      const response = await fetch(`/api/assessments/${runId}/export?format=markdown`)
+      if (!response.ok) throw new Error('Markdown export request failed')
+      const text = await response.text()
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopyFailed(true)
+    } finally {
+      setCopying(false)
+    }
+  }
+
   return (
     <p className="exports">
       <a href={`/api/assessments/${runId}/export?format=json`} download>
@@ -272,7 +294,14 @@ function ExportLinks({ runId }: { runId: string }) {
       </a>{' '}
       <a href={`/api/assessments/${runId}/export?format=markdown`} download>
         Download Markdown
-      </a>
+      </a>{' '}
+      <button
+        type="button"
+        onClick={() => void handleCopy()}
+        disabled={copying}
+      >
+        {copied ? 'Copied Markdown' : copyFailed ? 'Copy failed' : copying ? 'Copying…' : 'Copy Markdown'}
+      </button>
     </p>
   )
 }
